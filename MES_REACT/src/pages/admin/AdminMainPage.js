@@ -1,51 +1,82 @@
 // src/pages/admin/AdminMainPage.js
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { Outlet } from "react-router-dom"; // 핵심: 자식 컴포넌트가 들어올 구멍
-
-// 만들어두신 컴포넌트 import (경로 확인해주세요)
 import AdminSideBar from "../../components/layouts/AdminSideBar";
 import AdminHeader from "../../components/layouts/AdminHeader";
+import { MENU_LIST } from "../../data/menuList"; // 1단계의 데이터
 
 const AdminMainPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // 1. 탭 목록 상태 (기본값: Home)
+  const [tabs, setTabs] = useState([{ name: "MES Home", path: "/" }]);
+
+  // 2. URL이 바뀔 때마다 탭 목록에 추가하는 감지 로직
+  useEffect(() => {
+    // 현재 경로에 해당하는 메뉴 찾기
+    const currentMenu = MENU_LIST.find(
+      (menu) => menu.path === location.pathname
+    );
+
+    if (currentMenu) {
+      // 이미 탭에 있는지 확인
+      const exists = tabs.find((tab) => tab.path === currentMenu.path);
+      if (!exists) {
+        setTabs([...tabs, currentMenu]); // 없으면 추가
+      }
+    }
+  }, [location.pathname]); // 경로가 바뀔 때마다 실행
+
+  // 3. 탭 닫기 함수
+  const removeTab = (pathToRemove) => {
+    // 닫으려는 탭 제외하고 남기기
+    const newTabs = tabs.filter((tab) => tab.path !== pathToRemove);
+    setTabs(newTabs);
+
+    // 만약 현재 보고 있는 탭을 닫았다면, 마지막 탭으로 이동
+    if (location.pathname === pathToRemove) {
+      const lastTab = newTabs[newTabs.length - 1];
+      navigate(lastTab ? lastTab.path : "/");
+    }
+  };
+
   return (
-    <Container>
-      {/* 1. 왼쪽 고정 사이드바 */}
+    <PageContainer>
       <AdminSideBar />
-
-      {/* 2. 우측 영역 (헤더 + 콘텐츠) */}
-      <MainWrapper>
-        <AdminHeader />
-
+      <MainContent>
+        {/* Header에 탭 목록(tabs)과 삭제 함수(removeTab) 전달 */}
+        <AdminHeader tabs={tabs} removeTab={removeTab} />
         <ContentArea>
-          {/* 여기가 핵심입니다! URL에 따라 Dashboard, ProductManage 등이 여기에 렌더링됩니다. */}
           <Outlet />
         </ContentArea>
-      </MainWrapper>
-    </Container>
+      </MainContent>
+    </PageContainer>
   );
 };
 
 export default AdminMainPage;
 
-// --- 스타일 (지난번 레이아웃 코드 활용) ---
-const Container = styled.div`
+const PageContainer = styled.div`
   display: flex;
-  width: 100vw;
-  height: 100vh;
+  width: 1920px;
+  height: 1080px;
   background-color: #f4f4f4;
+  overflow: hidden;
 `;
-
-const MainWrapper = styled.div`
+const MainContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 스크롤은 ContentArea 내부에서만 생기도록 */
+  border-bottom: 1px solid #ccc;
+  border-right: 1px solid #ccc;
 `;
-
 const ContentArea = styled.div`
   flex: 1;
-  padding: 20px;
-  overflow-y: auto; /* 내용이 길어지면 여기서 스크롤 */
-  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
 `;
