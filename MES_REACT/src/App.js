@@ -6,9 +6,10 @@ import GlobalStyle from "./style/GlobalStyle";
 // 페이지 Import
 import AdminMainPage from "./pages/admin/AdminMainPage";
 import DashboardPage from "./components/admin/DashboardPage";
-import ProductManagePage from "./components/admin/ProductManagePage";
+import MaterialPage from "./components/admin/materialPage";
 import WorkOrderPage from "./components/admin/WorkOrderPage";
 import LoginPage from "./pages/Auth/LoginPage";
+import Homepage from "./components/admin/HomePage";
 
 const App = () => {
   return (
@@ -19,10 +20,11 @@ const App = () => {
         <Route path="/login" element={<LoginPage />} />
 
         <Route path="/" element={<AdminMainPage />}>
-          <Route index element={<DashboardPage />} />
+          <Route index element={<Homepage />} />
+
           <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="products" element={<ProductManagePage />} />
-          <Route path="orders" element={<WorkOrderPage />} />
+          <Route path="material" element={<MaterialPage />} />
+          <Route path="workorder" element={<WorkOrderPage />} />
         </Route>
       </Routes>
     </>
