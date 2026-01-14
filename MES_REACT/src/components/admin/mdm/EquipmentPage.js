@@ -1,4 +1,3 @@
-// src/pages/mdm/EquipmentPage.js
 import React, { useState } from "react";
 import styled from "styled-components";
 import {
@@ -13,7 +12,6 @@ import {
   FaTrash,
 } from "react-icons/fa";
 
-// --- Mock Data (설비 자산 데이터) ---
 const EQUIPMENT_LIST = [
   {
     id: "EQ-TCB-01",
@@ -21,7 +19,7 @@ const EQUIPMENT_LIST = [
     model: "BESI-8800-H",
     vendor: "BESI",
     location: "Line-A (Stacking)",
-    status: "ACTIVE", // ACTIVE, DISPOSED, MAINTENANCE
+    status: "ACTIVE",
     installDate: "2022-01-15",
     network: { ip: "192.168.10.101", port: "5000", protocol: "SECS/GEM" },
     maintenance: {

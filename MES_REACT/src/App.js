@@ -8,7 +8,6 @@ import AdminMainPage from "./pages/admin/AdminMainPage";
 import DashboardPage from "./components/admin/dashboard/DashboardPage";
 import MaterialPage from "./components/admin/material/MaterialPage";
 import WorkOrderPage from "./components/admin/production/WorkOrderPage";
-
 import LoginPage from "./pages/Auth/LoginPage";
 import KpiPage from "./components/admin/dashboard/KpiPage";
 import ProductionPlanPage from "./components/admin/production/ProductionPlanPage";
@@ -18,7 +17,6 @@ import EquipmentPage from "./components/admin/mdm/EquipmentPage";
 import LocationPage from "./components/admin/mdm/LocationPage";
 import ItemPage from "./components/admin/mdm/ItemPage";
 import RoutingPage from "./components/admin/mdm/RoutingPage";
-
 import CodesPage from "./components/admin/system/CodesPage";
 import LogsPage from "./components/admin/system/LogsPage";
 import RolesPage from "./components/admin/system/RolesPage";
