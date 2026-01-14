@@ -10,7 +10,6 @@ import MaterialPage from "./components/admin/material/MaterialPage";
 import WorkOrderPage from "./components/admin/production/WorkOrderPage";
 
 import LoginPage from "./pages/Auth/LoginPage";
-import Homepage from "./components/admin/HomePage";
 import KpiPage from "./components/admin/dashboard/KpiPage";
 import ProductionPlanPage from "./components/admin/production/ProductionPlanPage";
 import PerformancePage from "./components/admin/production/PerformancePage";
@@ -40,10 +39,10 @@ const App = () => {
         <Route path="/login" element={<LoginPage />} />
 
         <Route path="/" element={<AdminMainPage />}>
-          <Route index element={<Homepage />} />
+          <Route index element={<DashboardPage />} />
 
-          <Route path="dashboard" element={<DashboardPage />} />
           <Route path="dashboard/kpi" element={<KpiPage />} />
+          <Route path="dashboard" element={<DashboardPage />} />
 
           <Route path="production/plan" element={<ProductionPlanPage />} />
           <Route path="production/workorder" element={<WorkOrderPage />} />
