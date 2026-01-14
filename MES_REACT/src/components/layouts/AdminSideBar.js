@@ -27,7 +27,7 @@ const AdminSideBar = () => {
       title: "모니터링/대시보드",
       icon: <FaChartPie />,
       subMenus: [
-        { title: "종합 상황판", path: "/dashboard" },
+        { title: "종합 상황판", path: "/" },
         { title: "KPI 분석", path: "/dashboard/kpi" },
       ],
     },

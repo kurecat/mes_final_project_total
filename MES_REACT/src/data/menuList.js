@@ -1,5 +1,4 @@
 export const MENU_LIST = [
-  { name: "종합 상황판", path: "/dashboard" },
   { name: "KPI 분석", path: "/dashboard/kpi" },
 
   { name: "생산 계획", path: "/production/plan" },
