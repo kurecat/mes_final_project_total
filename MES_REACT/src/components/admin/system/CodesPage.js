@@ -1,19 +1,18 @@
 import React from "react";
 import styled from "styled-components";
 
-//
-
 const Container = styled.div`
   width: 100%;
   height: 100%;
   background-color: #ffffff;
 `;
 
-const materialPage = () => {
+const CodesPage = () => {
   return (
     <Container>
-      <p>materialPage 임.</p>
+      <p>공통 코드 페이지</p>
     </Container>
   );
 };
-export default materialPage;
+
+export default CodesPage;
