@@ -40,6 +40,7 @@ const AdminSideBar = () => {
         { title: "작업 지시", path: "/production/workorder" },
         { title: "생산 실적 현황", path: "/production/performance" },
         { title: "작업자 배치", path: "/production/worker" },
+        { title: "바코드", path: "/production/barcode" },
       ],
     },
     {

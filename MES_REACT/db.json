@@ -1699,5 +1699,67 @@
       "phone": "010-5678-9012",
       "avatar": null
     }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "DDR5 Memory Module 16GB",
+      "barcode": "8801234567891",
+      "category": "Memory",
+      "price": 85000,
+      "stock": 150,
+      "location": "A-01-02",
+      "description": "High performance RAM for servers."
+    },
+    {
+      "id": 2,
+      "name": "NAND Flash Controller",
+      "barcode": "8801234567892",
+      "category": "Controller",
+      "price": 12000,
+      "stock": 5000,
+      "location": "B-05-11",
+      "description": "Next-gen storage controller chip."
+    },
+    {
+      "id": 3,
+      "name": "Display Driver IC (DDI)",
+      "barcode": "8801234567893",
+      "category": "Logic",
+      "price": 5500,
+      "stock": 1200,
+      "location": "A-02-05",
+      "description": "OLED display driver."
+    },
+    {
+      "id": 4,
+      "name": "Camera Image Sensor",
+      "barcode": "PROD-2024-001",
+      "category": "Sensor",
+      "price": 45000,
+      "stock": 300,
+      "location": "C-10-01",
+      "description": "108MP Mobile Image Sensor."
+    },
+    {
+      "id": 5,
+      "name": "test",
+      "barcode": "8801111111111",
+      "category": "Sensor",
+      "price": 45000,
+      "stock": 300,
+      "location": "C-01-01",
+      "description": "108MP Mobile Image Sensor."
+    },
+    {
+      "id": 6,
+      "name": "test2",
+      "barcode": "aaaaaaaa",
+      "category": "Sensor",
+      "price": 45000,
+      "stock": 300,
+      "location": "C-01-01",
+      "description": "108MP Mobile Image Sensor."
+    }
   ]
 }

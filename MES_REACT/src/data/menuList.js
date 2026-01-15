@@ -5,6 +5,7 @@ export const MENU_LIST = [
   { name: "작업 지시", path: "/production/workorder" },
   { name: "생산 실적 현황", path: "/production/performance" },
   { name: "작업자 배치", path: "/production/worker" },
+  { name: "바코드", path: "/production/barcode" },
 
   { name: "검사 기준 설정", path: "/quality/standard" },
   { name: "불량 관리", path: "/quality/defect" },

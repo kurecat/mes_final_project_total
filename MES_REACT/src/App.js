@@ -28,6 +28,7 @@ import TrackingPage from "./components/admin/quality/LotTrackingPage";
 import StandardPage from "./components/admin/quality/StandardPage";
 import WorkerPage from "./components/admin/production/WorkerPage";
 import SpcChartPage from "./components/admin/quality/SpcChartPage";
+import BarcodePage from "./components/admin/production/BarcodePage";
 
 const App = () => {
   return (
@@ -47,6 +48,7 @@ const App = () => {
           <Route path="production/workorder" element={<WorkOrderPage />} />
           <Route path="production/performance" element={<PerformancePage />} />
           <Route path="production/worker" element={<WorkerPage />} />
+          <Route path="production/barcode" element={<BarcodePage />} />
 
           <Route path="quality/defect" element={<DefectPage />} />
           <Route path="quality/tracking" element={<TrackingPage />} />
