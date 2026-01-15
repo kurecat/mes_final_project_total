@@ -10,119 +10,156 @@ import {
   FaEdit,
   FaFileExport,
   FaChevronRight,
-  FaChevronDown,
+  FaFlask, // 화학 자재용 아이콘
+  FaMicrochip, // 칩 아이콘
 } from "react-icons/fa";
 
-// --- Mock Data (HBM BOM 구조) ---
-// 실제로는 API에서 재귀적(Recursive) 구조로 받아옵니다.
+// --- Mock Data (D-RAM BOM 구조) ---
 const BOM_LIST = [
   {
-    id: "BOM-HBM3-8HI",
-    name: "HBM3 8-Hi Stack Module",
-    revision: "Rev. C",
+    id: "BOM-DDR5-MOD-16G",
+    name: "DDR5 16GB UDIMM 5600MHz",
+    revision: "Rev. B",
     status: "ACTIVE",
-    type: "FG", // Finished Good
-    lastUpdated: "2024-05-15",
+    type: "FG", // 완제품 (Module)
+    lastUpdated: "2024-06-01",
     children: [
       {
         level: 1,
-        id: "SA-CORE-001",
-        name: "8-Hi Core Die Stack",
-        type: "ASSY",
+        id: "PCB-DDR5-U08",
+        name: "DDR5 UDIMM PCB",
+        type: "PART",
         qty: 1,
         unit: "ea",
-        spec: "Stacking",
+        spec: "8-Layer, OSP",
       },
       {
-        level: 2,
-        id: "CP-DRAM-102",
-        name: "16Gb DRAM Die (KGSD)",
-        type: "PART",
+        level: 1,
+        id: "IC-DDR5-16Gb",
+        name: "DDR5 16Gb SDRAM",
+        type: "ASSY",
         qty: 8,
         unit: "ea",
-        spec: "10nm Class",
-      },
-      {
-        level: 2,
-        id: "MT-NCF-055",
-        name: "Non-Conductive Film",
-        type: "MAT",
-        qty: 0.5,
-        unit: "roll",
-        spec: "T-20um",
-      },
+        spec: "x8 Component",
+      }, // 하위 BOM 존재 (단품)
       {
         level: 1,
-        id: "CP-LOGIC-009",
-        name: "Base Logic Die",
+        id: "IC-SPD-HUB",
+        name: "SPD Hub + PMIC",
         type: "PART",
         qty: 1,
         unit: "ea",
-        spec: "Controller",
+        spec: "Renesas",
       },
       {
         level: 1,
-        id: "MT-UF-900",
-        name: "Molded Underfill",
+        id: "PASSIVE-R-0402",
+        name: "Chip Resistor",
         type: "MAT",
-        qty: 2.5,
-        unit: "g",
-        spec: "MUF-Series",
+        qty: 32,
+        unit: "ea",
+        spec: "100 ohm",
       },
       {
         level: 1,
-        id: "SA-SUB-200",
-        name: "Package Substrate",
-        type: "ASSY",
-        qty: 1,
-        unit: "ea",
-        spec: "BGA Type",
-      },
-      {
-        level: 2,
-        id: "MT-BUMP-001",
-        name: "Micro Bump (SnAg)",
+        id: "PASSIVE-C-0402",
+        name: "MLCC",
         type: "MAT",
-        qty: 4500,
+        qty: 16,
         unit: "ea",
-        spec: "20um Pitch",
+        spec: "10uF",
       },
     ],
   },
   {
-    id: "BOM-DDR5-MOD",
-    name: "DDR5 32GB UDIMM",
+    id: "BOM-DDR5-IC-16Gb",
+    name: "DDR5 16Gb SDRAM Component",
     revision: "Rev. A",
-    status: "DRAFT",
-    type: "FG",
+    status: "ACTIVE",
+    type: "ASSY", // 반제품 (Component)
     lastUpdated: "2024-05-20",
     children: [
       {
         level: 1,
-        id: "CP-PCB-004",
-        name: "DDR5 PCB Board",
+        id: "WF-DDR5-PROC",
+        name: "Processed D-RAM Wafer",
+        type: "ASSY",
+        qty: 1,
+        unit: "ea",
+        spec: "1znm Node",
+      }, // Fab 완료 웨이퍼
+      {
+        level: 1,
+        id: "LF-BGA-78",
+        name: "BGA Substrate",
         type: "PART",
         qty: 1,
         unit: "ea",
-        spec: "8-Layer",
+        spec: "78-Ball",
       },
       {
         level: 1,
-        id: "CP-IC-505",
-        name: "DDR5 SDRAM IC",
-        type: "PART",
-        qty: 16,
-        unit: "ea",
-        spec: "2G x 8",
+        id: "MAT-EMC-G700",
+        name: "Epoxy Molding Compound",
+        type: "MAT",
+        qty: 0.5,
+        unit: "g",
+        spec: "Low Warpage",
       },
       {
         level: 1,
-        id: "MT-SPD-001",
-        name: "SPD Hub EEPROM",
-        type: "PART",
+        id: "MAT-WIRE-AU",
+        name: "Bonding Wire",
+        type: "MAT",
+        qty: 25,
+        unit: "mm",
+        spec: "Au 99.99%",
+      },
+    ],
+  },
+  {
+    id: "BOM-WF-DDR5-PROC",
+    name: "Processed D-RAM Wafer (Fab)",
+    revision: "Rev. C",
+    status: "ACTIVE",
+    type: "ASSY", // 반제품 (Fab Out)
+    lastUpdated: "2024-05-15",
+    children: [
+      {
+        level: 1,
+        id: "RM-WF-12-P",
+        name: "12-inch Prime Wafer",
+        type: "MAT",
         qty: 1,
         unit: "ea",
-        spec: "I3C",
+        spec: "Si (100) P-Type",
+      },
+      {
+        level: 1,
+        id: "CHM-PR-ARF",
+        name: "Photo Resist (ArF)",
+        type: "CHEM",
+        qty: 15,
+        unit: "ml",
+        spec: "Immersion Grade",
+      },
+      {
+        level: 1,
+        id: "GAS-C4F6",
+        name: "Etching Gas (C4F6)",
+        type: "CHEM",
+        qty: 500,
+        unit: "sccm",
+        spec: "99.999%",
+      },
+      {
+        level: 1,
+        id: "TGT-CU-01",
+        name: "Copper Target",
+        type: "MAT",
+        qty: 0.01,
+        unit: "ea",
+        spec: "PVD Deposition",
       },
     ],
   },
@@ -132,7 +169,6 @@ const BomPage = () => {
   const [selectedBom, setSelectedBom] = useState(BOM_LIST[0]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // BOM 목록 필터링
   const filteredBoms = BOM_LIST.filter(
     (bom) =>
       bom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -230,7 +266,7 @@ const BomPage = () => {
                 </td>
                 <td>1</td>
                 <td>ea</td>
-                <td>Finished Good</td>
+                <td>Finished Product</td>
               </RootRow>
 
               {/* 자식 아이템들 표시 */}
@@ -243,13 +279,27 @@ const BomPage = () => {
                     {child.id}
                   </td>
                   <td className="name">
-                    {/* 레벨에 따른 들여쓰기 시각화 */}
                     <Indent $level={child.level}>
-                      {child.level > 1 && <LCorner />}
-                      {child.type === "ASSY" ? (
-                        <FaCube color="#f39c12" /> // 반제품/Assy는 상자 아이콘
+                      <LCorner />
+                      {/* 자재 타입별 아이콘 분기 */}
+                      {child.type === "CHEM" ? (
+                        <FaFlask
+                          color="#e74c3c"
+                          size={12}
+                          style={{ marginRight: 5 }}
+                        />
+                      ) : child.type === "ASSY" ? (
+                        <FaMicrochip
+                          color="#f39c12"
+                          size={12}
+                          style={{ marginRight: 5 }}
+                        />
                       ) : (
-                        <FaChevronRight size={10} color="#ccc" /> // 부품은 화살표
+                        <FaCube
+                          color="#3498db"
+                          size={12}
+                          style={{ marginRight: 5 }}
+                        />
                       )}
                       <span>{child.name}</span>
                     </Indent>
@@ -274,7 +324,7 @@ const BomPage = () => {
 
 export default BomPage;
 
-// --- Styled Components ---
+// --- Styled Components (기존 유지) ---
 
 const Container = styled.div`
   width: 100%;
@@ -284,7 +334,6 @@ const Container = styled.div`
   box-sizing: border-box;
 `;
 
-// Left Sidebar
 const Sidebar = styled.div`
   width: 320px;
   background: white;
@@ -298,7 +347,6 @@ const SidebarHeader = styled.div`
   padding: 20px;
   border-bottom: 1px solid #eee;
 `;
-
 const Title = styled.h2`
   font-size: 18px;
   color: #333;
@@ -315,7 +363,6 @@ const SearchBox = styled.div`
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid #eee;
-
   input {
     border: none;
     background: transparent;
@@ -338,7 +385,6 @@ const BomItem = styled.div`
   background-color: ${(props) => (props.$active ? "#eef2f8" : "white")};
   border-left: 4px solid
     ${(props) => (props.$active ? "#1a4f8b" : "transparent")};
-
   &:hover {
     background-color: #f9f9f9;
   }
@@ -350,20 +396,17 @@ const ItemTop = styled.div`
   align-items: center;
   margin-bottom: 5px;
 `;
-
 const ItemName = styled.div`
   font-weight: 600;
   font-size: 14px;
   color: #333;
 `;
-
 const ItemBottom = styled.div`
   display: flex;
   justify-content: space-between;
   font-size: 12px;
   color: #888;
 `;
-
 const StatusBadge = styled.span`
   font-size: 10px;
   padding: 2px 6px;
@@ -387,18 +430,16 @@ const AddButton = styled.button`
   justify-content: center;
   align-items: center;
   gap: 8px;
-
   &:hover {
     background-color: #133b6b;
   }
 `;
 
-// Right Content
 const ContentArea = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 내부 스크롤 사용 */
+  overflow: hidden;
 `;
 
 const DetailHeader = styled.div`
@@ -409,7 +450,6 @@ const DetailHeader = styled.div`
   justify-content: space-between;
   align-items: center;
 `;
-
 const HeaderLeft = styled.div``;
 const HeaderRight = styled.div`
   display: flex;
@@ -424,7 +464,6 @@ const ProductName = styled.div`
   align-items: center;
   gap: 10px;
 `;
-
 const RevBadge = styled.span`
   font-size: 12px;
   background-color: #333;
@@ -433,7 +472,6 @@ const RevBadge = styled.span`
   border-radius: 12px;
   vertical-align: middle;
 `;
-
 const ProductMeta = styled.div`
   margin-top: 5px;
   font-size: 13px;
@@ -451,10 +489,8 @@ const ActionButton = styled.button`
   display: flex;
   align-items: center;
   gap: 6px;
-
   &:hover {
     opacity: 0.9;
-    background-color: ${(props) => (props.$primary ? "#133b6b" : "#f5f5f5")};
   }
 `;
 
@@ -471,7 +507,6 @@ const BomTable = styled.table`
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   overflow: hidden;
-
   thead {
     background-color: #f1f3f5;
     th {
@@ -483,7 +518,6 @@ const BomTable = styled.table`
       border-bottom: 1px solid #ddd;
     }
   }
-
   tbody {
     tr {
       border-bottom: 1px solid #eee;
@@ -496,7 +530,6 @@ const BomTable = styled.table`
       font-size: 14px;
       color: #333;
       vertical-align: middle;
-
       &.name {
         font-weight: 600;
       }
@@ -505,25 +538,22 @@ const BomTable = styled.table`
 `;
 
 const RootRow = styled.tr`
-  background-color: #fffde7 !important; /* 최상위 로우 강조 */
+  background-color: #fffde7 !important;
   font-weight: bold;
 `;
-
 const Indent = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  /* 레벨에 따라 좌측 여백 추가 */
   padding-left: ${(props) => (props.$level - 1) * 20}px;
 `;
-
 const LCorner = styled.div`
   width: 10px;
   height: 10px;
   border-left: 2px solid #ccc;
   border-bottom: 2px solid #ccc;
   margin-right: 5px;
-  margin-bottom: 5px; /* 위치 조정 */
+  margin-bottom: 5px;
 `;
 
 const TypeLabel = styled.span`
@@ -531,23 +561,20 @@ const TypeLabel = styled.span`
   padding: 3px 6px;
   border-radius: 4px;
   font-weight: 700;
-
-  /* Type별 색상 구분 */
   background-color: ${(props) =>
     props.$type === "ASSY"
       ? "#fff3e0"
-      : props.$type === "MAT"
-      ? "#e3f2fd"
+      : props.$type === "CHEM"
+      ? "#ffebee"
       : props.$type === "FG"
       ? "#e8f5e9"
-      : "#f5f5f5"};
-
+      : "#e3f2fd"};
   color: ${(props) =>
     props.$type === "ASSY"
       ? "#e67e22"
-      : props.$type === "MAT"
-      ? "#1976d2"
+      : props.$type === "CHEM"
+      ? "#c62828"
       : props.$type === "FG"
       ? "#2e7d32"
-      : "#666"};
+      : "#1976d2"};
 `;

@@ -10,71 +10,87 @@ import {
   FaFilter,
   FaIndustry,
   FaClock,
-  FaEllipsisV,
+  FaExclamationCircle,
+  FaMicrochip,
 } from "react-icons/fa";
 
-// --- Mock Data (작업 지시 목록) ---
+// --- Mock Data (D-RAM 작업 지시 목록) ---
 const INITIAL_ORDERS = [
   {
-    id: "WO-240520-001",
-    product: "HBM3 8-Hi Stack Module",
-    line: "Line-A",
+    id: "WO-FAB-240601-A",
+    product: "DDR5 1znm Wafer Process",
+    line: "Line-Fab-01",
+    type: "FAB",
     status: "RUNNING", // RUNNING, PAUSED, READY, DONE
-    planQty: 500,
-    actualQty: 245,
-    startTime: "08:30:00",
+    planQty: 25, // Lot 단위 (Wafer 25매)
+    actualQty: 12,
+    unit: "wfrs",
+    startTime: "06:30:00",
     endTime: null,
-    worker: "Kim",
-    progress: 49,
+    worker: "Eng. Kim",
+    progress: 48,
+    priority: "HIGH",
   },
   {
-    id: "WO-240520-002",
-    product: "HBM3 12-Hi Stack",
-    line: "Line-A",
-    status: "READY",
-    planQty: 300,
-    actualQty: 0,
-    startTime: null,
+    id: "WO-EDS-240601-B",
+    product: "16Gb DDR5 SDRAM Test",
+    line: "Line-EDS-02",
+    type: "EDS",
+    status: "PAUSED",
+    planQty: 5000,
+    actualQty: 1200,
+    unit: "chips",
+    startTime: "09:00:00",
     endTime: null,
-    worker: "-",
-    progress: 0,
+    worker: "Op. Lee",
+    progress: 24,
+    issue: "Yield Drop Alert (<90%)", // 수율 저하로 인한 일시 정지
+    priority: "NORMAL",
   },
   {
-    id: "WO-240520-003",
-    product: "DDR5 32GB UDIMM",
-    line: "Line-C",
+    id: "WO-MOD-240601-C",
+    product: "DDR5 32GB UDIMM Assy",
+    line: "Line-Mod-03",
+    type: "MODULE",
     status: "DONE",
     planQty: 1000,
     actualQty: 1000,
+    unit: "ea",
     startTime: "08:00:00",
-    endTime: "11:45:00",
-    worker: "Lee",
+    endTime: "14:20:00",
+    worker: "Op. Park",
     progress: 100,
+    priority: "NORMAL",
   },
   {
-    id: "WO-240520-004",
-    product: "Package Substrate Assy",
-    line: "Line-B",
-    status: "PAUSED",
-    planQty: 450,
-    actualQty: 120,
-    startTime: "09:00:00",
-    endTime: null,
-    worker: "Park",
-    progress: 26,
-    issue: "Material Shortage", // 일시정지 사유
-  },
-  {
-    id: "WO-240520-005",
-    product: "Logic Die Test",
-    line: "Line-C",
+    id: "WO-FAB-240602-D",
+    product: "LPDDR5X Mobile DRAM",
+    line: "Line-Fab-01",
+    type: "FAB",
     status: "READY",
-    planQty: 2000,
+    planQty: 50,
     actualQty: 0,
+    unit: "wfrs",
     startTime: null,
     endTime: null,
     worker: "-",
     progress: 0,
+    priority: "URGENT", // 긴급 오더
+  },
+  {
+    id: "WO-EDS-240602-E",
+    product: "DDR4 8Gb Legacy Test",
+    line: "Line-EDS-01",
+    type: "EDS",
+    status: "READY",
+    planQty: 10000,
+    actualQty: 0,
+    unit: "chips",
+    startTime: null,
+    endTime: null,
+    worker: "-",
+    progress: 0,
+    priority: "LOW",
   },
 ];
 
@@ -86,14 +102,17 @@ const WorkOrderPage = () => {
   const updateStatus = (id, newStatus) => {
     const updated = orders.map((order) => {
       if (order.id === id) {
-        // 실제로는 API 호출 및 시간 기록 로직 필요
         let updates = { status: newStatus };
         if (newStatus === "RUNNING" && !order.startTime) {
-          updates.startTime = new Date().toLocaleTimeString();
+          updates.startTime = new Date().toLocaleTimeString("en-US", {
+            hour12: false,
+          });
         }
         if (newStatus === "DONE") {
-          updates.endTime = new Date().toLocaleTimeString();
-          updates.actualQty = order.planQty; // Mock: 완료 시 수량 채움
+          updates.endTime = new Date().toLocaleTimeString("en-US", {
+            hour12: false,
+          });
+          updates.actualQty = order.planQty;
           updates.progress = 100;
         }
         return { ...order, ...updates };
@@ -105,10 +124,9 @@ const WorkOrderPage = () => {
 
   // 필터링
   const filteredOrders = orders.filter(
-    (o) => lineFilter === "ALL" || o.line === lineFilter
+    (o) => lineFilter === "ALL" || o.type === lineFilter
   );
 
-  // 컬럼별 데이터 분리
   const readyOrders = filteredOrders.filter((o) => o.status === "READY");
   const runningOrders = filteredOrders.filter(
     (o) => o.status === "RUNNING" || o.status === "PAUSED"
@@ -117,13 +135,13 @@ const WorkOrderPage = () => {
 
   return (
     <Container>
-      {/* 1. 헤더 및 컨트롤 바 */}
+      {/* 1. 헤더 */}
       <Header>
         <TitleArea>
           <PageTitle>
             <FaIndustry /> Work Order Execution
           </PageTitle>
-          <SubTitle>현장 작업 지시 및 실적 등록</SubTitle>
+          <SubTitle>D-RAM Fab/EDS/Module 작업 지시 현황</SubTitle>
         </TitleArea>
         <ControlGroup>
           <FilterBox>
@@ -132,22 +150,22 @@ const WorkOrderPage = () => {
               value={lineFilter}
               onChange={(e) => setLineFilter(e.target.value)}
             >
-              <option value="ALL">All Lines</option>
-              <option value="Line-A">Line-A (Stacking)</option>
-              <option value="Line-B">Line-B (Pkg)</option>
-              <option value="Line-C">Line-C (Test)</option>
+              <option value="ALL">All Processes</option>
+              <option value="FAB">Fab (Wafer)</option>
+              <option value="EDS">EDS (Test)</option>
+              <option value="MODULE">Module (SMT)</option>
             </select>
           </FilterBox>
           <SearchBox>
             <FaSearch color="#aaa" />
-            <input placeholder="Search Order ID..." />
+            <input placeholder="Search WO ID..." />
           </SearchBox>
         </ControlGroup>
       </Header>
 
-      {/* 2. 칸반 보드 영역 */}
+      {/* 2. 칸반 보드 */}
       <BoardContainer>
-        {/* Column 1: Ready (대기) */}
+        {/* Column 1: Ready */}
         <Column>
           <ColHeader $color="#f39c12">
             <ColTitle>Ready / Planned</ColTitle>
@@ -155,13 +173,20 @@ const WorkOrderPage = () => {
           </ColHeader>
           <CardList>
             {readyOrders.map((order) => (
-              <OrderCard key={order.id}>
+              <OrderCard key={order.id} $priority={order.priority}>
                 <CardTop>
                   <OrderId>{order.id}</OrderId>
-                  <LineBadge>{order.line}</LineBadge>
+                  <PriorityBadge $level={order.priority}>
+                    {order.priority}
+                  </PriorityBadge>
                 </CardTop>
                 <ProdName>{order.product}</ProdName>
-                <MetaInfo>Target: {order.planQty.toLocaleString()} ea</MetaInfo>
+                <LineInfo>
+                  <FaMicrochip /> {order.line}
+                </LineInfo>
+                <MetaInfo>
+                  Target: {order.planQty.toLocaleString()} {order.unit}
+                </MetaInfo>
                 <ActionFooter>
                   <ActionButton
                     $type="start"
@@ -169,7 +194,7 @@ const WorkOrderPage = () => {
                   >
                     <FaPlay /> Start
                   </ActionButton>
-                  <PrintButton>
+                  <PrintButton title="Print Lot Card">
                     <FaPrint />
                   </PrintButton>
                 </ActionFooter>
@@ -178,7 +203,7 @@ const WorkOrderPage = () => {
           </CardList>
         </Column>
 
-        {/* Column 2: Running (진행중) - 가장 넓게 배치 */}
+        {/* Column 2: Running (Main) */}
         <Column style={{ flex: 1.2 }}>
           <ColHeader $color="#2ecc71">
             <ColTitle>Running / In-Progress</ColTitle>
@@ -197,11 +222,11 @@ const WorkOrderPage = () => {
                   <FaClock size={12} /> Started at {order.startTime}
                 </MetaInfo>
 
-                {/* 진행률 바 */}
                 <ProgressWrapper>
                   <ProgressLabel>
                     <span>
-                      {order.actualQty} / {order.planQty}
+                      {order.actualQty.toLocaleString()} /{" "}
+                      {order.planQty.toLocaleString()} {order.unit}
                     </span>
                     <span>{order.progress}%</span>
                   </ProgressLabel>
@@ -214,7 +239,9 @@ const WorkOrderPage = () => {
                 </ProgressWrapper>
 
                 {order.status === "PAUSED" && (
-                  <IssueBox>Reason: {order.issue}</IssueBox>
+                  <IssueBox>
+                    <FaExclamationCircle /> {order.issue}
+                  </IssueBox>
                 )}
 
                 <ActionFooter>
@@ -246,7 +273,7 @@ const WorkOrderPage = () => {
           </CardList>
         </Column>
 
-        {/* Column 3: Completed (완료) */}
+        {/* Column 3: Completed */}
         <Column>
           <ColHeader $color="#3498db">
             <ColTitle>Completed</ColTitle>
@@ -261,11 +288,13 @@ const WorkOrderPage = () => {
                   >
                     {order.id}
                   </OrderId>
-                  <FaCheckCircle />
+                  <FaCheck color="#2ecc71" />
                 </CardTop>
                 <ProdName style={{ color: "#666" }}>{order.product}</ProdName>
-                <MetaInfo>Final Qty: {order.actualQty}</MetaInfo>
-                <MetaInfo>End Time: {order.endTime}</MetaInfo>
+                <MetaInfo>
+                  Final: {order.actualQty.toLocaleString()} {order.unit}
+                </MetaInfo>
+                <MetaInfo>End: {order.endTime}</MetaInfo>
               </DoneCard>
             ))}
           </CardList>
@@ -296,12 +325,10 @@ const Header = styled.div`
   margin-bottom: 20px;
   flex-shrink: 0;
 `;
-
 const TitleArea = styled.div`
   display: flex;
   flex-direction: column;
 `;
-
 const PageTitle = styled.h2`
   font-size: 22px;
   color: #333;
@@ -310,7 +337,6 @@ const PageTitle = styled.h2`
   align-items: center;
   gap: 10px;
 `;
-
 const SubTitle = styled.span`
   font-size: 13px;
   color: #888;
@@ -322,7 +348,6 @@ const ControlGroup = styled.div`
   display: flex;
   gap: 10px;
 `;
-
 const FilterBox = styled.div`
   display: flex;
   align-items: center;
@@ -330,7 +355,6 @@ const FilterBox = styled.div`
   padding: 0 10px;
   border-radius: 6px;
   border: 1px solid #ddd;
-
   select {
     border: none;
     outline: none;
@@ -340,7 +364,6 @@ const FilterBox = styled.div`
     background: transparent;
   }
 `;
-
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -348,7 +371,6 @@ const SearchBox = styled.div`
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid #ddd;
-
   input {
     border: none;
     outline: none;
@@ -357,14 +379,12 @@ const SearchBox = styled.div`
   }
 `;
 
-// Kanban Board Layout
 const BoardContainer = styled.div`
   flex: 1;
   display: flex;
   gap: 20px;
-  overflow: hidden; /* 보드 전체 스크롤 방지, 컬럼 내부 스크롤 사용 */
+  overflow: hidden;
 `;
-
 const Column = styled.div`
   flex: 1;
   background: #e9ecef;
@@ -373,7 +393,6 @@ const Column = styled.div`
   flex-direction: column;
   overflow: hidden;
 `;
-
 const ColHeader = styled.div`
   padding: 15px;
   background: white;
@@ -383,13 +402,11 @@ const ColHeader = styled.div`
   align-items: center;
   border-bottom: 1px solid #ddd;
 `;
-
 const ColTitle = styled.h3`
   margin: 0;
   font-size: 16px;
   color: #333;
 `;
-
 const CountBadge = styled.span`
   background: #eee;
   padding: 2px 8px;
@@ -408,7 +425,6 @@ const CardList = styled.div`
   gap: 15px;
 `;
 
-// Card Styles
 const CardBase = styled.div`
   background: white;
   border-radius: 8px;
@@ -421,19 +437,18 @@ const CardBase = styled.div`
 `;
 
 const OrderCard = styled(CardBase)`
-  border-left: 3px solid #ccc;
+  border-left: 3px solid
+    ${(props) => (props.$priority === "URGENT" ? "#e74c3c" : "#ccc")};
   &:hover {
     transform: translateY(-2px);
   }
 `;
-
 const ActiveCard = styled(CardBase)`
   border-left: 4px solid ${(props) => (props.$isPaused ? "#f39c12" : "#2ecc71")};
   border: ${(props) =>
     props.$isPaused ? "1px solid #f39c12" : "1px solid #2ecc71"};
   background-color: ${(props) => (props.$isPaused ? "#fffaf0" : "white")};
 `;
-
 const DoneCard = styled(CardBase)`
   opacity: 0.7;
   background-color: #f8f9fa;
@@ -444,28 +459,43 @@ const CardTop = styled.div`
   justify-content: space-between;
   align-items: center;
 `;
-
 const OrderId = styled.span`
   font-size: 12px;
   font-weight: 700;
   color: #1a4f8b;
 `;
-
-const LineBadge = styled.span`
-  font-size: 11px;
-  background: #eee;
+const PriorityBadge = styled.span`
+  font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
-  color: #555;
+  font-weight: 700;
+  background-color: ${(props) =>
+    props.$level === "URGENT"
+      ? "#ffebee"
+      : props.$level === "HIGH"
+      ? "#e3f2fd"
+      : "#eee"};
+  color: ${(props) =>
+    props.$level === "URGENT"
+      ? "#c62828"
+      : props.$level === "HIGH"
+      ? "#1976d2"
+      : "#555"};
 `;
-
 const ProdName = styled.div`
   font-size: 14px;
   font-weight: 700;
   color: #333;
+  margin-bottom: 2px;
+`;
+const LineInfo = styled.div`
+  font-size: 12px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   margin-bottom: 5px;
 `;
-
 const MetaInfo = styled.div`
   font-size: 12px;
   color: #666;
@@ -484,11 +514,9 @@ const StatusTag = styled.span`
   color: white;
 `;
 
-// Progress Bar
 const ProgressWrapper = styled.div`
   margin: 10px 0;
 `;
-
 const ProgressLabel = styled.div`
   display: flex;
   justify-content: space-between;
@@ -497,7 +525,6 @@ const ProgressLabel = styled.div`
   margin-bottom: 4px;
   font-weight: 600;
 `;
-
 const ProgressBar = styled.div`
   width: 100%;
   height: 8px;
@@ -505,7 +532,6 @@ const ProgressBar = styled.div`
   border-radius: 4px;
   overflow: hidden;
 `;
-
 const ProgressFill = styled.div`
   width: ${(props) => props.$percent}%;
   height: 100%;
@@ -517,12 +543,14 @@ const IssueBox = styled.div`
   font-size: 12px;
   color: #c0392b;
   background: #fadbd8;
-  padding: 5px 8px;
+  padding: 8px;
   border-radius: 4px;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
 
-// Footer Buttons
 const ActionFooter = styled.div`
   display: flex;
   justify-content: space-between;
@@ -532,7 +560,6 @@ const ActionFooter = styled.div`
   border-top: 1px solid #f0f0f0;
   gap: 10px;
 `;
-
 const ActionButton = styled.button`
   flex: 1;
   padding: 8px;
@@ -546,8 +573,6 @@ const ActionButton = styled.button`
   font-size: 13px;
   font-weight: 600;
   color: white;
-  transition: opacity 0.2s;
-
   background-color: ${(props) =>
     props.$type === "start" || props.$type === "resume"
       ? "#2ecc71"
@@ -556,12 +581,10 @@ const ActionButton = styled.button`
       : props.$type === "finish"
       ? "#3498db"
       : "#ccc"};
-
   &:hover {
     opacity: 0.9;
   }
 `;
-
 const PrintButton = styled.button`
   background: white;
   border: 1px solid #ddd;
@@ -572,8 +595,4 @@ const PrintButton = styled.button`
   &:hover {
     background: #f5f5f5;
   }
-`;
-
-const FaCheckCircle = styled(FaCheck)`
-  color: #2ecc71;
 `;

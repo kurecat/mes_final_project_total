@@ -1,226 +1,289 @@
-// src/pages/DashboardPage.js
+// src/pages/dashboard/DashboardPage.js
 import React from "react";
 import styled from "styled-components";
 import {
-  BarChart,
+  FaChartLine,
+  FaIndustry,
+  FaExclamationCircle,
+  FaCheckCircle,
+  FaMicrochip,
+  FaArrowUp,
+  FaArrowDown,
+  FaTools,
+} from "react-icons/fa";
+import {
+  ComposedChart,
+  Line,
   Bar,
+  BarChart,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  PieChart,
-  Pie,
+  Area,
+  AreaChart,
   Cell,
 } from "recharts";
-import {
-  FaIndustry,
-  FaTools,
-  FaExclamationTriangle,
-  FaUserClock,
-} from "react-icons/fa";
 
 // --- Mock Data ---
-const PRODUCTION_DATA = [
-  { time: "09:00", target: 100, actual: 95 },
-  { time: "10:00", target: 100, actual: 102 },
-  { time: "11:00", target: 100, actual: 98 },
-  { time: "12:00", target: 100, actual: 40 },
-  { time: "13:00", target: 100, actual: 99 },
-  { time: "14:00", target: 100, actual: 85 },
-  { time: "15:00", target: 100, actual: 0 },
+
+// 1. 시간대별 Wafer Output 추이
+const PRODUCTION_TREND = [
+  { time: "06:00", plan: 400, actual: 380 },
+  { time: "08:00", plan: 450, actual: 440 },
+  { time: "10:00", plan: 500, actual: 510 }, // 초과 달성
+  { time: "12:00", plan: 400, actual: 200 }, // 점심시간
+  { time: "14:00", plan: 500, actual: 480 },
+  { time: "16:00", plan: 500, actual: 495 },
+  { time: "18:00", plan: 450, actual: 0 }, // 미래
 ];
 
-const MACHINE_STATUS_DATA = [
-  { name: "Running", value: 8, color: "#4caf50" },
-  { name: "Idle", value: 2, color: "#ff9800" },
-  { name: "Error", value: 1, color: "#f44336" },
-  { name: "Off", value: 1, color: "#9e9e9e" },
+// 2. 공정별 WIP(재공) 밸런스 (병목 확인용)
+// Photo(노광) -> Etch(식각) -> Depo(증착) -> CMP(연마) -> Ion(주입)
+const WIP_BALANCE = [
+  { step: "Clean", count: 1200 },
+  { step: "Photo", count: 2500 }, // 병목 발생 (높음)
+  { step: "Etch", count: 1800 },
+  { step: "Depo", count: 1500 },
+  { step: "CMP", count: 800 },
+  { step: "Implant", count: 600 },
+  { step: "EDS", count: 2000 },
 ];
 
-const ERROR_LOGS = [
+// 3. 실시간 설비 알람 로그
+const RECENT_ALERTS = [
   {
     id: 1,
-    time: "14:10:23",
-    machine: "MC-03",
-    message: "온도 센서 과열 감지",
-    level: "Critical",
+    time: "14:25",
+    equip: "Photo-02",
+    msg: "Focus Error (Overlay)",
+    level: "CRITICAL",
   },
   {
     id: 2,
-    time: "13:45:11",
-    machine: "MC-01",
-    message: "자재 공급 지연",
-    level: "Warning",
+    time: "14:10",
+    equip: "Etch-05",
+    msg: "Chamber Gas Leak Detected",
+    level: "CRITICAL",
   },
   {
     id: 3,
-    time: "11:20:05",
-    machine: "MC-05",
-    message: "도어 열림 감지",
-    level: "Warning",
+    time: "13:45",
+    equip: "Depo-01",
+    msg: "Thickness Low Limit",
+    level: "WARN",
   },
   {
     id: 4,
-    time: "10:05:22",
-    machine: "MC-02",
-    message: "네트워크 통신 오류",
-    level: "Critical",
+    time: "13:15",
+    equip: "CMP-03",
+    msg: "Slurry Level Low",
+    level: "WARN",
   },
 ];
 
 const DashboardPage = () => {
   return (
     <Container>
-      <HeaderSection>
-        <PageTitle>Factory Monitoring Dashboard</PageTitle>
-        <CurrentTime>2024-05-20 14:35:00 (Live)</CurrentTime>
-      </HeaderSection>
+      {/* 1. 상단 타이틀 및 날짜 */}
+      <Header>
+        <TitleArea>
+          <PageTitle>
+            <FaIndustry /> Fab Monitoring Dashboard
+          </PageTitle>
+          <SubTitle>Line: DDR5-Fab-A | Shift: Day (06:00 ~ 14:00)</SubTitle>
+        </TitleArea>
+        <DateDisplay>
+          {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
+        </DateDisplay>
+      </Header>
 
-      {/* 1. 상단 KPI 카드 영역 (높이 고정) */}
-      <TopCardSection>
-        <StatsCard
-          title="일일 생산 달성률"
-          value="87.5%"
-          sub="목표 600 / 실적 519"
-          icon={<FaIndustry />}
-          color="#1a4f8b"
-        />
-        <StatsCard
-          title="설비 가동률"
-          value="75.0%"
-          sub="가동 9 / 전체 12"
-          icon={<FaTools />}
-          color="#2e7d32"
-        />
-        <StatsCard
-          title="금일 불량률"
-          value="1.2%"
-          sub="불량 6ea"
-          icon={<FaExclamationTriangle />}
-          color="#d32f2f"
-        />
-        <StatsCard
-          title="작업자 투입"
-          value="24명"
-          sub="현재 근무 중"
-          icon={<FaUserClock />}
-          color="#f57c00"
-        />
-      </TopCardSection>
+      {/* 2. KPI 요약 카드 (4개) */}
+      <KpiSection>
+        <KpiCard>
+          <CardHeader>
+            <IconBox $color="#1a4f8b">
+              <FaMicrochip />
+            </IconBox>
+            <TrendBadge $up>
+              <FaArrowUp /> 2.5%
+            </TrendBadge>
+          </CardHeader>
+          <KpiValue>
+            2,510 <small>wfrs</small>
+          </KpiValue>
+          <KpiLabel>Today's Wafer Out</KpiLabel>
+          <ProgressBar $percent={92} $color="#1a4f8b" />
+        </KpiCard>
 
-      {/* 2. 차트 영역 (남은 공간 채우기: flex 1) */}
-      <MiddleChartSection>
-        <ChartBox style={{ flex: 2 }}>
-          {" "}
-          {/* 왼쪽이 더 넓게 */}
-          <ChartHeader>시간대별 생산 현황 (UPH)</ChartHeader>
-          <ResponsiveContainer width="100%" height="90%">
-            <BarChart
-              data={PRODUCTION_DATA}
-              margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+        <KpiCard>
+          <CardHeader>
+            <IconBox $color="#2ecc71">
+              <FaCheckCircle />
+            </IconBox>
+            <TrendBadge $up>
+              <FaArrowUp /> 0.8%
+            </TrendBadge>
+          </CardHeader>
+          <KpiValue>
+            94.8 <small>%</small>
+          </KpiValue>
+          <KpiLabel>Prime Yield (Avg)</KpiLabel>
+          <ProgressBar $percent={94.8} $color="#2ecc71" />
+        </KpiCard>
+
+        <KpiCard>
+          <CardHeader>
+            <IconBox $color="#f39c12">
+              <FaTools />
+            </IconBox>
+            <TrendBadge $down>
+              <FaArrowDown /> 1.2%
+            </TrendBadge>
+          </CardHeader>
+          <KpiValue>
+            88.5 <small>%</small>
+          </KpiValue>
+          <KpiLabel>Fab Utilization (OEE)</KpiLabel>
+          <ProgressBar $percent={88.5} $color="#f39c12" />
+        </KpiCard>
+
+        <KpiCard>
+          <CardHeader>
+            <IconBox $color="#e74c3c">
+              <FaExclamationCircle />
+            </IconBox>
+            <span style={{ fontSize: 12, color: "#999" }}>Active Issues</span>
+          </CardHeader>
+          <KpiValue>
+            4 <small>cases</small>
+          </KpiValue>
+          <KpiLabel>Equipment Trouble</KpiLabel>
+          <ProgressBar $percent={30} $color="#e74c3c" />
+        </KpiCard>
+      </KpiSection>
+
+      {/* 3. 메인 차트 섹션 (Split Layout) */}
+      <MainChartSection>
+        {/* 좌측: 생산량 추이 */}
+        <ChartCard style={{ flex: 1.5 }}>
+          <SectionHeader>
+            <SectionTitle>Hourly Wafer Output Trend</SectionTitle>
+            <LegendGroup>
+              <LegendItem color="#e0e0e0">Plan</LegendItem>
+              <LegendItem color="#1a4f8b">Actual</LegendItem>
+            </LegendGroup>
+          </SectionHeader>
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart
+              data={PRODUCTION_TREND}
+              margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="time" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
+              <CartesianGrid stroke="#f5f5f5" vertical={false} />
+              <XAxis dataKey="time" axisLine={false} tickLine={false} />
+              <YAxis axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: 8,
+                  border: "none",
+                  boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+                }}
+              />
               <Bar
-                dataKey="target"
-                name="목표량"
+                dataKey="plan"
+                barSize={20}
                 fill="#e0e0e0"
                 radius={[4, 4, 0, 0]}
               />
-              <Bar
+              <Line
+                type="monotone"
                 dataKey="actual"
-                name="생산량"
-                fill="#1a4f8b"
-                radius={[4, 4, 0, 0]}
+                stroke="#1a4f8b"
+                strokeWidth={3}
+                dot={{ r: 4 }}
+                activeDot={{ r: 6 }}
               />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* 우측: 공정별 WIP 밸런스 */}
+        <ChartCard style={{ flex: 1 }}>
+          <SectionHeader>
+            <SectionTitle>WIP Balance (Bottleneck Check)</SectionTitle>
+          </SectionHeader>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart
+              data={WIP_BALANCE}
+              layout="vertical"
+              margin={{ top: 0, right: 30, left: 20, bottom: 0 }}
+            >
+              <CartesianGrid stroke="#f5f5f5" horizontal={false} />
+              <XAxis type="number" hide />
+              <YAxis
+                dataKey="step"
+                type="category"
+                width={60}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip cursor={{ fill: "transparent" }} />
+              <Bar dataKey="count" barSize={15} radius={[0, 4, 4, 0]}>
+                {WIP_BALANCE.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={entry.count > 2000 ? "#e74c3c" : "#3498db"}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </ChartBox>
+          <WipLegend>
+            <small style={{ color: "#e74c3c" }}>● Overload ({">"}2000)</small>
+            <small style={{ color: "#3498db" }}>● Normal</small>
+          </WipLegend>
+        </ChartCard>
+      </MainChartSection>
 
-        <ChartBox style={{ flex: 1 }}>
-          <ChartHeader>설비 상태 모니터링</ChartHeader>
-          <PieChartWrapper>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={MACHINE_STATUS_DATA}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {MACHINE_STATUS_DATA.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <StatusLegend>
-              {MACHINE_STATUS_DATA.map((item) => (
-                <StatusItem key={item.name}>
-                  <Dot color={item.color} />
-                  <span>{item.name}</span>
-                  <strong>{item.value}</strong>
-                </StatusItem>
-              ))}
-            </StatusLegend>
-          </PieChartWrapper>
-        </ChartBox>
-      </MiddleChartSection>
-
-      {/* 3. 하단 로그 영역 (높이 고정) */}
-      <BottomLogSection>
-        <ChartBox>
-          <ChartHeader>실시간 이상 감지 (Real-time Alerts)</ChartHeader>
-          <TableContainer>
-            <LogTable>
-              <thead>
-                <tr>
-                  <th style={{ width: "15%" }}>발생 시간</th>
-                  <th style={{ width: "15%" }}>설비명</th>
-                  <th>알람 내용</th>
-                  <th style={{ width: "10%" }}>등급</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ERROR_LOGS.map((log) => (
-                  <tr key={log.id}>
-                    <td>{log.time}</td>
-                    <td>{log.machine}</td>
-                    <td>{log.message}</td>
-                    <td>
-                      <LevelBadge $level={log.level}>{log.level}</LevelBadge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </LogTable>
-          </TableContainer>
-        </ChartBox>
-      </BottomLogSection>
+      {/* 4. 하단 알람 로그 섹션 */}
+      <BottomSection>
+        <SectionHeader>
+          <SectionTitle>
+            <FaExclamationCircle color="#e74c3c" /> Real-time Equipment Alerts
+          </SectionTitle>
+        </SectionHeader>
+        <AlertTable>
+          <thead>
+            <tr>
+              <th width="10%">Time</th>
+              <th width="15%">Equipment ID</th>
+              <th width="10%">Level</th>
+              <th>Message</th>
+              <th width="10%">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {RECENT_ALERTS.map((alert) => (
+              <tr key={alert.id}>
+                <td style={{ color: "#666" }}>{alert.time}</td>
+                <td style={{ fontWeight: "bold" }}>{alert.equip}</td>
+                <td>
+                  <AlertBadge $level={alert.level}>{alert.level}</AlertBadge>
+                </td>
+                <td>{alert.msg}</td>
+                <td>
+                  <ActionBtn>Ack</ActionBtn>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </AlertTable>
+      </BottomSection>
     </Container>
   );
 };
-
-// --- Sub Component ---
-const StatsCard = ({ title, value, sub, icon, color }) => (
-  <Card>
-    <CardInfo>
-      <CardTitle>{title}</CardTitle>
-      <CardValue color={color}>{value}</CardValue>
-      <CardSub>{sub}</CardSub>
-    </CardInfo>
-    <IconCircle color={color}>{icon}</IconCircle>
-  </Card>
-);
 
 export default DashboardPage;
 
@@ -228,198 +291,226 @@ export default DashboardPage;
 
 const Container = styled.div`
   width: 100%;
-  height: 100%; /* 부모(ContentArea)를 꽉 채움 */
+  height: 100%;
+  padding: 20px;
+  background-color: #f5f6fa;
   display: flex;
   flex-direction: column;
-  gap: 15px; /* 각 섹션 간 간격 */
-  /* padding은 ContentArea에서 이미 20px을 주었으므로 여기선 제거 */
+  gap: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
 `;
 
-const HeaderSection = styled.div`
+const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  height: 40px; /* 헤더 높이 고정 */
-  flex-shrink: 0;
 `;
-
+const TitleArea = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
 const PageTitle = styled.h2`
-  font-size: 24px;
-  font-weight: 700;
-  color: #333;
   margin: 0;
+  font-size: 24px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 `;
-
-const CurrentTime = styled.span`
+const SubTitle = styled.span`
   font-size: 14px;
   color: #666;
-  font-weight: 500;
+  margin-top: 5px;
+  margin-left: 34px;
 `;
-
-// 1. 상단 카드 영역
-const TopCardSection = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 1920px이므로 4개 가로 배치 */
-  gap: 15px;
-  height: 120px; /* 높이 고정 */
-  flex-shrink: 0; /* 줄어들지 않음 */
-`;
-
-const Card = styled.div`
+const DateDisplay = styled.div`
+  font-size: 14px;
+  color: #555;
+  font-weight: 600;
   background: white;
-  border-radius: 8px;
+  padding: 8px 15px;
+  border-radius: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+`;
+
+// KPI Cards
+const KpiSection = styled.div`
+  display: flex;
+  gap: 20px;
+`;
+const KpiCard = styled.div`
+  flex: 1;
+  background: white;
   padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s;
+  &:hover {
+    transform: translateY(-5px);
+  }
+`;
+const CardHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+`;
+const IconBox = styled.div`
+  width: 45px;
+  height: 45px;
+  border-radius: 10px;
+  background-color: ${(props) => `${props.$color}15`};
+  color: ${(props) => props.$color};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+`;
+const TrendBadge = styled.div`
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: ${(props) => (props.$up ? "#2ecc71" : "#e74c3c")};
+  background: ${(props) => (props.$up ? "#e8f5e9" : "#ffebee")};
+  padding: 4px 8px;
+  border-radius: 12px;
+`;
+const KpiValue = styled.div`
+  font-size: 28px;
+  font-weight: 800;
+  color: #333;
+  small {
+    font-size: 14px;
+    color: #888;
+    font-weight: 500;
+    margin-left: 5px;
+  }
+`;
+const KpiLabel = styled.div`
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 15px;
+`;
+const ProgressBar = styled.div`
+  width: 100%;
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: ${(props) => props.$percent}%;
+    background-color: ${(props) => props.$color};
+  }
+`;
+
+// Chart Section
+const MainChartSection = styled.div`
+  display: flex;
+  gap: 20px;
+  height: 350px;
+`;
+const ChartCard = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+`;
+const SectionHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 `;
-
-const CardInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const CardTitle = styled.div`
-  font-size: 14px;
-  color: #888;
-  margin-bottom: 4px;
-`;
-
-const CardValue = styled.div`
-  font-size: 26px;
-  font-weight: 800;
-  color: ${(props) => props.color};
-  margin-bottom: 4px;
-`;
-
-const CardSub = styled.div`
-  font-size: 12px;
-  color: #666;
-`;
-
-const IconCircle = styled.div`
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background-color: ${(props) => (props.color ? `${props.color}15` : "#eee")};
-  color: ${(props) => props.color};
+const SectionTitle = styled.h3`
+  margin: 0;
+  font-size: 16px;
+  color: #333;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 22px;
+  gap: 8px;
 `;
-
-// 2. 중간 차트 영역 (가변 높이)
-const MiddleChartSection = styled.div`
+const LegendGroup = styled.div`
   display: flex;
   gap: 15px;
-  flex: 1; /* 남은 세로 공간 모두 차지 */
-  min-height: 300px; /* 최소 높이 보장 */
 `;
-
-const ChartBox = styled.div`
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+const LegendItem = styled.div`
   display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-`;
-
-const ChartHeader = styled.h3`
-  font-size: 16px;
-  font-weight: 700;
-  color: #444;
-  margin: 0 0 15px 0;
-`;
-
-const PieChartWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100%;
+  gap: 6px;
+  font-size: 12px;
+  color: #666;
+  &::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    background-color: ${(props) => props.color};
+    border-radius: 50%;
+  }
 `;
-
-const StatusLegend = styled.div`
+const WipLegend = styled.div`
   display: flex;
-  justify-content: center;
-  gap: 20px;
+  gap: 15px;
+  justify-content: flex-end;
   margin-top: 10px;
-  width: 100%;
 `;
 
-const StatusItem = styled.div`
-  display: flex;
-  align-items: center;
-  font-size: 13px;
-  color: #555;
-
-  strong {
-    margin-left: 5px;
-    font-size: 14px;
-  }
-`;
-
-const Dot = styled.div`
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: ${(props) => props.color};
-  margin-right: 6px;
-`;
-
-// 3. 하단 로그 영역 (높이 고정)
-const BottomLogSection = styled.div`
-  height: 250px; /* 높이 고정 */
-  flex-shrink: 0;
-`;
-
-const TableContainer = styled.div`
+// Bottom Alert Section
+const BottomSection = styled.div`
   flex: 1;
-  overflow: auto; /* 내용 넘치면 스크롤 */
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background-color: #ddd;
-    border-radius: 3px;
-  }
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
 `;
-
-const LogTable = styled.table`
+const AlertTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-
   th {
     text-align: left;
-    padding: 10px;
-    background-color: #f9fafb;
-    color: #555;
-    position: sticky;
-    top: 0;
+    padding: 12px;
+    background: #f9f9f9;
+    color: #666;
     border-bottom: 1px solid #eee;
   }
-
   td {
-    padding: 10px;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 12px;
+    border-bottom: 1px solid #f5f5f5;
     color: #333;
   }
 `;
-
-const LevelBadge = styled.span`
-  padding: 3px 8px;
-  border-radius: 12px;
+const AlertBadge = styled.span`
+  padding: 4px 8px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
   background-color: ${(props) =>
-    props.$level === "Critical" ? "#ffebee" : "#fff3e0"};
-  color: ${(props) => (props.$level === "Critical" ? "#c62828" : "#ef6c00")};
+    props.$level === "CRITICAL" ? "#ffebee" : "#fff3e0"};
+  color: ${(props) => (props.$level === "CRITICAL" ? "#c62828" : "#e67e22")};
+`;
+const ActionBtn = styled.button`
+  border: 1px solid #ddd;
+  background: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  &:hover {
+    background: #f5f5f5;
+  }
 `;

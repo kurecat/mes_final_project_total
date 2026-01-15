@@ -2,7 +2,7 @@ export const MENU_LIST = [
   { name: "KPI 분석", path: "/dashboard/kpi" },
 
   { name: "생산 계획", path: "/production/plan" },
-  { name: "작업 지시", path: "/production/order" },
+  { name: "작업 지시", path: "/production/workorder" },
   { name: "생산 실적 현황", path: "/production/performance" },
   { name: "작업자 배치", path: "/production/worker" },
 

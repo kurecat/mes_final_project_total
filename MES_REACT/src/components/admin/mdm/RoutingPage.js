@@ -10,130 +10,131 @@ import {
   FaMicroscope,
   FaBroom,
   FaBox,
-  FaClock,
   FaSave,
   FaEdit,
+  FaLayerGroup,
+  FaBolt,
 } from "react-icons/fa";
 
-// --- Mock Data (HBM 제조 공정 라우팅) ---
+// --- Mock Data (D-RAM 제조 공정 라우팅) ---
 const ROUTING_LIST = [
   {
-    id: "RT-HBM3-STACK",
-    name: "HBM3 8-Hi Stacking Process",
-    version: "Ver 2.1",
+    id: "RT-DDR5-FAB-01",
+    name: "DDR5 FEOL Standard Process",
+    version: "Ver 3.5",
     status: "ACTIVE",
-    description: "TSV Die 8단 적층 표준 공정",
+    description: "1znm Class D-RAM Wafer 전공정 표준",
     totalSteps: 6,
     operations: [
       {
         step: 10,
         id: "OP-CLN-100",
-        name: "Wafer Cleaning",
+        name: "Pre-Gate Cleaning",
         type: "CLEAN",
         resource: "Wet Station",
         ct: 300,
         yield: 99.9,
-        desc: "Flux 잔여물 제거 및 표면 세정",
+        desc: "웨이퍼 표면 유기물 및 자연 산화막 제거",
       },
       {
         step: 20,
-        id: "OP-ALN-200",
-        name: "Die Align",
+        id: "OP-PHO-200",
+        name: "Gate Lithography",
         type: "PROCESS",
-        resource: "Aligner",
+        resource: "Photo Stepper",
         ct: 45,
-        yield: 99.8,
-        desc: "Micro Bump 정밀 정렬",
+        yield: 99.5,
+        desc: "Gate 회로 패턴 노광 (EUV Layer 포함)",
       },
       {
         step: 30,
-        id: "OP-BND-300",
-        name: "TC Bonding",
+        id: "OP-ETC-300",
+        name: "Gate Etching",
         type: "PROCESS",
-        resource: "TC Bonder",
+        resource: "Dry Etcher",
         ct: 120,
-        yield: 99.5,
-        desc: "열압착 본딩 (350°C, 50N)",
+        yield: 99.2,
+        desc: "플라즈마 식각을 통한 패턴 형성",
       },
       {
         step: 40,
-        id: "OP-RFL-400",
-        name: "Reflow",
+        id: "OP-DEP-400",
+        name: "Spacer Deposition",
         type: "PROCESS",
-        resource: "Reflow Oven",
-        ct: 600,
-        yield: 99.9,
-        desc: "Mass Reflow 공정",
+        resource: "CVD",
+        ct: 200,
+        yield: 99.8,
+        desc: "절연막 증착 공정",
       },
       {
         step: 50,
-        id: "OP-MUF-500",
-        name: "Molded Underfill",
+        id: "OP-IMP-500",
+        name: "Source/Drain Implant",
         type: "PROCESS",
-        resource: "Dispenser",
-        ct: 240,
-        yield: 99.2,
-        desc: "Epoxy 도포 및 경화",
+        resource: "Ion Implanter",
+        ct: 150,
+        yield: 99.9,
+        desc: "이온 주입을 통한 도핑",
       },
       {
         step: 60,
-        id: "OP-ISP-600",
-        name: "Final Inspection",
-        type: "INSPECT",
-        resource: "AOI Machine",
-        ct: 60,
-        yield: 98.5,
-        desc: "외관 및 X-Ray 검사",
+        id: "OP-CMP-600",
+        name: "Planarization (CMP)",
+        type: "PROCESS",
+        resource: "CMP Polisher",
+        ct: 180,
+        yield: 99.7,
+        desc: "표면 평탄화 및 연마",
       },
     ],
   },
   {
-    id: "RT-DDR5-ASSY",
-    name: "DDR5 Module Assembly",
-    version: "Ver 1.0",
-    status: "DRAFT",
-    description: "DDR5 UDIMM SMT 공정",
+    id: "RT-DDR5-EDS-02",
+    name: "DDR5 EDS Test Flow",
+    version: "Ver 1.2",
+    status: "ACTIVE",
+    description: "Electrical Die Sorting 및 수리 공정",
     totalSteps: 4,
     operations: [
       {
         step: 10,
-        id: "OP-PRT-100",
-        name: "Solder Paste Print",
-        type: "PROCESS",
-        resource: "Screen Printer",
-        ct: 25,
-        yield: 99.9,
-        desc: "솔더 페이스트 도포",
+        id: "OP-PRB-100",
+        name: "Wafer Burn-in",
+        type: "TEST",
+        resource: "Burn-in Chamber",
+        ct: 3600,
+        yield: 99.0,
+        desc: "고온/고전압 스트레스 테스트",
       },
       {
         step: 20,
-        id: "OP-MNT-200",
-        name: "Chip Mount",
-        type: "PROCESS",
-        resource: "Mounter",
-        ct: 40,
-        yield: 99.8,
-        desc: "부품 실장",
+        id: "OP-HOT-200",
+        name: "Hot/Cold Test",
+        type: "TEST",
+        resource: "Probe Station",
+        ct: 600,
+        yield: 95.5,
+        desc: "온도별 전기적 특성 검사",
       },
       {
         step: 30,
-        id: "OP-RFL-300",
-        name: "Reflow",
+        id: "OP-REP-300",
+        name: "Laser Repair",
         type: "PROCESS",
-        resource: "Reflow Oven",
-        ct: 300,
-        yield: 99.9,
-        desc: "납땜 경화",
+        resource: "Laser Trimmer",
+        ct: 120,
+        yield: 100.0,
+        desc: "불량 셀 Redundancy 회로로 대체 (수리)",
       },
       {
         step: 40,
-        id: "OP-AOI-400",
-        name: "AOI Inspection",
+        id: "OP-FST-400",
+        name: "Final Sorting",
         type: "INSPECT",
-        resource: "AOI",
-        ct: 30,
-        yield: 99.5,
-        desc: "비전 검사",
+        resource: "Sorter",
+        ct: 60,
+        yield: 94.8,
+        desc: "양품/불량품 Binning 분류",
       },
     ],
   },
@@ -152,9 +153,11 @@ const RoutingPage = () => {
       case "CLEAN":
         return <FaBroom />;
       case "PROCESS":
-        return <FaCogs />;
+        return <FaLayerGroup />; // Layer 적층/가공 의미
       case "INSPECT":
         return <FaMicroscope />;
+      case "TEST":
+        return <FaBolt />; // 전기적 테스트
       case "PACK":
         return <FaBox />;
       default:
@@ -165,10 +168,9 @@ const RoutingPage = () => {
   // 라우팅 선택 핸들러
   const handleRoutingClick = (routing) => {
     setSelectedRouting(routing);
-    setSelectedStep(routing.operations[0]); // 첫 번째 공정 자동 선택
+    setSelectedStep(routing.operations[0]);
   };
 
-  // 필터링
   const filteredList = ROUTING_LIST.filter(
     (r) =>
       r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -221,7 +223,6 @@ const RoutingPage = () => {
       <ContentArea>
         {selectedRouting && (
           <>
-            {/* 상단 헤더 정보 */}
             <HeaderSection>
               <HeaderTitle>
                 {selectedRouting.name}{" "}
@@ -246,7 +247,6 @@ const RoutingPage = () => {
                       </StepIconWrapper>
                       <StepName>{op.name}</StepName>
                     </FlowStep>
-                    {/* 마지막 단계가 아니면 화살표 표시 */}
                     {index < selectedRouting.operations.length - 1 && (
                       <ArrowWrapper>
                         <FaArrowRight />
@@ -257,7 +257,7 @@ const RoutingPage = () => {
               </FlowContainer>
             </FlowSection>
 
-            {/* B. 선택된 공정 상세 설정 (Detail Editor) */}
+            {/* B. 선택된 공정 상세 설정 */}
             <DetailSection>
               <DetailHeader>
                 <SectionTitle>
@@ -288,6 +288,7 @@ const RoutingPage = () => {
                     <Label>Operation Type</Label>
                     <Select value={selectedStep.type} disabled>
                       <option value="PROCESS">Processing</option>
+                      <option value="TEST">Electrical Test</option>
                       <option value="INSPECT">Inspection</option>
                       <option value="CLEAN">Cleaning</option>
                     </Select>
@@ -325,7 +326,7 @@ const RoutingPage = () => {
 
 export default RoutingPage;
 
-// --- Styled Components ---
+// --- Styled Components (기존과 동일하게 유지) ---
 
 const Container = styled.div`
   width: 100%;
@@ -335,7 +336,6 @@ const Container = styled.div`
   box-sizing: border-box;
 `;
 
-// Sidebar Styles
 const Sidebar = styled.div`
   width: 320px;
   background: white;
@@ -349,7 +349,6 @@ const SidebarHeader = styled.div`
   padding: 20px;
   border-bottom: 1px solid #eee;
 `;
-
 const Title = styled.h2`
   font-size: 18px;
   margin: 0 0 15px 0;
@@ -415,13 +414,11 @@ const ItemHeader = styled.div`
   justify-content: space-between;
   margin-bottom: 5px;
 `;
-
 const ItemName = styled.div`
   font-weight: 600;
   color: #333;
   font-size: 14px;
 `;
-
 const StatusBadge = styled.span`
   font-size: 10px;
   padding: 2px 6px;
@@ -431,13 +428,11 @@ const StatusBadge = styled.span`
     props.$status === "ACTIVE" ? "#e8f5e9" : "#eee"};
   color: ${(props) => (props.$status === "ACTIVE" ? "#2e7d32" : "#888")};
 `;
-
 const ItemMeta = styled.div`
   font-size: 12px;
   color: #888;
 `;
 
-// Content Styles
 const ContentArea = styled.div`
   flex: 1;
   display: flex;
@@ -450,7 +445,6 @@ const HeaderSection = styled.div`
   background: white;
   border-bottom: 1px solid #ddd;
 `;
-
 const HeaderTitle = styled.h1`
   margin: 0;
   font-size: 22px;
@@ -459,7 +453,6 @@ const HeaderTitle = styled.h1`
   align-items: center;
   gap: 10px;
 `;
-
 const VersionTag = styled.span`
   font-size: 12px;
   background: #333;
@@ -468,19 +461,17 @@ const VersionTag = styled.span`
   border-radius: 10px;
   vertical-align: middle;
 `;
-
 const HeaderDesc = styled.div`
   margin-top: 5px;
   color: #666;
   font-size: 14px;
 `;
 
-// Flowchart Section
 const FlowSection = styled.div`
   padding: 20px 30px;
   background: #fff;
   border-bottom: 1px solid #ddd;
-  overflow-x: auto; /* 가로 스크롤 허용 */
+  overflow-x: auto;
 `;
 
 const SectionTitle = styled.h3`
@@ -495,7 +486,7 @@ const FlowContainer = styled.div`
   align-items: center;
   gap: 10px;
   padding-bottom: 10px;
-  min-width: max-content; /* 내용물만큼 너비 확보 */
+  min-width: max-content;
 `;
 
 const FlowStep = styled.div`
@@ -506,7 +497,6 @@ const FlowStep = styled.div`
   opacity: ${(props) => (props.$active ? 1 : 0.6)};
   transform: ${(props) => (props.$active ? "scale(1.05)" : "scale(1)")};
   transition: all 0.2s;
-
   &:hover {
     opacity: 1;
   }
@@ -518,7 +508,6 @@ const StepNumber = styled.div`
   color: #888;
   margin-bottom: 5px;
 `;
-
 const StepIconWrapper = styled.div`
   width: 50px;
   height: 50px;
@@ -528,12 +517,16 @@ const StepIconWrapper = styled.div`
       ? "#e3f2fd"
       : props.$type === "INSPECT"
       ? "#f3e5f5"
+      : props.$type === "TEST"
+      ? "#fff3e0"
       : "#e8f5e9"};
   color: ${(props) =>
     props.$type === "CLEAN"
       ? "#1976d2"
       : props.$type === "INSPECT"
       ? "#7b1fa2"
+      : props.$type === "TEST"
+      ? "#e67e22"
       : "#2e7d32"};
   display: flex;
   align-items: center;
@@ -541,9 +534,8 @@ const StepIconWrapper = styled.div`
   font-size: 20px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   border: 2px solid
-    ${(props) => (props.theme?.active ? "#1a4f8b" : "transparent")}; // 테마 연동 가능
+    ${(props) => (props.theme?.active ? "#1a4f8b" : "transparent")};
 `;
-
 const StepName = styled.div`
   margin-top: 8px;
   font-size: 13px;
@@ -557,10 +549,9 @@ const StepName = styled.div`
 const ArrowWrapper = styled.div`
   color: #ccc;
   font-size: 14px;
-  margin-bottom: 25px; /* 텍스트 높이 고려하여 아이콘 위치 조정 */
+  margin-bottom: 25px;
 `;
 
-// Detail Section
 const DetailSection = styled.div`
   flex: 1;
   background: #f5f6fa;
@@ -576,7 +567,6 @@ const DetailHeader = styled.div`
   align-items: center;
   margin-bottom: 15px;
 `;
-
 const ActionGroup = styled.div`
   display: flex;
   gap: 10px;
@@ -603,7 +593,6 @@ const DetailGrid = styled.div`
   grid-template-columns: 1fr 1fr;
   gap: 20px;
 `;
-
 const FormCard = styled.div`
   background: white;
   padding: 20px;
@@ -613,7 +602,6 @@ const FormCard = styled.div`
   flex-direction: column;
   gap: 15px;
 `;
-
 const FormTitle = styled.div`
   font-size: 14px;
   font-weight: 700;
@@ -622,19 +610,16 @@ const FormTitle = styled.div`
   padding-bottom: 10px;
   margin-bottom: 5px;
 `;
-
 const InputGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 5px;
 `;
-
 const Label = styled.label`
   font-size: 12px;
   font-weight: 600;
   color: #666;
 `;
-
 const ValueInput = styled.input`
   padding: 10px;
   border: 1px solid #ddd;
@@ -643,14 +628,12 @@ const ValueInput = styled.input`
   color: #333;
   outline: none;
 `;
-
 const Select = styled.select`
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
   background: #fafafa;
 `;
-
 const TextArea = styled.textarea`
   padding: 10px;
   border: 1px solid #ddd;
