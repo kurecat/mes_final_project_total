@@ -1,7 +1,7 @@
 {
   "name": "final-project-react",
   "version": "0.1.0",
-  "homepage": "https://kurecat.github.io/reactmestest",
+  "homepage": "https://kurecat.github.io/mes_final_project_total",
   "private": true,
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
