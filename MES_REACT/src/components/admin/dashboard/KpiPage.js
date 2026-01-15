@@ -270,7 +270,7 @@ const KpiPage = () => {
           <ResponsiveContainer width="100%" height={280}>
             <BarChart
               data={kpiData.equipmentOee}
-              margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
+              margin={{ top: 20, right: 20, bottom: 20, left: 0 }}
             >
               <CartesianGrid stroke="#f5f5f5" vertical={false} />
               <XAxis dataKey="group" />
