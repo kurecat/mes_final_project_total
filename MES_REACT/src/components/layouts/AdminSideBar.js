@@ -16,6 +16,9 @@ import {
 
 // 북마크 아이콘 (Ci)
 import { CiBookmark, CiBookmarkCheck } from "react-icons/ci";
+// 집모양 ,
+import { FaHome, FaBoxOpen, FaIndustry } from "react-icons/fa";
+import { AiOutlineAreaChart } from "react-icons/ai";
 
 const AdminSideBar = () => {
   const location = useLocation();

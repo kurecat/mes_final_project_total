@@ -41,7 +41,7 @@ public class WebSecurityConfig {
                         .accessDeniedHandler(jwtAccessDeniedHandler) //
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/**").permitAll() // 로그인/회원가입 허용
+                        .requestMatchers("/auth/**").permitAll() // 로그인/회원가입 허용
                         .requestMatchers("/api/mes/order/**", "/api/mes/material/**").hasRole("ADMIN") //
                         .requestMatchers("/api/mes/machine/**").hasAnyRole("OPERATOR", "ADMIN") //
                         .anyRequest().authenticated()

@@ -1,24 +1,24 @@
 package com.hm.mes_final_260106.entity;
 
+import com.hm.mes_final_260106.constant.Authority;
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
-@Table(name = "member",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_member_email", columnNames = "email")
-        })
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
-@Builder
+
 public class Member {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(unique = true)
     private String email;
 
     @Column(nullable = false, length = 255)
@@ -27,12 +27,14 @@ public class Member {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(length = 30)
-    private String authority;
+    @Enumerated(EnumType.STRING)
+    private Authority authority;
 
-    // Member 테이블에 refresh_token_id(FK)가 있으므로 ManyToOne 또는 OneToOne 가능
-    // 구조상 1:1이 더 자연스러움
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "refresh_token_id")
-    private RefreshToken refreshToken;
+    @Builder
+    public Member(String email,String password,String name, Authority authority){
+        this.email = email;
+        this.password = password;
+        this.name = name;
+        this.authority = authority;
+    }
 }

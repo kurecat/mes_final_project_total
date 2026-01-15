@@ -4,6 +4,7 @@ import { createGlobalStyle } from "styled-components";
 const GlobalStyle = createGlobalStyle`
   /* 1. Reset CSS */
   * {
+    box-sizing: border-box; /* 패딩/테두리가 너비에 포함되도록 설정 (가장 중요) */
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -25,14 +26,14 @@ const GlobalStyle = createGlobalStyle`
     height: 8px;
   }
   ::-webkit-scrollbar-track {
-    background: #f1f1f1; 
+    background: #f1f1f1;
   }
   ::-webkit-scrollbar-thumb {
-    background: #ccc; 
+    background: #ccc;
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #aaa; 
+    background: #aaa;
   }
 
   /* 4. Common Elements */

@@ -8,6 +8,9 @@ import AdminMainPage from "./pages/admin/AdminMainPage";
 import DashboardPage from "./components/admin/dashboard/DashboardPage";
 import MaterialPage from "./components/admin/material/MaterialPage";
 import WorkOrderPage from "./components/admin/production/WorkOrderPage";
+import DashboardPage from "./components/admin/DashboardPage";
+import MaterialPage from "./components/admin/materialPage";
+import WorkOrderPage from "./components/admin/WorkOrderPage";
 import LoginPage from "./pages/Auth/LoginPage";
 import KpiPage from "./components/admin/dashboard/KpiPage";
 import ProductionPlanPage from "./components/admin/production/ProductionPlanPage";
@@ -29,6 +32,7 @@ import StandardPage from "./components/admin/quality/StandardPage";
 import WorkerPage from "./components/admin/production/WorkerPage";
 import SpcChartPage from "./components/admin/quality/SpcChartPage";
 import BarcodePage from "./components/admin/production/BarcodePage";
+import Homepage from "./components/admin/HomePage";
 
 const App = () => {
   return (
@@ -37,9 +41,12 @@ const App = () => {
 
       <Routes>
         <Route path="/" element={<LoginPage />} />
+        <Route path="/login" element={<LoginPage />} />
 
         <Route path="/admin" element={<AdminMainPage />}>
           <Route index element={<DashboardPage />} />
+        <Route path="/" element={<AdminMainPage />}>
+          <Route index element={<Homepage />} />
 
           <Route path="dashboard/kpi" element={<KpiPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
@@ -69,6 +76,8 @@ const App = () => {
           <Route path="system/logs" element={<LogsPage />} />
           <Route path="system/roles" element={<RolesPage />} />
           <Route path="system/users" element={<UsersPage />} />
+          <Route path="material" element={<MaterialPage />} />
+          <Route path="workorder" element={<WorkOrderPage />} />
         </Route>
       </Routes>
     </>

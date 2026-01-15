@@ -10,167 +10,113 @@ import {
   IoMdSnow,
 } from "react-icons/io"; // ★ IoIosHome 추가
 import { FaSignOutAlt, FaClock } from "react-icons/fa";
+import { IoMdClose } from "react-icons/io";
+import { FaHome } from "react-icons/fa";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import axios from "axios";
 
 const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [weather, setWeather] = useState({ temp: null, desc: "", icon: "" });
-  const API_KEY = "5b6a625b25065e038c9a33e0674ea4e6";
 
-  const HOME_PATH = "/admin";
-  const homeTab = tabs.find((tab) => tab.path === HOME_PATH);
-  const otherTabs = tabs.filter((tab) => tab.path !== HOME_PATH);
-
-  // 날씨 API 호출 로직
-  useEffect(() => {
-    const fetchWeather = async () => {
-      // 키가 없거나 기본값인 경우 API 호출 스킵 (Mock 데이터 유지)
-      if (!API_KEY || API_KEY === "YOUR_OPENWEATHERMAP_API_KEY") return;
-
-      try {
-        const url = `https://api.openweathermap.org/data/2.5/weather?lat=36.815&lon=127.113&units=metric&appid=${API_KEY}`;
-        const res = await axios.get(url);
-
-        setWeather({
-          temp: Math.round(res.data.main.temp * 10) / 10,
-          desc: res.data.weather[0].main,
-          icon: res.data.weather[0].icon,
-        });
-      } catch (err) {
-        // ★ 수정 3: API 오류(401 등) 발생 시 에러 띄우지 않고 조용히 Mock 데이터 사용
-        console.warn("Weather API Failed, using mock data.");
-        setWeather({ temp: 22.5, desc: "Sunny", icon: "01d" });
-      }
-    };
-
-    fetchWeather();
-    const interval = setInterval(fetchWeather, 1800000); // 30분 주기
-    return () => clearInterval(interval);
-  }, []);
-
-  const renderWeatherIcon = (code) => {
-    if (!code) return <IoMdSunny />;
-    if (code.startsWith("01")) return <IoMdSunny color="#f39c12" />;
-    if (code.startsWith("02") || code.startsWith("03"))
-      return <IoMdCloudy color="#bdc3c7" />;
-    if (code.startsWith("09") || code.startsWith("10"))
-      return <IoMdRainy color="#3498db" />;
-    if (code.startsWith("13")) return <IoMdSnow color="#ecf0f1" />;
-    return <IoMdCloudy color="#95a5a6" />;
-  };
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // 1. Home 탭과 나머지 탭 분리
+  const homeTab = tabs.find((tab) => tab.path === "/");
+  const otherTabs = tabs.filter((tab) => tab.path !== "/");
 
   const handleDragEnd = (result) => {
     if (!result.destination) return;
-    onDragEnd(result);
-  };
 
-  const handleLogout = () => {
-    if (window.confirm("로그아웃 하시겠습니까?")) {
-      navigate("/");
-    }
+    // DnD 라이브러리는 otherTabs(0, 1, 2...) 기준으로 인덱스를 줍니다.
+    // 하지만 부모의 tabs state는 [Home, A, B...] 형태이므로 인덱스를 1씩 더해서 부모에게 전달합니다.
+    const adjustedResult = {
+      ...result,
+      source: {
+        ...result.source,
+        index: result.source.index + 1,
+      },
+      destination: {
+        ...result.destination,
+        index: result.destination.index + 1,
+      },
+    };
+
+    onDragEnd(adjustedResult);
   };
 
   return (
     <Container>
       <Menubar>
-        <Breadcrumb>MES System Management</Breadcrumb>
+        <Breadcrumb>MES Home</Breadcrumb>
         <RightSection>
-          <WeatherItem>
-            {renderWeatherIcon(weather.icon)}
-            <span>{weather.temp}°C</span>
-            <span className="desc">({weather.desc})</span>
-          </WeatherItem>
-
-          <Divider />
-
-          <ClockItem>
-            <FaClock size={14} style={{ marginRight: 6 }} />
-            {currentTime.toLocaleTimeString()}
-          </ClockItem>
-
-          <Divider />
-
-          <HeaderBtn onClick={handleLogout} title="Logout" $logout>
-            <FaSignOutAlt size={16} />
-            <span>Logout</span>
-          </HeaderBtn>
+          <span>Admin</span>
         </RightSection>
       </Menubar>
 
       <Toolbar>
-        {/* ★ Home 탭: 아이콘 변경 (IoIosHome) */}
-        {homeTab ? (
-          <HomeTabItem
-            $active={location.pathname === HOME_PATH}
-            onClick={() => navigate(HOME_PATH)}
-            title="Dashboard"
+        {/* ★ 3. Home 탭: 드래그 영역 밖에서 단독 렌더링 (절대 고정) */}
+        {homeTab && (
+          <TabItem
+            $active={location.pathname === "/"}
+            $isHome={true}
+            onClick={() => navigate("/")}
           >
-            <IoIosHome size={18} />
-          </HomeTabItem>
-        ) : null}
+            <FaHome size={18} />
+          </TabItem>
+        )}
 
-        <ScrollContainer>
-          <DragDropContext onDragEnd={handleDragEnd}>
-            <Droppable droppableId="tabs" direction="horizontal">
-              {(provided) => (
-                <DraggableArea
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                >
-                  {otherTabs.map((tab, index) => (
-                    <Draggable
-                      key={tab.path}
-                      draggableId={tab.path}
-                      index={index}
-                    >
-                      {(provided, snapshot) => (
-                        <TabItem
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          $active={location.pathname === tab.path}
-                          $isDragging={snapshot.isDragging}
-                          onClick={() => navigate(tab.path)}
-                          style={{ ...provided.draggableProps.style }}
-                          title={tab.name}
+        {/* ★ 4. 나머지 탭들만 DragDropContext로 감쌈 */}
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="tabs" direction="horizontal">
+            {(provided) => (
+              <DraggableArea
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+              >
+                {otherTabs.map((tab, index) => (
+                  <Draggable
+                    key={tab.path}
+                    draggableId={tab.path}
+                    index={index}
+                  >
+                    {(provided, snapshot) => (
+                      <TabItem
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        $active={location.pathname === tab.path}
+                        $isHome={false}
+                        $isDragging={snapshot.isDragging}
+                        onClick={() => navigate(tab.path)}
+                        style={{ ...provided.draggableProps.style }}
+                      >
+                        {tab.name}
+                        <CloseBtn
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeTab(tab.path);
+                          }}
                         >
-                          <TabText>{tab.name}</TabText>
-                          <CloseBtn
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeTab(tab.path);
-                            }}
-                          >
-                            <IconWrapper>
-                              <IoMdClose />
-                            </IconWrapper>
-                          </CloseBtn>
-                        </TabItem>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </DraggableArea>
-              )}
-            </Droppable>
-          </DragDropContext>
-        </ScrollContainer>
+                          <IconWrapper>
+                            <IoMdClose />
+                          </IconWrapper>
+                        </CloseBtn>
+                      </TabItem>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </DraggableArea>
+            )}
+          </Droppable>
+        </DragDropContext>
       </Toolbar>
     </Container>
   );
 };
 
 export default AdminHeader;
+
+// --- 스타일링 ---
 
 // --- Styled Components (기존 코드 유지) ---
 const Container = styled.div`

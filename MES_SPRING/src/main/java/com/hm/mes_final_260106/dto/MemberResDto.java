@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 public class MemberResDto {
     private String email;
     private String name;
-    private String authority;
+    private Authority authority;
 
     public static MemberResDto of(Member member) {
         return MemberResDto.builder()
