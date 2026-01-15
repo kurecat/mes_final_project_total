@@ -1,0 +1,30 @@
+# --- Common & OS ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --- React (MES_REACT) ---
+**/node_modules/
+**/build/
+**/dist/
+.env
+.env.local
+npm-debug.log*
+yarn-debug.log*
+
+# --- Spring Boot (MES_SPRING) ---
+**/target/
+**/.mvn/
+**/mvnw
+**/mvnw.cmd
+**/*.class
+**/*.jar
+**/*.war
+
+# --- C# (MES_CSHARP) ---
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/*.suo

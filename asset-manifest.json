@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/reactmestest/static/css/main.31d6cfe0.css",
+    "main.js": "/reactmestest/static/js/main.e0f57c2c.js",
+    "static/js/453.e506868f.chunk.js": "/reactmestest/static/js/453.e506868f.chunk.js",
+    "index.html": "/reactmestest/index.html",
+    "main.e0f57c2c.js.map": "/reactmestest/static/js/main.e0f57c2c.js.map",
+    "453.e506868f.chunk.js.map": "/reactmestest/static/js/453.e506868f.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.31d6cfe0.css",
+    "static/js/main.e0f57c2c.js"
+  ]
+}
