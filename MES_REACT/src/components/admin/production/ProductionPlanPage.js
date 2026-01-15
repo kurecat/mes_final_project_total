@@ -1,247 +1,263 @@
 // src/pages/production/ProductionPlanPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
   FaCalendarAlt,
-  FaChevronLeft,
-  FaChevronRight,
   FaPlus,
   FaEdit,
   FaTrash,
+  FaSearch,
   FaCheckDouble,
-  FaList,
+  FaSync,
+  FaArrowRight,
+  FaIndustry,
 } from "react-icons/fa";
 
-// --- Mock Data ---
-// 1. 라인 정보
-const LINES = [
-  { id: "LINE-A", name: "Line-A (HBM Stacking)" },
-  { id: "LINE-B", name: "Line-B (Pkg/Reflow)" },
-  { id: "LINE-C", name: "Line-C (Test/Module)" },
-];
-
-// 2. 날짜 유틸 (현재 주차 날짜 생성)
-const getThisWeek = () => {
-  const dates = [];
-  const today = new Date(); // 실제로는 달력 라이브러리 사용 권장
-  // 예시를 위해 고정된 날짜 범위 생성 (5/20 월 ~ 5/26 일)
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(2024, 4, 20 + i); // 5월 20일부터
-    dates.push({
-      full: d.toISOString().split("T")[0],
-      day: d.getDate(),
-      week: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()],
-    });
-  }
-  return dates;
-};
-
-// 3. 생산 계획 데이터
-const INITIAL_PLANS = [
+// --- Fallback Mock Data ---
+const MOCK_PLANS = [
   {
-    id: "PP-240520-01",
-    line: "LINE-A",
-    date: "2024-05-20",
-    product: "HBM3 8-Hi Stack",
-    qty: 500,
-    status: "CONFIRMED", // PLANNED, CONFIRMED, RELEASED
-    color: "#e3f2fd", // 파랑 배경
-    borderColor: "#2196f3",
+    id: "PP-240601-01",
+    date: "2024-06-01",
+    product: "DDR5 1znm Wafer",
+    line: "Fab-Line-A",
+    type: "FAB",
+    planQty: 1000,
+    status: "COMPLETED",
   },
   {
-    id: "PP-240521-02",
-    line: "LINE-A",
-    date: "2024-05-21",
-    product: "HBM3 8-Hi Stack",
-    qty: 600,
-    status: "RELEASED", // 작업지시 배포 완료
-    color: "#e8f5e9", // 초록 배경
-    borderColor: "#4caf50",
+    id: "PP-240602-02",
+    date: "2024-06-02",
+    product: "16Gb DDR5 SDRAM",
+    line: "EDS-Line-01",
+    type: "EDS",
+    planQty: 50000,
+    status: "RELEASED",
   },
   {
-    id: "PP-240520-03",
-    line: "LINE-C",
-    date: "2024-05-20",
-    product: "DDR5 32GB Module",
-    qty: 2000,
+    id: "PP-240605-03",
+    date: "2024-06-05",
+    product: "DDR5 32GB UDIMM",
+    line: "Mod-Line-C",
+    type: "MOD",
+    planQty: 2000,
     status: "PLANNED",
-    color: "#fff3e0", // 주황 배경
-    borderColor: "#ff9800",
   },
   {
-    id: "PP-240522-04",
-    line: "LINE-B",
-    date: "2024-05-22",
-    product: "HBM3 Package Assy",
-    qty: 450,
+    id: "PP-240606-04",
+    date: "2024-06-06",
+    product: "LPDDR5X Mobile",
+    line: "Fab-Line-B",
+    type: "FAB",
+    planQty: 800,
     status: "PLANNED",
-    color: "#fff3e0",
-    borderColor: "#ff9800",
   },
 ];
 
 const ProductionPlanPage = () => {
-  const [weekDates, setWeekDates] = useState(getThisWeek());
-  const [plans, setPlans] = useState(INITIAL_PLANS);
-  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [plans, setPlans] = useState(MOCK_PLANS);
+  const [loading, setLoading] = useState(true);
+  const [filterLine, setFilterLine] = useState("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // 날짜와 라인에 맞는 계획 찾기
-  const getPlanByDateLine = (date, lineId) => {
-    return plans.find((p) => p.date === date && p.line === lineId);
+  // 1. 데이터 조회 (READ)
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API: http://localhost:3001/productionPlans
+      // const res = await axios.get("http://localhost:3001/productionPlans");
+      // setPlans(res.data);
+
+      setTimeout(() => {
+        setPlans(MOCK_PLANS);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
   };
 
-  // 계획 선택 핸들러
-  const handlePlanClick = (plan) => {
-    setSelectedPlan(plan);
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // 2. 계획 확정 (UPDATE Status)
+  // PLANNED -> RELEASED (Work Order 생성 단계로 넘어감)
+  const handleRelease = async (id) => {
+    try {
+      // await axios.patch(`http://localhost:3001/productionPlans/${id}`, { status: "RELEASED" });
+      // fetchData();
+
+      setPlans((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: "RELEASED" } : p))
+      );
+      alert(`Plan [${id}] has been released to production.`);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
-  // 작업지시 배포 (Plan -> Work Order)
-  const handleRelease = () => {
-    if (!selectedPlan) return;
-    if (selectedPlan.status === "RELEASED")
-      return alert("이미 배포된 계획입니다.");
-
-    const updated = plans.map((p) =>
-      p.id === selectedPlan.id
-        ? { ...p, status: "RELEASED", color: "#e8f5e9", borderColor: "#4caf50" }
-        : p
-    );
-    setPlans(updated);
-    setSelectedPlan({ ...selectedPlan, status: "RELEASED" });
-    alert(`[${selectedPlan.id}] 계획이 현장으로 배포되었습니다.`);
+  // 3. 계획 삭제 (DELETE)
+  const handleDelete = async (id) => {
+    if (!window.confirm("삭제하시겠습니까? (확정된 계획은 삭제 주의)")) return;
+    try {
+      // await axios.delete(`http://localhost:3001/productionPlans/${id}`);
+      setPlans((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
   };
+
+  // 4. 새 계획 추가 (CREATE - Mock)
+  const handleAdd = () => {
+    const newPlan = {
+      id: `PP-${Math.floor(Math.random() * 10000)}`,
+      date: new Date().toISOString().split("T")[0],
+      product: "New Product Plan",
+      line: "Fab-Line-A",
+      type: "FAB",
+      planQty: 500,
+      status: "PLANNED",
+    };
+    setPlans([newPlan, ...plans]);
+  };
+
+  // 필터링
+  const filteredPlans = plans.filter((p) => {
+    const matchLine = filterLine === "ALL" || p.type === filterLine;
+    const matchSearch =
+      p.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.id.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchLine && matchSearch;
+  });
 
   return (
     <Container>
-      {/* 1. 헤더 및 주간 이동 컨트롤 */}
+      {/* 헤더 */}
       <Header>
         <TitleArea>
           <PageTitle>
             <FaCalendarAlt /> Production Planning
+            {loading && (
+              <FaSync
+                className="spin"
+                style={{ fontSize: 14, marginLeft: 10 }}
+              />
+            )}
           </PageTitle>
-          <SubTitle>주간 생산 일정 수립 및 작업지시 배포</SubTitle>
+          <SubTitle>Fab / EDS / Module Daily Output Plan</SubTitle>
         </TitleArea>
-        <ControlGroup>
-          <NavButton>
-            <FaChevronLeft />
-          </NavButton>
-          <DateRange>2024. 05. 20 ~ 2024. 05. 26 (Week 21)</DateRange>
-          <NavButton>
-            <FaChevronRight />
-          </NavButton>
-          <AddButton>
-            <FaPlus /> New Plan
+        <ActionGroup>
+          <AddButton onClick={handleAdd}>
+            <FaPlus /> Create Plan
           </AddButton>
-        </ControlGroup>
+        </ActionGroup>
       </Header>
 
-      {/* 2. 메인 스케줄러 (Matrix View) */}
-      <SchedulerContainer>
-        {/* 그리드 헤더 (날짜) */}
-        <GridHeader>
-          <LineHeaderCell>Line / Date</LineHeaderCell>
-          {weekDates.map((d) => (
-            <DateHeaderCell
-              key={d.full}
-              $isWeekend={d.week === "Sat" || d.week === "Sun"}
-            >
-              <DayName>{d.week}</DayName>
-              <DayNum>{d.day}</DayNum>
-            </DateHeaderCell>
-          ))}
-        </GridHeader>
+      {/* 컨트롤 바 */}
+      <ControlBar>
+        <FilterGroup>
+          <FilterBtn
+            $active={filterLine === "ALL"}
+            onClick={() => setFilterLine("ALL")}
+          >
+            All Lines
+          </FilterBtn>
+          <FilterBtn
+            $active={filterLine === "FAB"}
+            onClick={() => setFilterLine("FAB")}
+          >
+            Fab (Wafer)
+          </FilterBtn>
+          <FilterBtn
+            $active={filterLine === "EDS"}
+            onClick={() => setFilterLine("EDS")}
+          >
+            EDS (Chip)
+          </FilterBtn>
+          <FilterBtn
+            $active={filterLine === "MOD"}
+            onClick={() => setFilterLine("MOD")}
+          >
+            Module
+          </FilterBtn>
+        </FilterGroup>
+        <SearchBox>
+          <FaSearch color="#999" />
+          <input
+            placeholder="Search Product or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </SearchBox>
+      </ControlBar>
 
-        {/* 그리드 바디 (라인별 로우) */}
-        <GridBody>
-          {LINES.map((line) => (
-            <LineRow key={line.id}>
-              {/* 라인 이름 */}
-              <LineNameCell>{line.name}</LineNameCell>
-
-              {/* 7일치 셀 렌더링 */}
-              {weekDates.map((d) => {
-                const plan = getPlanByDateLine(d.full, line.id);
-                return (
-                  <PlanCell key={`${line.id}-${d.full}`}>
-                    {plan ? (
-                      <PlanBlock
-                        $color={plan.color}
-                        $borderColor={plan.borderColor}
-                        $active={selectedPlan?.id === plan.id}
-                        onClick={() => handlePlanClick(plan)}
+      {/* 테이블 */}
+      <TableContainer>
+        <Table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Plan ID</th>
+              <th>Date</th>
+              <th>Target Line</th>
+              <th>Product Item</th>
+              <th>Plan Qty</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredPlans.map((plan) => (
+              <tr key={plan.id}>
+                <td>
+                  <StatusBadge $status={plan.status}>{plan.status}</StatusBadge>
+                </td>
+                <td style={{ fontWeight: "bold", color: "#1a4f8b" }}>
+                  {plan.id}
+                </td>
+                <td>{plan.date}</td>
+                <td style={{ fontSize: 13 }}>
+                  <LineTag $type={plan.type}>{plan.line}</LineTag>
+                </td>
+                <td style={{ fontWeight: "600" }}>{plan.product}</td>
+                <td>
+                  {plan.planQty.toLocaleString()}
+                  <Unit>
+                    {plan.type === "FAB"
+                      ? "wfrs"
+                      : plan.type === "EDS"
+                      ? "chips"
+                      : "ea"}
+                  </Unit>
+                </td>
+                <td>
+                  <ActionButtons>
+                    {plan.status === "PLANNED" && (
+                      <IconBtn
+                        className="confirm"
+                        onClick={() => handleRelease(plan.id)}
+                        title="Release Plan"
                       >
-                        <ProdName>{plan.product}</ProdName>
-                        <ProdQty>{plan.qty.toLocaleString()} ea</ProdQty>
-                        <StatusDot $status={plan.status} />
-                      </PlanBlock>
-                    ) : (
-                      <EmptySlot>+</EmptySlot>
+                        <FaCheckDouble /> Release
+                      </IconBtn>
                     )}
-                  </PlanCell>
-                );
-              })}
-            </LineRow>
-          ))}
-        </GridBody>
-      </SchedulerContainer>
-
-      {/* 3. 하단: 선택된 계획 상세 및 액션 */}
-      <DetailPanel>
-        <DetailHeader>
-          <PanelTitle>
-            <FaList /> Plan Detail Information
-          </PanelTitle>
-          {selectedPlan && (
-            <ActionGroup>
-              <ActionButton
-                onClick={handleRelease}
-                disabled={selectedPlan.status === "RELEASED"}
-              >
-                <FaCheckDouble /> Release to Order (지시 배포)
-              </ActionButton>
-              <ActionButton>
-                <FaEdit /> Edit
-              </ActionButton>
-              <ActionButton $delete>
-                <FaTrash /> Delete
-              </ActionButton>
-            </ActionGroup>
-          )}
-        </DetailHeader>
-
-        {selectedPlan ? (
-          <DetailContent>
-            <InfoGroup>
-              <Label>Plan ID</Label>
-              <Value>{selectedPlan.id}</Value>
-            </InfoGroup>
-            <InfoGroup>
-              <Label>Target Date</Label>
-              <Value>{selectedPlan.date}</Value>
-            </InfoGroup>
-            <InfoGroup>
-              <Label>Product Item</Label>
-              <Value style={{ fontWeight: "bold", color: "#1a4f8b" }}>
-                {selectedPlan.product}
-              </Value>
-            </InfoGroup>
-            <InfoGroup>
-              <Label>Target Quantity</Label>
-              <Value>{selectedPlan.qty.toLocaleString()} ea</Value>
-            </InfoGroup>
-            <InfoGroup>
-              <Label>Status</Label>
-              <StatusBadge $status={selectedPlan.status}>
-                {selectedPlan.status}
-              </StatusBadge>
-            </InfoGroup>
-          </DetailContent>
-        ) : (
-          <EmptyMessage>
-            상단 일정표에서 계획을 선택하여 상세 정보를 확인하세요.
-          </EmptyMessage>
-        )}
-      </DetailPanel>
+                    <IconBtn className="edit">
+                      <FaEdit />
+                    </IconBtn>
+                    <IconBtn
+                      className="del"
+                      onClick={() => handleDelete(plan.id)}
+                    >
+                      <FaTrash />
+                    </IconBtn>
+                  </ActionButtons>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </TableContainer>
     </Container>
   );
 };
@@ -253,35 +269,40 @@ export default ProductionPlanPage;
 const Container = styled.div`
   width: 100%;
   height: 100%;
-  background-color: #f5f6fa;
   padding: 20px;
+  background-color: #f5f6fa;
   display: flex;
   flex-direction: column;
+  gap: 20px;
   box-sizing: border-box;
 `;
 
-// Header
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
 `;
-
 const TitleArea = styled.div`
   display: flex;
   flex-direction: column;
 `;
-
 const PageTitle = styled.h2`
-  font-size: 22px;
-  color: #333;
   margin: 0;
+  font-size: 24px;
+  color: #333;
   display: flex;
   align-items: center;
   gap: 10px;
+  .spin {
+    animation: spin 1s linear infinite;
+    color: #aaa;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 `;
-
 const SubTitle = styled.span`
   font-size: 13px;
   color: #888;
@@ -289,317 +310,189 @@ const SubTitle = styled.span`
   margin-left: 32px;
 `;
 
-const ControlGroup = styled.div`
+const ActionGroup = styled.div`
   display: flex;
-  align-items: center;
   gap: 10px;
-  background: white;
-  padding: 5px;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 `;
-
-const NavButton = styled.button`
-  background: transparent;
-  border: 1px solid #eee;
-  padding: 8px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #555;
-  &:hover {
-    background: #f5f5f5;
-  }
-`;
-
-const DateRange = styled.span`
-  font-weight: 600;
-  font-size: 14px;
-  padding: 0 10px;
-  color: #333;
-`;
-
 const AddButton = styled.button`
-  background-color: #1a4f8b;
+  background: #1a4f8b;
   color: white;
   border: none;
-  padding: 8px 15px;
-  border-radius: 4px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 10px;
-  &:hover {
-    background-color: #133b6b;
-  }
-`;
-
-// Scheduler Grid
-const SchedulerContainer = styled.div`
-  flex: 1;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  margin-bottom: 20px;
-`;
-
-const GridHeader = styled.div`
-  display: flex;
-  height: 60px;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #ddd;
-`;
-
-const LineHeaderCell = styled.div`
-  width: 180px; /* 라인명 컬럼 고정 너비 */
-  padding: 15px;
-  font-weight: 700;
-  color: #555;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-right: 1px solid #eee;
-  flex-shrink: 0;
-`;
-
-const DateHeaderCell = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-right: 1px solid #eee;
-  color: ${(props) => (props.$isWeekend ? "#e74c3c" : "#333")};
-  background-color: ${(props) =>
-    props.$isWeekend ? "#fff5f5" : "transparent"};
-`;
-
-const DayName = styled.span`
-  font-size: 12px;
-  color: #888;
-`;
-
-const DayNum = styled.span`
-  font-size: 18px;
-  font-weight: 700;
-`;
-
-const GridBody = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-`;
-
-const LineRow = styled.div`
-  display: flex;
-  height: 100px; /* 로우 높이 */
-  border-bottom: 1px solid #eee;
-`;
-
-const LineNameCell = styled.div`
-  width: 180px;
-  padding: 15px;
-  font-weight: 600;
-  color: #333;
-  display: flex;
-  align-items: center;
-  border-right: 1px solid #eee;
-  background-color: #fff;
-  flex-shrink: 0;
-  font-size: 14px;
-`;
-
-const PlanCell = styled.div`
-  flex: 1;
-  border-right: 1px solid #eee;
-  padding: 5px;
-  position: relative;
-
-  &:hover {
-    background-color: #fafafa;
-  }
-`;
-
-// Empty Slot (+ button)
-const EmptySlot = styled.div`
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: transparent;
-  font-size: 24px;
-  cursor: pointer;
   border-radius: 6px;
-
-  ${PlanCell}:hover & {
-    color: #ddd;
-    border: 2px dashed #eee;
-  }
-
-  &:hover {
-    color: #1a4f8b !important;
-    border-color: #1a4f8b !important;
-    background-color: #e3f2fd;
-  }
-`;
-
-// Plan Block Card
-const PlanBlock = styled.div`
-  width: 100%;
-  height: 100%;
-  background-color: ${(props) => props.$color};
-  border-left: 4px solid ${(props) => props.$borderColor};
-  border-radius: 4px;
-  padding: 10px;
+  padding: 10px 20px;
+  font-weight: 600;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-shadow: ${(props) => (props.$active ? "0 0 0 2px #1a4f8b" : "none")};
-  transition: transform 0.1s;
-
-  &:hover {
-    transform: scale(1.02);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-`;
-
-const ProdName = styled.div`
-  font-size: 13px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const ProdQty = styled.div`
-  font-size: 12px;
-  color: #555;
-`;
-
-const StatusDot = styled.div`
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: ${(props) =>
-    props.$status === "RELEASED"
-      ? "#2ecc71"
-      : props.$status === "CONFIRMED"
-      ? "#2196f3"
-      : "#ff9800"};
-`;
-
-// Detail Panel (Bottom)
-const DetailPanel = styled.div`
-  height: 160px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-`;
-
-const DetailHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-`;
-
-const PanelTitle = styled.h3`
-  font-size: 16px;
-  margin: 0;
-  color: #333;
   display: flex;
   align-items: center;
   gap: 8px;
+  &:hover {
+    background: #133b6b;
+  }
 `;
 
-const DetailContent = styled.div`
+const ControlBar = styled.div`
   display: flex;
-  gap: 40px;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 15px 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
-
-const InfoGroup = styled.div`
+const FilterGroup = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 5px;
+  gap: 8px;
+`;
+const FilterBtn = styled.button`
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid ${(props) => (props.$active ? "#1a4f8b" : "#eee")};
+  background: ${(props) => (props.$active ? "#1a4f8b" : "#f9f9f9")};
+  color: ${(props) => (props.$active ? "white" : "#666")};
+  &:hover {
+    background: ${(props) => (props.$active ? "#133b6b" : "#eee")};
+  }
+`;
+const SearchBox = styled.div`
+  display: flex;
+  align-items: center;
+  background: #f5f5f5;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  input {
+    border: none;
+    background: transparent;
+    outline: none;
+    margin-left: 8px;
+    width: 200px;
+    font-size: 14px;
+  }
 `;
 
-const Label = styled.span`
-  font-size: 12px;
-  color: #888;
+const TableContainer = styled.div`
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  overflow-y: auto;
 `;
 
-const Value = styled.span`
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
   font-size: 14px;
-  font-weight: 500;
-  color: #333;
+  thead {
+    th {
+      text-align: left;
+      padding: 12px;
+      background: #f9f9f9;
+      color: #666;
+      border-bottom: 2px solid #eee;
+      font-weight: 700;
+    }
+  }
+  tbody {
+    tr {
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.2s;
+      &:hover {
+        background: #f8fbff;
+      }
+    }
+    td {
+      padding: 12px;
+      color: #333;
+      vertical-align: middle;
+    }
+  }
 `;
 
 const StatusBadge = styled.span`
   padding: 4px 8px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   background-color: ${(props) =>
-    props.$status === "RELEASED"
+    props.$status === "COMPLETED"
       ? "#e8f5e9"
-      : props.$status === "CONFIRMED"
+      : props.$status === "RELEASED"
       ? "#e3f2fd"
       : "#fff3e0"};
   color: ${(props) =>
-    props.$status === "RELEASED"
+    props.$status === "COMPLETED"
       ? "#2e7d32"
-      : props.$status === "CONFIRMED"
+      : props.$status === "RELEASED"
       ? "#1976d2"
-      : "#ef6c00"};
+      : "#e67e22"};
 `;
 
-const ActionGroup = styled.div`
-  display: flex;
-  gap: 10px;
-`;
-
-const ActionButton = styled.button`
-  padding: 6px 12px;
-  border: 1px solid #ddd;
-  background: white;
+const LineTag = styled.span`
+  background: #f5f5f5;
+  color: #666;
+  padding: 3px 6px;
   border-radius: 4px;
-  cursor: pointer;
-  display: flex;
+  border: 1px solid #eee;
+  display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 13px;
-  color: ${(props) => (props.$delete ? "#e74c3c" : "#333")};
+  &::before {
+    content: "";
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: ${(props) =>
+      props.$type === "FAB"
+        ? "#9b59b6"
+        : props.$type === "EDS"
+        ? "#e67e22"
+        : "#3498db"};
+  }
+`;
 
+const Unit = styled.span`
+  font-size: 11px;
+  color: #999;
+  margin-left: 4px;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+const IconBtn = styled.button`
+  background: transparent;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
   &:hover {
     background: #f5f5f5;
   }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  &.confirm {
+    color: #2ecc71;
+    border-color: #2ecc71;
+    &:hover {
+      background: #e8f5e9;
+    }
   }
-`;
-
-const EmptyMessage = styled.div`
-  color: #aaa;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  height: 100%;
+  &.edit:hover {
+    color: #1a4f8b;
+    border-color: #1a4f8b;
+  }
+  &.del:hover {
+    color: #e74c3c;
+    border-color: #e74c3c;
+  }
 `;

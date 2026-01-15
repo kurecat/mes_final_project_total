@@ -1,6 +1,7 @@
 // src/pages/production/WorkOrderPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
   FaPlay,
   FaPause,
@@ -12,120 +13,137 @@ import {
   FaClock,
   FaExclamationCircle,
   FaMicrochip,
+  FaSync,
 } from "react-icons/fa";
 
-// --- Mock Data (D-RAM 작업 지시 목록) ---
-const INITIAL_ORDERS = [
+// --- Fallback Mock Data ---
+const MOCK_ORDERS = [
   {
     id: "WO-FAB-240601-A",
     product: "DDR5 1znm Wafer Process",
-    line: "Line-Fab-01",
+    line: "Fab-Line-A",
     type: "FAB",
-    status: "RUNNING", // RUNNING, PAUSED, READY, DONE
-    planQty: 25, // Lot 단위 (Wafer 25매)
+    status: "RUNNING",
+    planQty: 25,
     actualQty: 12,
     unit: "wfrs",
     startTime: "06:30:00",
-    endTime: null,
-    worker: "Eng. Kim",
     progress: 48,
     priority: "HIGH",
   },
   {
     id: "WO-EDS-240601-B",
     product: "16Gb DDR5 SDRAM Test",
-    line: "Line-EDS-02",
+    line: "EDS-Line-02",
     type: "EDS",
     status: "PAUSED",
     planQty: 5000,
     actualQty: 1200,
     unit: "chips",
     startTime: "09:00:00",
-    endTime: null,
-    worker: "Op. Lee",
     progress: 24,
-    issue: "Yield Drop Alert (<90%)", // 수율 저하로 인한 일시 정지
+    issue: "Yield Drop Alert",
     priority: "NORMAL",
   },
   {
     id: "WO-MOD-240601-C",
     product: "DDR5 32GB UDIMM Assy",
-    line: "Line-Mod-03",
-    type: "MODULE",
+    line: "Mod-Line-C",
+    type: "MOD",
     status: "DONE",
     planQty: 1000,
     actualQty: 1000,
     unit: "ea",
     startTime: "08:00:00",
     endTime: "14:20:00",
-    worker: "Op. Park",
     progress: 100,
     priority: "NORMAL",
   },
   {
     id: "WO-FAB-240602-D",
     product: "LPDDR5X Mobile DRAM",
-    line: "Line-Fab-01",
+    line: "Fab-Line-A",
     type: "FAB",
     status: "READY",
     planQty: 50,
     actualQty: 0,
     unit: "wfrs",
-    startTime: null,
-    endTime: null,
-    worker: "-",
     progress: 0,
-    priority: "URGENT", // 긴급 오더
-  },
-  {
-    id: "WO-EDS-240602-E",
-    product: "DDR4 8Gb Legacy Test",
-    line: "Line-EDS-01",
-    type: "EDS",
-    status: "READY",
-    planQty: 10000,
-    actualQty: 0,
-    unit: "chips",
-    startTime: null,
-    endTime: null,
-    worker: "-",
-    progress: 0,
-    priority: "LOW",
+    priority: "URGENT",
   },
 ];
 
 const WorkOrderPage = () => {
-  const [orders, setOrders] = useState(INITIAL_ORDERS);
+  const [orders, setOrders] = useState(MOCK_ORDERS);
+  const [loading, setLoading] = useState(true);
   const [lineFilter, setLineFilter] = useState("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // 상태 변경 핸들러
-  const updateStatus = (id, newStatus) => {
-    const updated = orders.map((order) => {
-      if (order.id === id) {
-        let updates = { status: newStatus };
-        if (newStatus === "RUNNING" && !order.startTime) {
-          updates.startTime = new Date().toLocaleTimeString("en-US", {
-            hour12: false,
-          });
-        }
-        if (newStatus === "DONE") {
-          updates.endTime = new Date().toLocaleTimeString("en-US", {
-            hour12: false,
-          });
-          updates.actualQty = order.planQty;
-          updates.progress = 100;
-        }
-        return { ...order, ...updates };
+  // 1. 데이터 조회 (READ)
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API: http://localhost:3001/workOrders
+      // const res = await axios.get("http://localhost:3001/workOrders");
+      // setOrders(res.data);
+
+      setTimeout(() => {
+        setOrders(MOCK_ORDERS);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // 2. 상태 변경 (UPDATE - PATCH)
+  const updateStatus = async (id, newStatus) => {
+    try {
+      // 업데이트할 내용 계산
+      const updates = { status: newStatus };
+      if (newStatus === "RUNNING") {
+        updates.startTime = new Date().toLocaleTimeString("en-US", {
+          hour12: false,
+        });
       }
-      return order;
-    });
-    setOrders(updated);
+      if (newStatus === "DONE") {
+        updates.endTime = new Date().toLocaleTimeString("en-US", {
+          hour12: false,
+        });
+        updates.progress = 100;
+        // 완료 시 실제 수량을 계획 수량으로 맞춤 (데모용)
+        const targetOrder = orders.find((o) => o.id === id);
+        if (targetOrder) updates.actualQty = targetOrder.planQty;
+      }
+
+      // ★ 실제 API PATCH
+      // await axios.patch(`http://localhost:3001/workOrders/${id}`, updates);
+      // fetchData(); // 재조회
+
+      // Mock 동작
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === id ? { ...order, ...updates } : order
+        )
+      );
+    } catch (err) {
+      console.error("Update Error", err);
+    }
   };
 
   // 필터링
-  const filteredOrders = orders.filter(
-    (o) => lineFilter === "ALL" || o.type === lineFilter
-  );
+  const filteredOrders = orders.filter((o) => {
+    const matchType = lineFilter === "ALL" || o.type === lineFilter;
+    const matchSearch =
+      o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      o.product.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchType && matchSearch;
+  });
 
   const readyOrders = filteredOrders.filter((o) => o.status === "READY");
   const runningOrders = filteredOrders.filter(
@@ -140,8 +158,14 @@ const WorkOrderPage = () => {
         <TitleArea>
           <PageTitle>
             <FaIndustry /> Work Order Execution
+            {loading && (
+              <FaSync
+                className="spin"
+                style={{ fontSize: 14, marginLeft: 10 }}
+              />
+            )}
           </PageTitle>
-          <SubTitle>D-RAM Fab/EDS/Module 작업 지시 현황</SubTitle>
+          <SubTitle>Fab / EDS / Module Shop Floor Control</SubTitle>
         </TitleArea>
         <ControlGroup>
           <FilterBox>
@@ -153,12 +177,16 @@ const WorkOrderPage = () => {
               <option value="ALL">All Processes</option>
               <option value="FAB">Fab (Wafer)</option>
               <option value="EDS">EDS (Test)</option>
-              <option value="MODULE">Module (SMT)</option>
+              <option value="MOD">Module (SMT)</option>
             </select>
           </FilterBox>
           <SearchBox>
             <FaSearch color="#aaa" />
-            <input placeholder="Search WO ID..." />
+            <input
+              placeholder="Search WO ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </SearchBox>
         </ControlGroup>
       </Header>
@@ -219,7 +247,7 @@ const WorkOrderPage = () => {
 
                 <ProdName>{order.product}</ProdName>
                 <MetaInfo>
-                  <FaClock size={12} /> Started at {order.startTime}
+                  <FaClock size={12} /> Started: {order.startTime}
                 </MetaInfo>
 
                 <ProgressWrapper>
@@ -240,7 +268,7 @@ const WorkOrderPage = () => {
 
                 {order.status === "PAUSED" && (
                   <IssueBox>
-                    <FaExclamationCircle /> {order.issue}
+                    <FaExclamationCircle /> {order.issue || "Line Paused"}
                   </IssueBox>
                 )}
 
@@ -336,6 +364,15 @@ const PageTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: 10px;
+  .spin {
+    animation: spin 1s linear infinite;
+    color: #aaa;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 `;
 const SubTitle = styled.span`
   font-size: 13px;

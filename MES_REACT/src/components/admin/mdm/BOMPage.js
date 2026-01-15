@@ -1,6 +1,7 @@
 // src/pages/mdm/BomPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
   FaSearch,
   FaSitemap,
@@ -9,19 +10,19 @@ import {
   FaPlus,
   FaEdit,
   FaFileExport,
-  FaChevronRight,
-  FaFlask, // 화학 자재용 아이콘
-  FaMicrochip, // 칩 아이콘
+  FaFlask,
+  FaMicrochip,
+  FaSync,
 } from "react-icons/fa";
 
-// --- Mock Data (D-RAM BOM 구조) ---
-const BOM_LIST = [
+// --- Fallback Mock Data ---
+const MOCK_BOMS = [
   {
     id: "BOM-DDR5-MOD-16G",
     name: "DDR5 16GB UDIMM 5600MHz",
     revision: "Rev. B",
     status: "ACTIVE",
-    type: "FG", // 완제품 (Module)
+    type: "FG",
     lastUpdated: "2024-06-01",
     children: [
       {
@@ -41,7 +42,7 @@ const BOM_LIST = [
         qty: 8,
         unit: "ea",
         spec: "x8 Component",
-      }, // 하위 BOM 존재 (단품)
+      },
       {
         level: 1,
         id: "IC-SPD-HUB",
@@ -76,7 +77,7 @@ const BOM_LIST = [
     name: "DDR5 16Gb SDRAM Component",
     revision: "Rev. A",
     status: "ACTIVE",
-    type: "ASSY", // 반제품 (Component)
+    type: "ASSY",
     lastUpdated: "2024-05-20",
     children: [
       {
@@ -87,7 +88,7 @@ const BOM_LIST = [
         qty: 1,
         unit: "ea",
         spec: "1znm Node",
-      }, // Fab 완료 웨이퍼
+      },
       {
         level: 1,
         id: "LF-BGA-78",
@@ -122,7 +123,7 @@ const BOM_LIST = [
     name: "Processed D-RAM Wafer (Fab)",
     revision: "Rev. C",
     status: "ACTIVE",
-    type: "ASSY", // 반제품 (Fab Out)
+    type: "ASSY",
     lastUpdated: "2024-05-15",
     children: [
       {
@@ -166,10 +167,35 @@ const BOM_LIST = [
 ];
 
 const BomPage = () => {
-  const [selectedBom, setSelectedBom] = useState(BOM_LIST[0]);
+  const [bomList, setBomList] = useState(MOCK_BOMS);
+  const [selectedBom, setSelectedBom] = useState(null); // 초기엔 null
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredBoms = BOM_LIST.filter(
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API: http://localhost:3001/boms
+      // const res = await axios.get("http://localhost:3001/boms");
+      // setBomList(res.data);
+      // if (res.data.length > 0) setSelectedBom(res.data[0]);
+
+      setTimeout(() => {
+        setBomList(MOCK_BOMS);
+        setSelectedBom(MOCK_BOMS[0]); // 데이터 로드 후 첫 번째 선택
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const filteredBoms = bomList.filter(
     (bom) =>
       bom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       bom.id.toLowerCase().includes(searchTerm.toLowerCase())
@@ -182,6 +208,12 @@ const BomPage = () => {
         <SidebarHeader>
           <Title>
             <FaSitemap /> Product BOMs
+            {loading && (
+              <FaSync
+                className="spin"
+                style={{ fontSize: 12, marginLeft: 8 }}
+              />
+            )}
           </Title>
           <SearchBox>
             <FaSearch color="#999" />
@@ -197,7 +229,7 @@ const BomPage = () => {
           {filteredBoms.map((bom) => (
             <BomItem
               key={bom.id}
-              $active={selectedBom.id === bom.id}
+              $active={selectedBom && selectedBom.id === bom.id}
               onClick={() => setSelectedBom(bom)}
             >
               <ItemTop>
@@ -219,104 +251,110 @@ const BomPage = () => {
 
       {/* 2. 우측 컨텐츠: BOM Detail Structure */}
       <ContentArea>
-        <DetailHeader>
-          <HeaderLeft>
-            <ProductName>
-              {selectedBom.name} <RevBadge>{selectedBom.revision}</RevBadge>
-            </ProductName>
-            <ProductMeta>
-              Code: <strong>{selectedBom.id}</strong> | Type: {selectedBom.type}{" "}
-              | Last Updated: {selectedBom.lastUpdated}
-            </ProductMeta>
-          </HeaderLeft>
-          <HeaderRight>
-            <ActionButton>
-              <FaEdit /> Revision Change
-            </ActionButton>
-            <ActionButton $primary>
-              <FaFileExport /> Export Excel
-            </ActionButton>
-          </HeaderRight>
-        </DetailHeader>
+        {selectedBom ? (
+          <>
+            <DetailHeader>
+              <HeaderLeft>
+                <ProductName>
+                  {selectedBom.name} <RevBadge>{selectedBom.revision}</RevBadge>
+                </ProductName>
+                <ProductMeta>
+                  Code: <strong>{selectedBom.id}</strong> | Type:{" "}
+                  {selectedBom.type} | Last Updated: {selectedBom.lastUpdated}
+                </ProductMeta>
+              </HeaderLeft>
+              <HeaderRight>
+                <ActionButton>
+                  <FaEdit /> Revision Change
+                </ActionButton>
+                <ActionButton $primary>
+                  <FaFileExport /> Export Excel
+                </ActionButton>
+              </HeaderRight>
+            </DetailHeader>
 
-        <TableContainer>
-          <BomTable>
-            <thead>
-              <tr>
-                <th width="5%">Lv.</th>
-                <th width="15%">Part Number</th>
-                <th width="25%">Item Name</th>
-                <th width="10%">Type</th>
-                <th width="10%">Qty</th>
-                <th width="10%">Unit</th>
-                <th width="25%">Specification</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* 루트(최상위) 아이템 표시 */}
-              <RootRow>
-                <td>0</td>
-                <td>{selectedBom.id}</td>
-                <td className="name">
-                  <FaCubes style={{ marginRight: 8, color: "#1a4f8b" }} />
-                  {selectedBom.name}
-                </td>
-                <td>
-                  <TypeLabel $type="FG">FG</TypeLabel>
-                </td>
-                <td>1</td>
-                <td>ea</td>
-                <td>Finished Product</td>
-              </RootRow>
+            <TableContainer>
+              <BomTable>
+                <thead>
+                  <tr>
+                    <th width="5%">Lv.</th>
+                    <th width="15%">Part Number</th>
+                    <th width="25%">Item Name</th>
+                    <th width="10%">Type</th>
+                    <th width="10%">Qty</th>
+                    <th width="10%">Unit</th>
+                    <th width="25%">Specification</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* 루트(최상위) 아이템 표시 */}
+                  <RootRow>
+                    <td>0</td>
+                    <td>{selectedBom.id}</td>
+                    <td className="name">
+                      <FaCubes style={{ marginRight: 8, color: "#1a4f8b" }} />
+                      {selectedBom.name}
+                    </td>
+                    <td>
+                      <TypeLabel $type="FG">FG</TypeLabel>
+                    </td>
+                    <td>1</td>
+                    <td>ea</td>
+                    <td>Finished Product</td>
+                  </RootRow>
 
-              {/* 자식 아이템들 표시 */}
-              {selectedBom.children.map((child, index) => (
-                <tr key={index}>
-                  <td style={{ textAlign: "center", color: "#888" }}>
-                    {child.level}
-                  </td>
-                  <td style={{ fontFamily: "monospace", color: "#555" }}>
-                    {child.id}
-                  </td>
-                  <td className="name">
-                    <Indent $level={child.level}>
-                      <LCorner />
-                      {/* 자재 타입별 아이콘 분기 */}
-                      {child.type === "CHEM" ? (
-                        <FaFlask
-                          color="#e74c3c"
-                          size={12}
-                          style={{ marginRight: 5 }}
-                        />
-                      ) : child.type === "ASSY" ? (
-                        <FaMicrochip
-                          color="#f39c12"
-                          size={12}
-                          style={{ marginRight: 5 }}
-                        />
-                      ) : (
-                        <FaCube
-                          color="#3498db"
-                          size={12}
-                          style={{ marginRight: 5 }}
-                        />
-                      )}
-                      <span>{child.name}</span>
-                    </Indent>
-                  </td>
-                  <td>
-                    <TypeLabel $type={child.type}>{child.type}</TypeLabel>
-                  </td>
-                  <td style={{ fontWeight: "600" }}>{child.qty}</td>
-                  <td style={{ color: "#666" }}>{child.unit}</td>
-                  <td style={{ color: "#666", fontSize: "13px" }}>
-                    {child.spec}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </BomTable>
-        </TableContainer>
+                  {/* 자식 아이템들 표시 */}
+                  {selectedBom.children.map((child, index) => (
+                    <tr key={index}>
+                      <td style={{ textAlign: "center", color: "#888" }}>
+                        {child.level}
+                      </td>
+                      <td style={{ fontFamily: "monospace", color: "#555" }}>
+                        {child.id}
+                      </td>
+                      <td className="name">
+                        <Indent $level={child.level}>
+                          <LCorner />
+                          {/* 자재 타입별 아이콘 분기 */}
+                          {child.type === "CHEM" ? (
+                            <FaFlask
+                              color="#e74c3c"
+                              size={12}
+                              style={{ marginRight: 5 }}
+                            />
+                          ) : child.type === "ASSY" ? (
+                            <FaMicrochip
+                              color="#f39c12"
+                              size={12}
+                              style={{ marginRight: 5 }}
+                            />
+                          ) : (
+                            <FaCube
+                              color="#3498db"
+                              size={12}
+                              style={{ marginRight: 5 }}
+                            />
+                          )}
+                          <span>{child.name}</span>
+                        </Indent>
+                      </td>
+                      <td>
+                        <TypeLabel $type={child.type}>{child.type}</TypeLabel>
+                      </td>
+                      <td style={{ fontWeight: "600" }}>{child.qty}</td>
+                      <td style={{ color: "#666" }}>{child.unit}</td>
+                      <td style={{ color: "#666", fontSize: "13px" }}>
+                        {child.spec}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </BomTable>
+            </TableContainer>
+          </>
+        ) : (
+          <EmptyState>Select a BOM to view details</EmptyState>
+        )}
       </ContentArea>
     </Container>
   );
@@ -324,7 +362,7 @@ const BomPage = () => {
 
 export default BomPage;
 
-// --- Styled Components (기존 유지) ---
+// --- Styled Components ---
 
 const Container = styled.div`
   width: 100%;
@@ -354,6 +392,14 @@ const Title = styled.h2`
   display: flex;
   align-items: center;
   gap: 10px;
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
 const SearchBox = styled.div`
@@ -577,4 +623,13 @@ const TypeLabel = styled.span`
       : props.$type === "FG"
       ? "#2e7d32"
       : "#1976d2"};
+`;
+
+const EmptyState = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #999;
+  font-size: 16px;
 `;

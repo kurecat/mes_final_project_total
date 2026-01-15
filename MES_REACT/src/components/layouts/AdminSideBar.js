@@ -50,6 +50,7 @@ const AdminSideBar = () => {
         { title: "검사 기준 설정", path: "/quality/standard" },
         { title: "불량 관리", path: "/quality/defect" },
         { title: "Lot 추적", path: "/quality/tracking" },
+        { title: "SPC 차트", path: "/quality/spcchart" },
       ],
     },
     {

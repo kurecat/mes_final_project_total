@@ -1,6 +1,7 @@
 // src/pages/dashboard/DashboardPage.js
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios"; // API 호출용
 import {
   FaChartLine,
   FaIndustry,
@@ -10,6 +11,7 @@ import {
   FaArrowUp,
   FaArrowDown,
   FaTools,
+  FaSync,
 } from "react-icons/fa";
 import {
   ComposedChart,
@@ -22,97 +24,149 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Area,
-  AreaChart,
   Cell,
 } from "recharts";
 
-// --- Mock Data ---
-
-// 1. 시간대별 Wafer Output 추이
-const PRODUCTION_TREND = [
-  { time: "06:00", plan: 400, actual: 380 },
-  { time: "08:00", plan: 450, actual: 440 },
-  { time: "10:00", plan: 500, actual: 510 }, // 초과 달성
-  { time: "12:00", plan: 400, actual: 200 }, // 점심시간
-  { time: "14:00", plan: 500, actual: 480 },
-  { time: "16:00", plan: 500, actual: 495 },
-  { time: "18:00", plan: 450, actual: 0 }, // 미래
-];
-
-// 2. 공정별 WIP(재공) 밸런스 (병목 확인용)
-// Photo(노광) -> Etch(식각) -> Depo(증착) -> CMP(연마) -> Ion(주입)
-const WIP_BALANCE = [
-  { step: "Clean", count: 1200 },
-  { step: "Photo", count: 2500 }, // 병목 발생 (높음)
-  { step: "Etch", count: 1800 },
-  { step: "Depo", count: 1500 },
-  { step: "CMP", count: 800 },
-  { step: "Implant", count: 600 },
-  { step: "EDS", count: 2000 },
-];
-
-// 3. 실시간 설비 알람 로그
-const RECENT_ALERTS = [
-  {
-    id: 1,
-    time: "14:25",
-    equip: "Photo-02",
-    msg: "Focus Error (Overlay)",
-    level: "CRITICAL",
+// --- Fallback Mock Data (서버 연결 실패 시 보여줄 기본 데이터) ---
+const MOCK_DATA = {
+  stats: {
+    waferOut: 2510,
+    waferOutTrend: 2.5,
+    yield: 94.8,
+    yieldTrend: 0.8,
+    utilization: 88.5,
+    utilizationTrend: -1.2,
+    issues: 4,
   },
-  {
-    id: 2,
-    time: "14:10",
-    equip: "Etch-05",
-    msg: "Chamber Gas Leak Detected",
-    level: "CRITICAL",
-  },
-  {
-    id: 3,
-    time: "13:45",
-    equip: "Depo-01",
-    msg: "Thickness Low Limit",
-    level: "WARN",
-  },
-  {
-    id: 4,
-    time: "13:15",
-    equip: "CMP-03",
-    msg: "Slurry Level Low",
-    level: "WARN",
-  },
-];
+  productionTrend: [
+    { time: "06:00", plan: 400, actual: 380 },
+    { time: "08:00", plan: 450, actual: 440 },
+    { time: "10:00", plan: 500, actual: 510 },
+    { time: "12:00", plan: 400, actual: 200 },
+    { time: "14:00", plan: 500, actual: 480 },
+    { time: "16:00", plan: 500, actual: 495 },
+    { time: "18:00", plan: 450, actual: 0 },
+  ],
+  wipBalance: [
+    { step: "Clean", count: 1200 },
+    { step: "Photo", count: 2600 }, // 병목 (Overload)
+    { step: "Etch", count: 1800 },
+    { step: "Depo", count: 1500 },
+    { step: "CMP", count: 800 },
+    { step: "Implant", count: 600 },
+    { step: "EDS", count: 2000 },
+  ],
+  alerts: [
+    {
+      id: 1,
+      time: "14:25",
+      equip: "Photo-02",
+      msg: "Focus Error (Overlay)",
+      level: "CRITICAL",
+    },
+    {
+      id: 2,
+      time: "14:10",
+      equip: "Etch-05",
+      msg: "Chamber Gas Leak Detected",
+      level: "CRITICAL",
+    },
+    {
+      id: 3,
+      time: "13:45",
+      equip: "Depo-01",
+      msg: "Thickness Low Limit",
+      level: "WARN",
+    },
+    {
+      id: 4,
+      time: "13:15",
+      equip: "CMP-03",
+      msg: "Slurry Level Low",
+      level: "WARN",
+    },
+  ],
+};
 
 const DashboardPage = () => {
+  // 상태 관리
+  const [data, setData] = useState(MOCK_DATA);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  // 데이터 가져오기 (json-server 연동)
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 사용 시: http://localhost:3001/dashboardData
+      // 현재는 db.json 구조에 따라 엔드포인트를 맞춰야 함
+      // 여기서는 예시로 MOCK 데이터를 그대로 씀 (서버 연결 시 axios.get 사용)
+
+      // const res = await axios.get("http://localhost:3001/dashboard");
+      // setData(res.data);
+
+      // (테스트용) 0.5초 딜레이 후 Mock Data 세팅
+      setTimeout(() => {
+        setData(MOCK_DATA);
+        setLastUpdated(new Date());
+        setLoading(false);
+      }, 500);
+    } catch (error) {
+      console.error("Dashboard Data Fetch Error:", error);
+      // 에러 시 기존 Mock Data 유지
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    // 30초마다 자동 갱신 (실시간 모니터링 느낌)
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 새로고침 핸들러
+  const handleRefresh = () => {
+    fetchData();
+  };
+
   return (
     <Container>
-      {/* 1. 상단 타이틀 및 날짜 */}
+      {/* 1. 헤더 */}
       <Header>
         <TitleArea>
           <PageTitle>
             <FaIndustry /> Fab Monitoring Dashboard
+            {loading && (
+              <LoadingSpinner>
+                <FaSync className="spin" />
+              </LoadingSpinner>
+            )}
           </PageTitle>
           <SubTitle>Line: DDR5-Fab-A | Shift: Day (06:00 ~ 14:00)</SubTitle>
         </TitleArea>
-        <DateDisplay>
-          {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
-        </DateDisplay>
+        <HeaderRight>
+          <LastUpdate>Updated: {lastUpdated.toLocaleTimeString()}</LastUpdate>
+          <RefreshBtn onClick={handleRefresh}>
+            <FaSync /> Refresh
+          </RefreshBtn>
+        </HeaderRight>
       </Header>
 
-      {/* 2. KPI 요약 카드 (4개) */}
+      {/* 2. KPI 요약 카드 */}
       <KpiSection>
         <KpiCard>
           <CardHeader>
             <IconBox $color="#1a4f8b">
               <FaMicrochip />
             </IconBox>
-            <TrendBadge $up>
-              <FaArrowUp /> 2.5%
+            <TrendBadge $up={data.stats.waferOutTrend > 0}>
+              {data.stats.waferOutTrend > 0 ? <FaArrowUp /> : <FaArrowDown />}
+              {Math.abs(data.stats.waferOutTrend)}%
             </TrendBadge>
           </CardHeader>
           <KpiValue>
-            2,510 <small>wfrs</small>
+            {data.stats.waferOut.toLocaleString()} <small>wfrs</small>
           </KpiValue>
           <KpiLabel>Today's Wafer Out</KpiLabel>
           <ProgressBar $percent={92} $color="#1a4f8b" />
@@ -123,15 +177,16 @@ const DashboardPage = () => {
             <IconBox $color="#2ecc71">
               <FaCheckCircle />
             </IconBox>
-            <TrendBadge $up>
-              <FaArrowUp /> 0.8%
+            <TrendBadge $up={data.stats.yieldTrend > 0}>
+              {data.stats.yieldTrend > 0 ? <FaArrowUp /> : <FaArrowDown />}
+              {Math.abs(data.stats.yieldTrend)}%
             </TrendBadge>
           </CardHeader>
           <KpiValue>
-            94.8 <small>%</small>
+            {data.stats.yield} <small>%</small>
           </KpiValue>
           <KpiLabel>Prime Yield (Avg)</KpiLabel>
-          <ProgressBar $percent={94.8} $color="#2ecc71" />
+          <ProgressBar $percent={data.stats.yield} $color="#2ecc71" />
         </KpiCard>
 
         <KpiCard>
@@ -139,15 +194,23 @@ const DashboardPage = () => {
             <IconBox $color="#f39c12">
               <FaTools />
             </IconBox>
-            <TrendBadge $down>
-              <FaArrowDown /> 1.2%
+            <TrendBadge
+              $up={data.stats.utilizationTrend > 0}
+              $down={data.stats.utilizationTrend < 0}
+            >
+              {data.stats.utilizationTrend > 0 ? (
+                <FaArrowUp />
+              ) : (
+                <FaArrowDown />
+              )}
+              {Math.abs(data.stats.utilizationTrend)}%
             </TrendBadge>
           </CardHeader>
           <KpiValue>
-            88.5 <small>%</small>
+            {data.stats.utilization} <small>%</small>
           </KpiValue>
           <KpiLabel>Fab Utilization (OEE)</KpiLabel>
-          <ProgressBar $percent={88.5} $color="#f39c12" />
+          <ProgressBar $percent={data.stats.utilization} $color="#f39c12" />
         </KpiCard>
 
         <KpiCard>
@@ -155,17 +218,24 @@ const DashboardPage = () => {
             <IconBox $color="#e74c3c">
               <FaExclamationCircle />
             </IconBox>
-            <span style={{ fontSize: 12, color: "#999" }}>Active Issues</span>
+            <span
+              style={{ fontSize: 12, color: "#e74c3c", fontWeight: "bold" }}
+            >
+              Action Req.
+            </span>
           </CardHeader>
           <KpiValue>
-            4 <small>cases</small>
+            {data.stats.issues} <small>cases</small>
           </KpiValue>
           <KpiLabel>Equipment Trouble</KpiLabel>
-          <ProgressBar $percent={30} $color="#e74c3c" />
+          <ProgressBar
+            $percent={(data.stats.issues / 10) * 100}
+            $color="#e74c3c"
+          />
         </KpiCard>
       </KpiSection>
 
-      {/* 3. 메인 차트 섹션 (Split Layout) */}
+      {/* 3. 차트 섹션 */}
       <MainChartSection>
         {/* 좌측: 생산량 추이 */}
         <ChartCard style={{ flex: 1.5 }}>
@@ -178,7 +248,7 @@ const DashboardPage = () => {
           </SectionHeader>
           <ResponsiveContainer width="100%" height={280}>
             <ComposedChart
-              data={PRODUCTION_TREND}
+              data={data.productionTrend}
               margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
             >
               <CartesianGrid stroke="#f5f5f5" vertical={false} />
@@ -209,14 +279,14 @@ const DashboardPage = () => {
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* 우측: 공정별 WIP 밸런스 */}
+        {/* 우측: WIP 밸런스 (병목 확인) */}
         <ChartCard style={{ flex: 1 }}>
           <SectionHeader>
-            <SectionTitle>WIP Balance (Bottleneck Check)</SectionTitle>
+            <SectionTitle>WIP Balance (Bottleneck)</SectionTitle>
           </SectionHeader>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart
-              data={WIP_BALANCE}
+              data={data.wipBalance}
               layout="vertical"
               margin={{ top: 0, right: 30, left: 20, bottom: 0 }}
             >
@@ -231,23 +301,23 @@ const DashboardPage = () => {
               />
               <Tooltip cursor={{ fill: "transparent" }} />
               <Bar dataKey="count" barSize={15} radius={[0, 4, 4, 0]}>
-                {WIP_BALANCE.map((entry, index) => (
+                {data.wipBalance.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={entry.count > 2000 ? "#e74c3c" : "#3498db"}
+                    fill={entry.count > 2500 ? "#e74c3c" : "#3498db"}
                   />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
           <WipLegend>
-            <small style={{ color: "#e74c3c" }}>● Overload ({">"}2000)</small>
+            <small style={{ color: "#e74c3c" }}>● Overload ({">"}2500)</small>
             <small style={{ color: "#3498db" }}>● Normal</small>
           </WipLegend>
         </ChartCard>
       </MainChartSection>
 
-      {/* 4. 하단 알람 로그 섹션 */}
+      {/* 4. 알람 리스트 */}
       <BottomSection>
         <SectionHeader>
           <SectionTitle>
@@ -265,7 +335,7 @@ const DashboardPage = () => {
             </tr>
           </thead>
           <tbody>
-            {RECENT_ALERTS.map((alert) => (
+            {data.alerts.map((alert) => (
               <tr key={alert.id}>
                 <td style={{ color: "#666" }}>{alert.time}</td>
                 <td style={{ fontWeight: "bold" }}>{alert.equip}</td>
@@ -318,20 +388,49 @@ const PageTitle = styled.h2`
   align-items: center;
   gap: 10px;
 `;
+const LoadingSpinner = styled.span`
+  font-size: 16px;
+  color: #1a4f8b;
+  margin-left: 10px;
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+`;
 const SubTitle = styled.span`
   font-size: 14px;
   color: #666;
   margin-top: 5px;
   margin-left: 34px;
 `;
-const DateDisplay = styled.div`
-  font-size: 14px;
+
+const HeaderRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 15px;
+`;
+const LastUpdate = styled.span`
+  font-size: 12px;
+  color: #888;
+`;
+const RefreshBtn = styled.button`
+  background: white;
+  border: 1px solid #ddd;
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: #555;
   font-weight: 600;
-  background: white;
-  padding: 8px 15px;
-  border-radius: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  &:hover {
+    background: #f5f5f5;
+  }
 `;
 
 // KPI Cards
@@ -375,8 +474,10 @@ const TrendBadge = styled.div`
   display: flex;
   align-items: center;
   gap: 3px;
-  color: ${(props) => (props.$up ? "#2ecc71" : "#e74c3c")};
-  background: ${(props) => (props.$up ? "#e8f5e9" : "#ffebee")};
+  color: ${(props) =>
+    props.$up ? "#2ecc71" : props.$down ? "#e74c3c" : "#f39c12"};
+  background: ${(props) =>
+    props.$up ? "#e8f5e9" : props.$down ? "#ffebee" : "#fff3e0"};
   padding: 4px 8px;
   border-radius: 12px;
 `;

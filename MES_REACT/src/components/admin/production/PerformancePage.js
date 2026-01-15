@@ -1,6 +1,7 @@
 // src/pages/production/PerformancePage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
   FaCalendarAlt,
   FaFileDownload,
@@ -9,6 +10,7 @@ import {
   FaExclamationCircle,
   FaClipboardList,
   FaFilter,
+  FaSync,
 } from "react-icons/fa";
 import {
   ComposedChart,
@@ -22,22 +24,19 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// --- Mock Data (시간대별 생산 실적 - Fab 기준) ---
-// Fab 공정은 24시간 가동되지만, 여기서는 주간 Shift 기준으로 예시
-const HOURLY_DATA = [
+// --- Fallback Mock Data ---
+const MOCK_HOURLY = [
   { time: "08:00", plan: 50, actual: 48, scrap: 0 },
   { time: "09:00", plan: 55, actual: 55, scrap: 0 },
-  { time: "10:00", plan: 60, actual: 58, scrap: 1 }, // Wafer Crack
+  { time: "10:00", plan: 60, actual: 58, scrap: 1 },
   { time: "11:00", plan: 60, actual: 62, scrap: 0 },
-  { time: "12:00", plan: 50, actual: 45, scrap: 0 }, // 점심 교대
+  { time: "12:00", plan: 50, actual: 45, scrap: 0 },
   { time: "13:00", plan: 60, actual: 59, scrap: 0 },
-  { time: "14:00", plan: 60, actual: 30, scrap: 2 }, // 설비 트러블 발생 가정
+  { time: "14:00", plan: 60, actual: 30, scrap: 2 },
   { time: "15:00", plan: 60, actual: 55, scrap: 1 },
-  { time: "16:00", plan: 55, actual: 0, scrap: 0 }, // 미래 시간
 ];
 
-// --- Mock Data (작업지시별 실적 리스트 - Fab/EDS/Module) ---
-const WO_PERFORMANCE = [
+const MOCK_LIST = [
   {
     woId: "WO-FAB-001",
     product: "DDR5 1znm Wafer",
@@ -45,7 +44,7 @@ const WO_PERFORMANCE = [
     unit: "wfrs",
     planQty: 1200,
     actualQty: 1150,
-    lossQty: 5, // Scrap
+    lossQty: 5,
     rate: 95.8,
     status: "RUNNING",
   },
@@ -53,10 +52,10 @@ const WO_PERFORMANCE = [
     woId: "WO-EDS-023",
     product: "16Gb DDR5 SDRAM",
     line: "EDS-Line-01",
-    unit: "chips", // 수량이 많음
+    unit: "chips",
     planQty: 50000,
     actualQty: 48500,
-    lossQty: 1200, // Bad Chips (Low Yield)
+    lossQty: 1200,
     rate: 97.0,
     status: "RUNNING",
   },
@@ -85,13 +84,41 @@ const WO_PERFORMANCE = [
 ];
 
 const PerformancePage = () => {
+  const [hourlyData, setHourlyData] = useState(MOCK_HOURLY);
+  const [listData, setListData] = useState(MOCK_LIST);
+  const [loading, setLoading] = useState(true);
+
   const [date, setDate] = useState("2024-06-01");
   const [selectedLine, setSelectedLine] = useState("ALL");
 
-  // KPI 계산 (Mock Data - Fab Wafer 기준 단순 합산 예시)
-  const totalPlan = HOURLY_DATA.reduce((acc, cur) => acc + cur.plan, 0);
-  const totalActual = HOURLY_DATA.reduce((acc, cur) => acc + cur.actual, 0);
-  const totalScrap = HOURLY_DATA.reduce((acc, cur) => acc + cur.scrap, 0);
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API 호출
+      // const resHourly = await axios.get("http://localhost:3001/performanceHourly");
+      // const resList = await axios.get("http://localhost:3001/performanceList");
+      // setHourlyData(resHourly.data);
+      // setListData(resList.data);
+
+      setTimeout(() => {
+        setHourlyData(MOCK_HOURLY);
+        setListData(MOCK_LIST);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // KPI 계산 (Fab 기준 단순 합산)
+  const totalPlan = hourlyData.reduce((acc, cur) => acc + cur.plan, 0);
+  const totalActual = hourlyData.reduce((acc, cur) => acc + cur.actual, 0);
+  const totalScrap = hourlyData.reduce((acc, cur) => acc + cur.scrap, 0);
   const achieveRate =
     totalPlan > 0 ? ((totalActual / totalPlan) * 100).toFixed(1) : 0;
 
@@ -102,8 +129,14 @@ const PerformancePage = () => {
         <TitleArea>
           <PageTitle>
             <FaChartLine /> Production Performance
+            {loading && (
+              <FaSync
+                className="spin"
+                style={{ fontSize: 14, marginLeft: 10 }}
+              />
+            )}
           </PageTitle>
-          <SubTitle>실시간 생산 실적 및 달성률 집계</SubTitle>
+          <SubTitle>Real-time Output & Achievement Rate</SubTitle>
         </TitleArea>
         <FilterGroup>
           <DateInput>
@@ -132,14 +165,14 @@ const PerformancePage = () => {
         </FilterGroup>
       </Header>
 
-      {/* 2. KPI 요약 카드 (Fab Main Trend 기준) */}
+      {/* 2. KPI 요약 카드 */}
       <KpiGrid>
         <KpiCard>
           <IconBox $color="#1a4f8b">
             <FaClipboardList />
           </IconBox>
           <KpiInfo>
-            <Label>Daily Plan (Fab)</Label>
+            <Label>Daily Plan</Label>
             <Value>
               {totalPlan.toLocaleString()} <Unit>wfrs</Unit>
             </Value>
@@ -151,7 +184,7 @@ const PerformancePage = () => {
             <FaCheckCircle />
           </IconBox>
           <KpiInfo>
-            <Label>Daily Output (Fab)</Label>
+            <Label>Daily Output</Label>
             <Value>
               {totalActual.toLocaleString()} <Unit>wfrs</Unit>
             </Value>
@@ -195,7 +228,7 @@ const PerformancePage = () => {
           </SectionHeader>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart
-              data={HOURLY_DATA}
+              data={hourlyData}
               margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
             >
               <CartesianGrid stroke="#f5f5f5" strokeDasharray="3 3" />
@@ -260,7 +293,7 @@ const PerformancePage = () => {
                 </tr>
               </thead>
               <tbody>
-                {WO_PERFORMANCE.map((row) => (
+                {listData.map((row) => (
                   <tr key={row.woId}>
                     <td>{row.line}</td>
                     <td style={{ fontWeight: 600, fontSize: 13 }}>
@@ -320,6 +353,15 @@ const PageTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: 10px;
+  .spin {
+    animation: spin 1s linear infinite;
+    color: #aaa;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 `;
 const SubTitle = styled.span`
   font-size: 13px;

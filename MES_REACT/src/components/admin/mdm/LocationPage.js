@@ -1,270 +1,237 @@
 // src/pages/mdm/LocationPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
   FaWarehouse,
-  FaMapMarkerAlt,
-  FaBoxes,
-  FaPlus,
   FaSearch,
-  FaArrowRight,
-  FaLayerGroup,
-  FaTh,
+  FaPlus,
+  FaEdit,
+  FaTrash,
+  FaSync,
+  FaBox,
+  FaThermometerHalf,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 
-// --- Mock Data (창고 및 Bin 구조) ---
-// 구조: Warehouse (창고) -> Zone (구역) -> Bin (선반/셀)
-const WAREHOUSE_DATA = [
+// --- Fallback Mock Data ---
+const MOCK_LOCATIONS = [
   {
-    id: "WH-RM-01",
-    name: "Raw Material Warehouse A",
-    type: "Warehouse",
-    manager: "Manager Kim",
-    occupancy: 75, // 전체 점유율
-    zones: [
-      {
-        id: "ZONE-A",
-        name: "Wafer Storage (Temp Controlled)",
-        type: "Rack",
-        totalBins: 20,
-        // Bin 데이터 (Grid 시각화용)
-        bins: Array.from({ length: 20 }, (_, i) => ({
-          code: `A-${String(i + 1).padStart(2, "0")}`,
-          status: i < 5 ? "FULL" : i < 15 ? "PARTIAL" : "EMPTY", // 가상 상태
-          item: i < 5 ? "12-inch Si Wafer" : i < 15 ? "Glass Substrate" : null,
-          qty: i < 5 ? 100 : i < 15 ? 45 : 0,
-          maxQty: 100,
-        })),
-      },
-      {
-        id: "ZONE-B",
-        name: "Chemical Cabinet",
-        type: "Cabinet",
-        totalBins: 12,
-        bins: Array.from({ length: 12 }, (_, i) => ({
-          code: `B-${String(i + 1).padStart(2, "0")}`,
-          status: i % 2 === 0 ? "FULL" : "EMPTY",
-          item: i % 2 === 0 ? "NCP Epoxy" : null,
-          qty: i % 2 === 0 ? 50 : 0,
-          maxQty: 50,
-        })),
-      },
-    ],
+    id: "WH-RAW-A",
+    name: "Raw Wafer Storage A",
+    type: "RAW",
+    condition: "Dry Box (23°C)",
+    capacity: 1000,
+    current: 450,
+    status: "ACTIVE",
   },
   {
-    id: "WH-FG-02",
-    name: "Finished Goods Warehouse",
-    type: "Warehouse",
-    manager: "Manager Lee",
-    occupancy: 40,
-    zones: [
-      {
-        id: "ZONE-S",
-        name: "Shipping Area",
-        type: "Floor",
-        totalBins: 15,
-        bins: Array.from({ length: 15 }, (_, i) => ({
-          code: `S-${String(i + 1).padStart(2, "0")}`,
-          status: i < 3 ? "FULL" : "EMPTY",
-          item: i < 3 ? "HBM3 Module Box" : null,
-          qty: i < 3 ? 500 : 0,
-          maxQty: 500,
-        })),
-      },
-    ],
+    id: "WH-CHEM-C",
+    name: "Chemical Cold Storage",
+    type: "RAW",
+    condition: "Cold (4°C)",
+    capacity: 200,
+    current: 180,
+    status: "ACTIVE",
+  },
+  {
+    id: "WH-FAB-WIP",
+    name: "Fab Line Stocker #1",
+    type: "WIP",
+    condition: "Clean Room",
+    capacity: 500,
+    current: 495,
+    status: "FULL",
+  },
+  {
+    id: "WH-EDS-BUF",
+    name: "EDS Input Buffer",
+    type: "WIP",
+    condition: "N2 Purge",
+    capacity: 300,
+    current: 50,
+    status: "ACTIVE",
+  },
+  {
+    id: "WH-FG-DDR5",
+    name: "DDR5 Module Warehouse",
+    type: "FG",
+    condition: "Normal",
+    capacity: 5000,
+    current: 1200,
+    status: "ACTIVE",
   },
 ];
 
 const LocationPage = () => {
-  const [selectedZone, setSelectedZone] = useState(WAREHOUSE_DATA[0].zones[0]);
-  const [selectedBin, setSelectedBin] = useState(null);
+  const [locations, setLocations] = useState(MOCK_LOCATIONS);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("ALL");
 
-  // 점유율 색상 계산
-  const getOccupancyColor = (percent) => {
-    if (percent >= 90) return "#e74c3c"; // Red (Full)
-    if (percent >= 50) return "#f39c12"; // Orange (Half)
-    return "#2ecc71"; // Green (Good)
-  };
+  // 1. 데이터 조회 (READ)
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API: http://localhost:3001/locations
+      // const res = await axios.get("http://localhost:3001/locations");
+      // setLocations(res.data);
 
-  // Bin 상태에 따른 색상
-  const getBinColor = (status) => {
-    switch (status) {
-      case "FULL":
-        return "#ff6b6b"; // Red
-      case "PARTIAL":
-        return "#feca57"; // Yellow
-      case "EMPTY":
-        return "#e2e6ea"; // Gray
-      default:
-        return "#e2e6ea";
+      setTimeout(() => {
+        setLocations(MOCK_LOCATIONS);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // 2. 삭제 (DELETE)
+  const handleDelete = async (id) => {
+    if (!window.confirm("이 위치 정보를 삭제하시겠습니까?")) return;
+    try {
+      // await axios.delete(`http://localhost:3001/locations/${id}`);
+      setLocations((prev) => prev.filter((loc) => loc.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 필터링
+  const filteredList = locations.filter((loc) => {
+    const matchType = filterType === "ALL" || loc.type === filterType;
+    const matchSearch =
+      loc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      loc.id.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchType && matchSearch;
+  });
+
   return (
     <Container>
-      {/* 1. 좌측 사이드바: 창고 및 구역 목록 */}
-      <Sidebar>
-        <SidebarHeader>
-          <Title>
-            <FaWarehouse /> Location List
-          </Title>
+      {/* 헤더 */}
+      <Header>
+        <TitleArea>
+          <PageTitle>
+            <FaWarehouse /> Warehouse Location Master
+            {loading && (
+              <FaSync
+                className="spin"
+                style={{ fontSize: 14, marginLeft: 10 }}
+              />
+            )}
+          </PageTitle>
+          <SubTitle>Manage Storage Zones & Capacity</SubTitle>
+        </TitleArea>
+        <ActionGroup>
           <AddButton>
-            <FaPlus /> New Warehouse
+            <FaPlus /> Add Location
           </AddButton>
-        </SidebarHeader>
+        </ActionGroup>
+      </Header>
 
-        <TreeList>
-          {WAREHOUSE_DATA.map((wh) => (
-            <WarehouseGroup key={wh.id}>
-              <WarehouseItem>
-                <WhIcon>
-                  <FaWarehouse />
-                </WhIcon>
-                <WhInfo>
-                  <WhName>{wh.name}</WhName>
-                  <WhMeta>
-                    Occ:{" "}
-                    <span
-                      style={{
-                        color: getOccupancyColor(wh.occupancy),
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {wh.occupancy}%
+      {/* 컨트롤 바 */}
+      <ControlBar>
+        <FilterGroup>
+          <FilterBtn
+            $active={filterType === "ALL"}
+            onClick={() => setFilterType("ALL")}
+          >
+            All
+          </FilterBtn>
+          <FilterBtn
+            $active={filterType === "RAW"}
+            onClick={() => setFilterType("RAW")}
+          >
+            Raw Material
+          </FilterBtn>
+          <FilterBtn
+            $active={filterType === "WIP"}
+            onClick={() => setFilterType("WIP")}
+          >
+            WIP (Stocker)
+          </FilterBtn>
+          <FilterBtn
+            $active={filterType === "FG"}
+            onClick={() => setFilterType("FG")}
+          >
+            Finished Goods
+          </FilterBtn>
+        </FilterGroup>
+        <SearchBox>
+          <FaSearch color="#999" />
+          <input
+            placeholder="Search Location..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </SearchBox>
+      </ControlBar>
+
+      {/* 위치 카드 그리드 */}
+      <GridContainer>
+        {filteredList.map((loc) => {
+          const percent = Math.round((loc.current / loc.capacity) * 100);
+          const isFull = percent >= 95;
+
+          return (
+            <LocationCard key={loc.id} $isFull={isFull}>
+              <CardHeader>
+                <LocType $type={loc.type}>{loc.type}</LocType>
+                <LocId>{loc.id}</LocId>
+                <EditIcon onClick={() => alert("Edit Modal Open")}>
+                  <FaEdit />
+                </EditIcon>
+              </CardHeader>
+
+              <CardBody>
+                <LocName>{loc.name}</LocName>
+                <ConditionInfo>
+                  {loc.condition.includes("Cold") ? (
+                    <FaThermometerHalf color="#3498db" />
+                  ) : loc.condition.includes("Dry") ? (
+                    <FaBox color="#e67e22" />
+                  ) : (
+                    <FaWarehouse color="#999" />
+                  )}
+                  {loc.condition}
+                </ConditionInfo>
+
+                <CapacityWrapper>
+                  <CapLabel>
+                    <span>Occupancy</span>
+                    <span className={isFull ? "full" : ""}>
+                      {percent}% ({loc.current}/{loc.capacity})
                     </span>
-                  </WhMeta>
-                </WhInfo>
-              </WarehouseItem>
+                  </CapLabel>
+                  <ProgressBar>
+                    <ProgressFill $width={percent} $isFull={isFull} />
+                  </ProgressBar>
+                </CapacityWrapper>
+              </CardBody>
 
-              <ZoneList>
-                {wh.zones.map((zone) => (
-                  <ZoneItem
-                    key={zone.id}
-                    $active={selectedZone.id === zone.id}
-                    onClick={() => {
-                      setSelectedZone(zone);
-                      setSelectedBin(null); // 구역 변경 시 선택된 Bin 초기화
-                    }}
-                  >
-                    <FaLayerGroup size={12} /> {zone.name}
-                  </ZoneItem>
-                ))}
-              </ZoneList>
-            </WarehouseGroup>
-          ))}
-        </TreeList>
-      </Sidebar>
-
-      {/* 2. 우측 컨텐츠: 구역 상세 및 시각화 */}
-      <ContentArea>
-        {selectedZone && (
-          <>
-            <HeaderSection>
-              <HeaderTitle>
-                <FaMapMarkerAlt /> {selectedZone.name}
-                <TypeBadge>{selectedZone.type}</TypeBadge>
-              </HeaderTitle>
-              <MetaInfo>
-                Code: <strong>{selectedZone.id}</strong> | Total Bins:{" "}
-                {selectedZone.totalBins}
-              </MetaInfo>
-            </HeaderSection>
-
-            <VisualSection>
-              {/* A. Bin 배치도 (Grid Map) */}
-              <MapContainer>
-                <SectionTitle>
-                  <FaTh /> Bin Layout Map
-                </SectionTitle>
-                <GridMap>
-                  {selectedZone.bins.map((bin) => (
-                    <BinBox
-                      key={bin.code}
-                      $status={bin.status}
-                      $active={selectedBin?.code === bin.code}
-                      onClick={() => setSelectedBin(bin)}
-                      title={`${bin.code}: ${bin.status}`}
-                    >
-                      <BinCode>{bin.code}</BinCode>
-                      {bin.status !== "EMPTY" && (
-                        <FaBoxes size={14} style={{ opacity: 0.5 }} />
-                      )}
-                    </BinBox>
-                  ))}
-                </GridMap>
-                <Legend>
-                  <LegendItem>
-                    <Dot color="#ff6b6b" /> Full
-                  </LegendItem>
-                  <LegendItem>
-                    <Dot color="#feca57" /> Partial
-                  </LegendItem>
-                  <LegendItem>
-                    <Dot color="#e2e6ea" /> Empty
-                  </LegendItem>
-                </Legend>
-              </MapContainer>
-
-              {/* B. 선택된 Bin 상세 정보 */}
-              <DetailPanel>
-                <SectionTitle>Selected Bin Detail</SectionTitle>
-                {selectedBin ? (
-                  <BinDetailCard>
-                    <DetailHeader>
-                      <BinBigCode>{selectedBin.code}</BinBigCode>
-                      <StatusBadge $status={selectedBin.status}>
-                        {selectedBin.status}
-                      </StatusBadge>
-                    </DetailHeader>
-
-                    <DetailRow>
-                      <Label>Item Name</Label>
-                      <Value>{selectedBin.item || "-"}</Value>
-                    </DetailRow>
-
-                    <DetailRow>
-                      <Label>Quantity</Label>
-                      <Value>
-                        {selectedBin.qty} / {selectedBin.maxQty}
-                      </Value>
-                    </DetailRow>
-
-                    {/* 용량 표시 바 */}
-                    <ProgressContainer>
-                      <ProgressBar>
-                        <ProgressFill
-                          width={(selectedBin.qty / selectedBin.maxQty) * 100}
-                          color={getBinColor(selectedBin.status)}
-                        />
-                      </ProgressBar>
-                      <ProgressLabel>
-                        {((selectedBin.qty / selectedBin.maxQty) * 100).toFixed(
-                          0
-                        )}
-                        % Used
-                      </ProgressLabel>
-                    </ProgressContainer>
-
-                    <ActionButtons>
-                      <ActionButton>
-                        <FaSearch /> View Stock
-                      </ActionButton>
-                      <ActionButton>
-                        <FaArrowRight /> Transfer
-                      </ActionButton>
-                    </ActionButtons>
-                  </BinDetailCard>
-                ) : (
-                  <EmptyState>
-                    <FaBoxes size={40} color="#ddd" />
-                    <p>Select a bin from the map to see details</p>
-                  </EmptyState>
-                )}
-              </DetailPanel>
-            </VisualSection>
-          </>
-        )}
-      </ContentArea>
+              <CardFooter>
+                <StatusText $status={loc.status}>
+                  {isFull ? (
+                    <>
+                      <FaExclamationTriangle /> FULL
+                    </>
+                  ) : (
+                    "● AVAILABLE"
+                  )}
+                </StatusText>
+                <DeleteBtn onClick={() => handleDelete(loc.id)}>
+                  <FaTrash />
+                </DeleteBtn>
+              </CardFooter>
+            </LocationCard>
+          );
+        })}
+      </GridContainer>
     </Container>
   );
 };
@@ -276,368 +243,241 @@ export default LocationPage;
 const Container = styled.div`
   width: 100%;
   height: 100%;
-  display: flex;
+  padding: 20px;
   background-color: #f5f6fa;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   box-sizing: border-box;
 `;
 
-// Sidebar
-const Sidebar = styled.div`
-  width: 300px;
-  background: white;
-  border-right: 1px solid #ddd;
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+const TitleArea = styled.div`
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
 `;
-
-const SidebarHeader = styled.div`
-  padding: 20px;
-  border-bottom: 1px solid #eee;
-`;
-
-const Title = styled.h2`
-  font-size: 18px;
-  margin: 0 0 15px 0;
+const PageTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
   color: #333;
   display: flex;
   align-items: center;
   gap: 10px;
+  .spin {
+    animation: spin 1s linear infinite;
+    color: #aaa;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+`;
+const SubTitle = styled.span`
+  font-size: 13px;
+  color: #888;
+  margin-top: 5px;
+  margin-left: 34px;
 `;
 
+const ActionGroup = styled.div`
+  display: flex;
+  gap: 10px;
+`;
 const AddButton = styled.button`
-  width: 100%;
-  padding: 8px;
   background: #1a4f8b;
   color: white;
   border: none;
   border-radius: 6px;
+  padding: 10px 20px;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-weight: 600;
+  gap: 8px;
   &:hover {
     background: #133b6b;
   }
 `;
 
-const TreeList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-`;
-
-const WarehouseGroup = styled.div`
-  margin-bottom: 15px;
-`;
-
-const WarehouseItem = styled.div`
+const ControlBar = styled.div`
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  margin-bottom: 5px;
+  background: white;
+  padding: 15px 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
-
-const WhIcon = styled.div`
-  color: #555;
-  font-size: 16px;
-`;
-
-const WhInfo = styled.div`
+const FilterGroup = styled.div`
   display: flex;
-  flex-direction: column;
-`;
-
-const WhName = styled.div`
-  font-weight: 700;
-  font-size: 14px;
-  color: #333;
-`;
-
-const WhMeta = styled.div`
-  font-size: 11px;
-  color: #666;
-`;
-
-const ZoneList = styled.div`
-  padding-left: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-`;
-
-const ZoneItem = styled.div`
-  padding: 8px 10px;
-  font-size: 13px;
-  color: ${(props) => (props.$active ? "#1a4f8b" : "#555")};
-  background-color: ${(props) => (props.$active ? "#e3f2fd" : "transparent")};
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
   gap: 8px;
-  font-weight: ${(props) => (props.$active ? "600" : "400")};
-
+`;
+const FilterBtn = styled.button`
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid ${(props) => (props.$active ? "#1a4f8b" : "#eee")};
+  background: ${(props) => (props.$active ? "#1a4f8b" : "#f9f9f9")};
+  color: ${(props) => (props.$active ? "white" : "#666")};
   &:hover {
-    background-color: ${(props) => (props.$active ? "#e3f2fd" : "#f5f5f5")};
+    background: ${(props) => (props.$active ? "#133b6b" : "#eee")};
+  }
+`;
+const SearchBox = styled.div`
+  display: flex;
+  align-items: center;
+  background: #f5f5f5;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  input {
+    border: none;
+    background: transparent;
+    outline: none;
+    margin-left: 8px;
+    width: 200px;
+    font-size: 14px;
   }
 `;
 
-// Content Area
-const ContentArea = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-`;
-
-const HeaderSection = styled.div`
-  padding: 20px 30px;
-  background: white;
-  border-bottom: 1px solid #ddd;
-`;
-
-const HeaderTitle = styled.h1`
-  margin: 0;
-  font-size: 22px;
-  color: #333;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-`;
-
-const TypeBadge = styled.span`
-  font-size: 12px;
-  background: #eee;
-  color: #555;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-weight: 600;
-  vertical-align: middle;
-`;
-
-const MetaInfo = styled.div`
-  margin-top: 8px;
-  font-size: 13px;
-  color: #666;
-`;
-
-// Visual Section (Grid Map + Detail)
-const VisualSection = styled.div`
-  flex: 1;
-  display: flex;
-  padding: 20px;
-  gap: 20px;
-  overflow: hidden;
-`;
-
-const MapContainer = styled.div`
-  flex: 2;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-`;
-
-const GridMap = styled.div`
+const GridContainer = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: 15px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding-bottom: 20px;
+  overflow-y: auto;
 `;
 
-const BinBox = styled.div`
-  aspect-ratio: 1; /* 정사각형 유지 */
-  background-color: ${(props) =>
-    props.$status === "FULL"
-      ? "#ff6b6b"
-      : props.$status === "PARTIAL"
-      ? "#feca57"
-      : "#f1f3f5"};
-
-  border: 2px solid ${(props) => (props.$active ? "#1a4f8b" : "transparent")};
-  border-radius: 8px;
+const LocationCard = styled.div`
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  border: 1px solid ${(props) => (props.$isFull ? "#e74c3c" : "#eee")};
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: ${(props) =>
-    props.$active ? "0 0 0 2px rgba(26, 79, 139, 0.3)" : "none"};
-  opacity: ${(props) => (props.$status === "EMPTY" ? 0.7 : 1)};
-
+  transition: transform 0.2s;
   &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
   }
 `;
 
-const BinCode = styled.div`
-  font-size: 12px;
-  font-weight: 700;
-  color: ${(props) => (props.$status === "EMPTY" ? "#888" : "white")};
-  margin-bottom: 5px;
-`;
-
-const Legend = styled.div`
-  margin-top: 20px;
-  display: flex;
-  gap: 15px;
-  justify-content: flex-end;
-`;
-
-const LegendItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  color: #666;
-`;
-
-const Dot = styled.div`
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background-color: ${(props) => props.color};
-`;
-
-// Detail Panel
-const DetailPanel = styled.div`
-  flex: 1;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-`;
-
-const SectionTitle = styled.h3`
-  font-size: 16px;
-  color: #333;
-  margin: 0 0 15px 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const EmptyState = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #aaa;
-  gap: 10px;
-  font-size: 14px;
-`;
-
-const BinDetailCard = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-`;
-
-const DetailHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+const CardHeader = styled.div`
+  padding: 15px;
+  background: #f9f9f9;
   border-bottom: 1px solid #eee;
-  padding-bottom: 15px;
-`;
-
-const BinBigCode = styled.div`
-  font-size: 24px;
-  font-weight: 800;
-  color: #333;
-`;
-
-const StatusBadge = styled.span`
-  padding: 5px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 700;
-  background-color: ${(props) =>
-    props.$status === "FULL"
-      ? "#ff6b6b"
-      : props.$status === "PARTIAL"
-      ? "#feca57"
-      : "#e2e6ea"};
-  color: ${(props) => (props.$status === "EMPTY" ? "#555" : "white")};
-`;
-
-const DetailRow = styled.div`
   display: flex;
   justify-content: space-between;
+  align-items: center;
+`;
+const LocType = styled.span`
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: ${(props) =>
+    props.$type === "RAW"
+      ? "#e8f5e9"
+      : props.$type === "WIP"
+      ? "#fff3e0"
+      : "#e3f2fd"};
+  color: ${(props) =>
+    props.$type === "RAW"
+      ? "#2e7d32"
+      : props.$type === "WIP"
+      ? "#e67e22"
+      : "#1976d2"};
+`;
+const LocId = styled.span`
+  font-weight: 700;
+  color: #333;
   font-size: 14px;
 `;
-
-const Label = styled.div`
-  color: #888;
+const EditIcon = styled.div`
+  color: #999;
+  cursor: pointer;
+  &:hover {
+    color: #1a4f8b;
+  }
 `;
 
-const Value = styled.div`
+const CardBody = styled.div`
+  padding: 15px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+const LocName = styled.div`
+  font-size: 15px;
   font-weight: 600;
   color: #333;
 `;
-
-const ProgressContainer = styled.div`
-  margin-top: 10px;
-`;
-
-const ProgressBar = styled.div`
-  width: 100%;
-  height: 10px;
-  background: #eee;
-  border-radius: 5px;
-  overflow: hidden;
-`;
-
-const ProgressFill = styled.div`
-  width: ${(props) => props.width}%;
-  height: 100%;
-  background-color: ${(props) => props.color};
-  transition: width 0.3s ease;
-`;
-
-const ProgressLabel = styled.div`
-  text-align: right;
+const ConditionInfo = styled.div`
   font-size: 12px;
   color: #666;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+`;
+
+const CapacityWrapper = styled.div`
   margin-top: 5px;
 `;
-
-const ActionButtons = styled.div`
+const CapLabel = styled.div`
   display: flex;
-  gap: 10px;
-  margin-top: 20px;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 4px;
+  .full {
+    color: #e74c3c;
+    font-weight: 700;
+  }
+`;
+const ProgressBar = styled.div`
+  width: 100%;
+  height: 8px;
+  background: #eee;
+  border-radius: 4px;
+  overflow: hidden;
+`;
+const ProgressFill = styled.div`
+  height: 100%;
+  width: ${(props) => props.$width}%;
+  background-color: ${(props) => (props.$isFull ? "#e74c3c" : "#2ecc71")};
 `;
 
-const ActionButton = styled.button`
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 6px;
-  cursor: pointer;
+const CardFooter = styled.div`
+  padding: 12px 15px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+const StatusText = styled.span`
+  font-size: 11px;
+  font-weight: 700;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-weight: 600;
-  color: #555;
-
+  gap: 4px;
+  color: ${(props) => (props.$status === "FULL" ? "#e74c3c" : "#2ecc71")};
+`;
+const DeleteBtn = styled.button`
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 12px;
   &:hover {
-    background: #f8f9fa;
-    color: #333;
+    color: #e74c3c;
   }
 `;

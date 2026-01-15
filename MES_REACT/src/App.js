@@ -27,6 +27,7 @@ import DefectPage from "./components/admin/quality/DefectPage";
 import TrackingPage from "./components/admin/quality/LotTrackingPage";
 import StandardPage from "./components/admin/quality/StandardPage";
 import WorkerPage from "./components/admin/production/WorkerPage";
+import SpcChartPage from "./components/admin/quality/SpcChartPage";
 
 const App = () => {
   return (
@@ -50,6 +51,7 @@ const App = () => {
           <Route path="quality/defect" element={<DefectPage />} />
           <Route path="quality/tracking" element={<TrackingPage />} />
           <Route path="quality/standard" element={<StandardPage />} />
+          <Route path="quality/spcchart" element={<SpcChartPage />} />
 
           <Route path="resource/inventory" element={<InventoryPage />} />
           <Route path="resource/machine" element={<MachinePage />} />

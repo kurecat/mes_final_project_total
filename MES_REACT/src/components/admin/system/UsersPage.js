@@ -1,360 +1,186 @@
-// src/pages/system/UsersPage.js
-import React, { useState } from "react";
+// src/pages/admin/UsersPage.js
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import {
-  FaUser,
+  FaUserPlus,
   FaSearch,
-  FaPlus,
-  FaEdit,
-  FaTrash,
-  FaUnlockAlt,
   FaFilter,
-  FaIdBadge,
+  FaEllipsisH,
+  FaUserTie,
   FaEnvelope,
-  FaPhone,
-  FaTimes,
-  FaSave,
+  FaPhoneAlt,
+  FaBuilding,
+  FaCircle,
 } from "react-icons/fa";
 
-// --- Mock Data ---
-const USER_LIST = [
-  {
-    id: "2024001",
-    name: "Kim Min-Su",
-    dept: "Production A",
-    role: "ROLE_OPERATOR",
-    email: "ms.kim@hbm.com",
-    phone: "010-1234-5678",
-    status: "ACTIVE",
-    lastLogin: "2024-05-20 14:00",
-  },
-  {
-    id: "2023045",
-    name: "Lee Ji-Hyun",
-    dept: "Quality Control",
-    role: "ROLE_QUALITY",
-    email: "jh.lee@hbm.com",
-    phone: "010-2222-3333",
-    status: "ACTIVE",
-    lastLogin: "2024-05-20 09:30",
-  },
-  {
-    id: "2022010",
-    name: "Park Dong-Hoon",
-    dept: "Production Manage",
-    role: "ROLE_MANAGER",
-    email: "dh.park@hbm.com",
-    phone: "010-4444-5555",
-    status: "ACTIVE",
-    lastLogin: "2024-05-20 13:15",
-  },
-  {
-    id: "2021099",
-    name: "Choi Soo-Young",
-    dept: "System Team",
-    role: "ROLE_ADMIN",
-    email: "sy.choi@hbm.com",
-    phone: "010-9999-8888",
-    status: "ACTIVE",
-    lastLogin: "2024-05-19 18:00",
-  },
-  {
-    id: "2024050",
-    name: "New Employee",
-    dept: "Production B",
-    role: "ROLE_OPERATOR",
-    email: "new@hbm.com",
-    phone: "010-0000-0000",
-    status: "INACTIVE",
-    lastLogin: "-",
-  },
-];
-
 const UsersPage = () => {
-  const [users, setUsers] = useState(USER_LIST);
+  // --- State ---
+  const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterRole, setFilterRole] = useState("ALL");
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
-  // 모달 상태
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("ADD"); // ADD or EDIT
-  const [currentUser, setCurrentUser] = useState(null);
+  // --- Data Fetching ---
+  useEffect(() => {
+    fetch("http://localhost:3001/users")
+      .then((res) => res.json())
+      .then((data) => setUsers(data))
+      .catch((err) => console.error("Error fetching users:", err));
+  }, []);
 
-  // 필터링
+  // --- Filtering Logic ---
   const filteredUsers = users.filter((user) => {
     const matchSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.id.includes(searchTerm);
-    const matchRole = filterRole === "ALL" || user.role === filterRole;
-    return matchSearch && matchRole;
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchRole = roleFilter === "ALL" || user.role === roleFilter;
+    const matchStatus = statusFilter === "ALL" || user.status === statusFilter;
+
+    return matchSearch && matchRole && matchStatus;
   });
 
-  // 모달 열기
-  const openModal = (mode, user = null) => {
-    setModalMode(mode);
-    if (mode === "EDIT" && user) {
-      setCurrentUser(user);
-    } else {
-      setCurrentUser({
-        id: "",
-        name: "",
-        dept: "",
-        role: "ROLE_OPERATOR",
-        email: "",
-        phone: "",
-        status: "ACTIVE",
-      });
-    }
-    setIsModalOpen(true);
+  // --- Handlers ---
+  const handleStatusToggle = (id) => {
+    // Optimistic Update (실제로는 API 호출 필요)
+    const updatedUsers = users.map((user) =>
+      user.id === id
+        ? { ...user, status: user.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" }
+        : user
+    );
+    setUsers(updatedUsers);
   };
 
-  // 저장 핸들러
-  const handleSave = () => {
-    if (modalMode === "ADD") {
-      setUsers([...users, { ...currentUser, lastLogin: "-" }]);
-    } else {
-      setUsers(users.map((u) => (u.id === currentUser.id ? currentUser : u)));
-    }
-    setIsModalOpen(false);
-  };
-
-  // 비밀번호 초기화 핸들러
-  const handleResetPw = (name) => {
-    if (window.confirm(`Reset password for [${name}]?`)) {
-      alert("Password has been reset to default (1234).");
-    }
-  };
-
-  // 입력 핸들러
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setCurrentUser({ ...currentUser, [name]: value });
+  const getInitials = (name) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
   };
 
   return (
     <Container>
-      {/* 1. 헤더 및 컨트롤 바 */}
-      <HeaderSection>
-        <TitleArea>
-          <PageTitle>
-            <FaUser /> User Management
-          </PageTitle>
-          <SubTitle>시스템 사용자 계정 및 권한 관리</SubTitle>
-        </TitleArea>
-        <ControlBar>
-          <FilterGroup>
-            <FilterIcon>
-              <FaFilter />
-            </FilterIcon>
-            <Select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-            >
-              <option value="ALL">All Roles</option>
-              <option value="ROLE_ADMIN">Admin</option>
-              <option value="ROLE_MANAGER">Manager</option>
-              <option value="ROLE_OPERATOR">Operator</option>
-              <option value="ROLE_QUALITY">Quality</option>
-            </Select>
-          </FilterGroup>
+      <Header>
+        <TitleGroup>
+          <FaUserTie size={24} color="#34495e" />
+          <h1>User Management</h1>
+        </TitleGroup>
+        <PrimaryBtn>
+          <FaUserPlus /> Add New User
+        </PrimaryBtn>
+      </Header>
+
+      {/* Controls / Toolbar */}
+      <Toolbar>
+        <FilterGroup>
           <SearchBox>
-            <FaSearch color="#aaa" />
+            <FaSearch color="#999" />
             <input
-              placeholder="Search Name or ID..."
+              placeholder="Search Name, Email, ID..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </SearchBox>
-          <AddButton onClick={() => openModal("ADD")}>
-            <FaPlus /> Add User
-          </AddButton>
-        </ControlBar>
-      </HeaderSection>
+          <Select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="ALL">All Roles</option>
+            <option value="ADMIN">Admin</option>
+            <option value="ENGINEER">Engineer</option>
+            <option value="OPERATOR">Operator</option>
+            <option value="MANAGER">Manager</option>
+          </Select>
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="ALL">All Status</option>
+            <option value="ACTIVE">Active</option>
+            <option value="INACTIVE">Inactive</option>
+          </Select>
+        </FilterGroup>
 
-      {/* 2. 사용자 리스트 테이블 */}
+        <TotalCount>
+          Total: <b>{filteredUsers.length}</b> users
+        </TotalCount>
+      </Toolbar>
+
+      {/* User Table */}
       <TableContainer>
         <Table>
           <thead>
             <tr>
-              <th width="10%">Emp ID</th>
-              <th width="15%">Name</th>
-              <th width="15%">Department</th>
-              <th width="12%">Role</th>
-              <th width="18%">Email / Phone</th>
-              <th width="10%">Status</th>
-              <th width="12%">Last Login</th>
-              <th width="8%">Action</th>
+              <th width="250">User Profile</th>
+              <th width="150">Department</th>
+              <th width="120">Role</th>
+              <th width="200">Contact Info</th>
+              <th width="150">Last Login</th>
+              <th width="100">Status</th>
+              <th width="50">Action</th>
             </tr>
           </thead>
           <tbody>
             {filteredUsers.map((user) => (
               <tr key={user.id}>
-                <td className="mono">{user.id}</td>
-                <td className="bold">{user.name}</td>
-                <td>{user.dept}</td>
                 <td>
-                  <RoleBadge $role={user.role}>
-                    {user.role.replace("ROLE_", "")}
-                  </RoleBadge>
+                  <ProfileCell>
+                    <Avatar>
+                      {user.avatar ? (
+                        <img src={user.avatar} alt={user.name} />
+                      ) : (
+                        <Initials>{getInitials(user.name)}</Initials>
+                      )}
+                    </Avatar>
+                    <UserInfo>
+                      <div className="name">{user.name}</div>
+                      <div className="id">{user.employeeId}</div>
+                    </UserInfo>
+                  </ProfileCell>
                 </td>
                 <td>
-                  <ContactInfo>
+                  <DeptInfo>
+                    <FaBuilding size={10} color="#999" /> {user.department}
+                  </DeptInfo>
+                </td>
+                <td>
+                  <RoleBadge $role={user.role}>{user.role}</RoleBadge>
+                </td>
+                <td>
+                  <ContactCell>
                     <div>
                       <FaEnvelope size={10} /> {user.email}
                     </div>
                     <div>
-                      <FaPhone size={10} /> {user.phone}
+                      <FaPhoneAlt size={10} /> {user.phone}
                     </div>
-                  </ContactInfo>
-                </td>
-                <td>
-                  <StatusBadge $active={user.status === "ACTIVE"}>
-                    {user.status}
-                  </StatusBadge>
+                  </ContactCell>
                 </td>
                 <td style={{ fontSize: "13px", color: "#666" }}>
                   {user.lastLogin}
                 </td>
                 <td>
-                  <ActionGroup>
-                    <IconButton
-                      title="Edit"
-                      onClick={() => openModal("EDIT", user)}
-                    >
-                      <FaEdit />
-                    </IconButton>
-                    <IconButton
-                      title="Reset PW"
-                      $warn
-                      onClick={() => handleResetPw(user.name)}
-                    >
-                      <FaUnlockAlt />
-                    </IconButton>
-                  </ActionGroup>
+                  <StatusToggle
+                    $active={user.status === "ACTIVE"}
+                    onClick={() => handleStatusToggle(user.id)}
+                  >
+                    <div className="knob" />
+                    <span className="label">{user.status}</span>
+                  </StatusToggle>
+                </td>
+                <td>
+                  <ActionBtn>
+                    <FaEllipsisH />
+                  </ActionBtn>
                 </td>
               </tr>
             ))}
           </tbody>
         </Table>
       </TableContainer>
-
-      {/* 3. 사용자 등록/수정 모달 */}
-      {isModalOpen && (
-        <Overlay>
-          <ModalBox>
-            <ModalHeader>
-              <h3>
-                <FaIdBadge />{" "}
-                {modalMode === "ADD"
-                  ? "New User Registration"
-                  : "Edit User Information"}
-              </h3>
-              <CloseBtn onClick={() => setIsModalOpen(false)}>
-                <FaTimes />
-              </CloseBtn>
-            </ModalHeader>
-            <ModalBody>
-              <FormRow>
-                <FormGroup>
-                  <Label>Employee ID *</Label>
-                  <Input
-                    name="id"
-                    value={currentUser.id}
-                    onChange={handleChange}
-                    disabled={modalMode === "EDIT"} // 수정 시 ID 변경 불가
-                    placeholder="e.g. 2024001"
-                  />
-                </FormGroup>
-                <FormGroup>
-                  <Label>Full Name *</Label>
-                  <Input
-                    name="name"
-                    value={currentUser.name}
-                    onChange={handleChange}
-                  />
-                </FormGroup>
-              </FormRow>
-
-              <FormRow>
-                <FormGroup>
-                  <Label>Department</Label>
-                  <Input
-                    name="dept"
-                    value={currentUser.dept}
-                    onChange={handleChange}
-                  />
-                </FormGroup>
-                <FormGroup>
-                  <Label>Assigned Role</Label>
-                  <Select
-                    name="role"
-                    value={currentUser.role}
-                    onChange={handleChange}
-                  >
-                    <option value="ROLE_OPERATOR">Operator (현장직)</option>
-                    <option value="ROLE_MANAGER">Manager (관리직)</option>
-                    <option value="ROLE_QUALITY">Quality (품질)</option>
-                    <option value="ROLE_ADMIN">Admin (시스템)</option>
-                  </Select>
-                </FormGroup>
-              </FormRow>
-
-              <FormRow>
-                <FormGroup>
-                  <Label>Email</Label>
-                  <Input
-                    name="email"
-                    value={currentUser.email}
-                    onChange={handleChange}
-                    placeholder="example@hbm.com"
-                  />
-                </FormGroup>
-                <FormGroup>
-                  <Label>Phone Number</Label>
-                  <Input
-                    name="phone"
-                    value={currentUser.phone}
-                    onChange={handleChange}
-                    placeholder="010-0000-0000"
-                  />
-                </FormGroup>
-              </FormRow>
-
-              <FormGroup>
-                <Label>Account Status</Label>
-                <RadioGroup>
-                  <RadioLabel>
-                    <input
-                      type="radio"
-                      name="status"
-                      value="ACTIVE"
-                      checked={currentUser.status === "ACTIVE"}
-                      onChange={handleChange}
-                    />{" "}
-                    Active (재직)
-                  </RadioLabel>
-                  <RadioLabel>
-                    <input
-                      type="radio"
-                      name="status"
-                      value="INACTIVE"
-                      checked={currentUser.status === "INACTIVE"}
-                      onChange={handleChange}
-                    />{" "}
-                    Inactive (퇴사/휴직)
-                  </RadioLabel>
-                </RadioGroup>
-              </FormGroup>
-            </ModalBody>
-            <ModalFooter>
-              <Button onClick={() => setIsModalOpen(false)}>Cancel</Button>
-              <Button $primary onClick={handleSave}>
-                <FaSave /> Save User
-              </Button>
-            </ModalFooter>
-          </ModalBox>
-        </Overlay>
-      )}
     </Container>
   );
 };
@@ -363,342 +189,293 @@ export default UsersPage;
 
 // --- Styled Components ---
 
+// 1. 컨테이너: 부모 높이(100%)에 맞추고 외부 스크롤 방지
 const Container = styled.div`
   width: 100%;
   height: 100%;
+  padding: 20px;
+  background-color: #f5f6fa;
   display: flex;
   flex-direction: column;
-  background-color: #f5f6fa;
-  padding: 20px;
   box-sizing: border-box;
+  overflow: hidden;
 `;
 
-const HeaderSection = styled.div`
+const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-shrink: 0;
 `;
 
-const TitleArea = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const PageTitle = styled.h2`
-  font-size: 22px;
-  margin: 0;
-  color: #333;
+const TitleGroup = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
+  h1 {
+    font-size: 24px;
+    color: #2c3e50;
+    margin: 0;
+  }
 `;
 
-const SubTitle = styled.span`
-  font-size: 13px;
-  color: #888;
-  margin-top: 5px;
-  margin-left: 32px;
-`;
-
-const ControlBar = styled.div`
+const PrimaryBtn = styled.button`
+  background: #1a4f8b;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
   display: flex;
-  gap: 10px;
   align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  &:hover {
+    background: #133b6b;
+  }
+`;
+
+const Toolbar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 `;
 
 const FilterGroup = styled.div`
   display: flex;
-  align-items: center;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding-left: 10px;
-`;
-
-const FilterIcon = styled.div`
-  color: #999;
-  font-size: 12px;
-`;
-
-const Select = styled.select`
-  border: none;
-  outline: none;
-  padding: 8px;
-  background: transparent;
-  color: #555;
-  cursor: pointer;
+  gap: 10px;
 `;
 
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
-  background: white;
+  background: #f8f9fa;
   padding: 8px 12px;
-  border-radius: 6px;
   border: 1px solid #ddd;
-
+  border-radius: 6px;
+  width: 280px;
   input {
     border: none;
-    outline: none;
+    background: transparent;
     margin-left: 8px;
+    outline: none;
     font-size: 14px;
-    width: 200px;
+    width: 100%;
   }
 `;
 
-const AddButton = styled.button`
-  background-color: #1a4f8b;
-  color: white;
-  border: none;
-  padding: 8px 15px;
+const Select = styled.select`
+  padding: 8px 12px;
+  border: 1px solid #ddd;
   border-radius: 6px;
-  font-weight: 600;
+  outline: none;
+  background: white;
+  font-size: 14px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  &:hover {
-    background-color: #133b6b;
+`;
+
+const TotalCount = styled.div`
+  font-size: 14px;
+  color: #666;
+  b {
+    color: #333;
   }
 `;
 
+// 2. 테이블 컨테이너: 남은 높이 차지 및 내부 스크롤 적용
 const TableContainer = styled.div`
-  flex: 1;
   background: white;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  overflow-y: auto;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  flex: 1; /* 남은 공간 채움 */
+  overflow: auto; /* 내부 스크롤 활성화 */
+  display: flex;
+  flex-direction: column;
 `;
 
+// 3. 테이블: 헤더 고정 및 줄바꿈 방지
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  white-space: nowrap; /* 텍스트 줄바꿈 방지 */
 
   thead {
-    background-color: #f1f3f5;
-    position: sticky;
+    position: sticky; /* 헤더 고정 */
     top: 0;
-    th {
-      padding: 12px 15px;
-      text-align: left;
-      font-weight: 700;
-      color: #555;
-      border-bottom: 1px solid #ddd;
-    }
+    z-index: 10;
+    background: #fcfcfc; /* 헤더 배경색 지정 필수 */
   }
 
-  tbody {
-    tr {
-      border-bottom: 1px solid #eee;
-    }
-    td {
-      padding: 12px 15px;
-      color: #333;
-      vertical-align: middle;
-    }
-    tr:hover {
-      background-color: #f8fbff;
-    }
+  th {
+    text-align: left;
+    background: #fcfcfc;
+    padding: 15px;
+    font-size: 13px;
+    color: #888;
+    border-bottom: 1px solid #eee;
   }
 
-  .mono {
-    font-family: monospace;
-    color: #1a4f8b;
-    font-weight: 600;
+  td {
+    padding: 15px;
+    border-bottom: 1px solid #f5f5f5;
+    vertical-align: middle;
   }
-  .bold {
-    font-weight: 600;
+
+  tbody tr:hover {
+    background-color: #fcfcfc;
   }
+`;
+
+const ProfileCell = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const Avatar = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #eee;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+`;
+
+const Initials = styled.span`
+  font-weight: bold;
+  color: #555;
+  font-size: 14px;
+`;
+
+const UserInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  .name {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+  }
+  .id {
+    font-size: 12px;
+    color: #888;
+    margin-top: 2px;
+  }
+`;
+
+const DeptInfo = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #555;
+  font-size: 13px;
 `;
 
 const RoleBadge = styled.span`
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
-  background-color: ${(props) =>
-    props.$role === "ROLE_ADMIN"
-      ? "#333"
-      : props.$role === "ROLE_MANAGER"
-      ? "#e3f2fd"
-      : props.$role === "ROLE_QUALITY"
-      ? "#f3e5f5"
-      : "#e8f5e9"};
-  color: ${(props) =>
-    props.$role === "ROLE_ADMIN"
-      ? "#fff"
-      : props.$role === "ROLE_MANAGER"
-      ? "#1565c0"
-      : props.$role === "ROLE_QUALITY"
-      ? "#7b1fa2"
-      : "#2e7d32"};
+  background-color: ${(props) => {
+    switch (props.$role) {
+      case "ADMIN":
+        return "#e8daef"; // Purple
+      case "ENGINEER":
+        return "#d6eaf8"; // Blue
+      case "MANAGER":
+        return "#fcf3cf"; // Yellow
+      default:
+        return "#e8f6f3"; // Green (Operator)
+    }
+  }};
+  color: ${(props) => {
+    switch (props.$role) {
+      case "ADMIN":
+        return "#8e44ad";
+      case "ENGINEER":
+        return "#2980b9";
+      case "MANAGER":
+        return "#f39c12";
+      default:
+        return "#16a085";
+    }
+  }};
 `;
 
-const ContactInfo = styled.div`
+const ContactCell = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-  color: #666;
+  gap: 4px;
+  font-size: 13px;
+  color: #555;
   div {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-`;
-
-const StatusBadge = styled.span`
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 600;
-  background-color: ${(props) => (props.$active ? "#e8f5e9" : "#ffebee")};
-  color: ${(props) => (props.$active ? "#2e7d32" : "#c62828")};
-`;
-
-const ActionGroup = styled.div`
-  display: flex;
-  gap: 8px;
-`;
-
-const IconButton = styled.button`
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 6px;
-  cursor: pointer;
-  color: ${(props) => (props.$warn ? "#e74c3c" : "#555")};
-
-  &:hover {
-    background: #f5f5f5;
-    border-color: ${(props) => (props.$warn ? "#e74c3c" : "#1a4f8b")};
-    color: ${(props) => (props.$warn ? "#e74c3c" : "#1a4f8b")};
-  }
-`;
-
-// Modal Styles
-const Overlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-const ModalBox = styled.div`
-  width: 500px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-`;
-
-const ModalHeader = styled.div`
-  padding: 20px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    color: #333;
     display: flex;
     align-items: center;
     gap: 8px;
   }
+  svg {
+    color: #ccc;
+  }
 `;
 
-const CloseBtn = styled.button`
-  background: none;
+const StatusToggle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+
+  .knob {
+    width: 32px;
+    height: 18px;
+    background: ${(props) => (props.$active ? "#2ecc71" : "#ccc")};
+    border-radius: 9px;
+    position: relative;
+    transition: background 0.3s;
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: ${(props) => (props.$active ? "16px" : "2px")};
+      width: 14px;
+      height: 14px;
+      background: white;
+      border-radius: 50%;
+      transition: left 0.3s;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+  }
+
+  .label {
+    font-size: 12px;
+    font-weight: 600;
+    color: ${(props) => (props.$active ? "#2ecc71" : "#aaa")};
+  }
+`;
+
+const ActionBtn = styled.button`
   border: none;
-  font-size: 18px;
-  cursor: pointer;
+  background: transparent;
   color: #999;
-`;
-
-const ModalBody = styled.div`
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-`;
-
-const FormRow = styled.div`
-  display: flex;
-  gap: 15px;
-`;
-
-const FormGroup = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-`;
-
-const Label = styled.label`
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-`;
-
-const Input = styled.input`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  outline: none;
-  &:focus {
-    border-color: #1a4f8b;
-  }
-  &:disabled {
-    background: #f5f5f5;
-    color: #999;
-  }
-`;
-
-const RadioGroup = styled.div`
-  display: flex;
-  gap: 15px;
-  margin-top: 5px;
-`;
-
-const RadioLabel = styled.label`
-  font-size: 13px;
-  color: #333;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-`;
-
-const ModalFooter = styled.div`
-  padding: 20px;
-  border-top: 1px solid #eee;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-`;
-
-const Button = styled.button`
-  padding: 10px 20px;
+  padding: 5px;
   border-radius: 4px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid ${(props) => (props.$primary ? "#1a4f8b" : "#ddd")};
-  background: ${(props) => (props.$primary ? "#1a4f8b" : "white")};
-  color: ${(props) => (props.$primary ? "white" : "#555")};
   &:hover {
-    opacity: 0.9;
+    background: #eee;
+    color: #333;
   }
 `;

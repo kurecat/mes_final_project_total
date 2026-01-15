@@ -1,10 +1,9 @@
 // src/pages/quality/DefectPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import {
   FaBug,
   FaSearch,
-  FaFilter,
   FaFileImage,
   FaCheckDouble,
   FaExclamationTriangle,
@@ -23,83 +22,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// --- Mock Data (D-RAM 관련 데이터) ---
-
-// 1. D-RAM 주요 불량 파레토 (Fab & EDS 공정)
-const PARETO_DATA = [
-  { name: "Single Bit Fail", count: 150, cum: 30 }, // 셀 하나 불량 (Repair 가능성 높음)
-  { name: "Word-Line Open", count: 110, cum: 52 }, // 라인 단선
-  { name: "Pattern Short", count: 80, cum: 68 }, // 회로 합선
-  { name: "Particle", count: 60, cum: 80 }, // 이물질 (누적 80%)
-  { name: "Multi-Bit Fail", count: 45, cum: 89 },
-  { name: "Scratch", count: 35, cum: 96 },
-  { name: "Oxide Thickness", count: 20, cum: 100 },
-];
-
-// 2. 불량 발생 로그 (리스트) - 공정 변경 (Photo, Etch, EDS)
-const DEFECT_LOGS = [
-  {
-    id: "DF-240601-001",
-    time: "14:20:11",
-    lotId: "LOT-DDR5-101",
-    waferId: "WF-05",
-    coord: "(12, 05)",
-    type: "Pattern Short",
-    process: "Etching (Poly)",
-    status: "NEW",
-    image: true,
-  },
-  {
-    id: "DF-240601-002",
-    time: "13:45:22",
-    lotId: "LOT-DDR5-101",
-    waferId: "WF-05",
-    coord: "(08, 11)",
-    type: "Single Bit Fail",
-    process: "EDS Test",
-    status: "REPAIRED",
-    image: false,
-  }, // 수리 완료됨
-  {
-    id: "DF-240601-003",
-    time: "11:10:05",
-    lotId: "LOT-DDR5-098",
-    waferId: "WF-12",
-    coord: "(15, 09)",
-    type: "Particle",
-    process: "Photo (Litho)",
-    status: "CLOSED",
-    image: true,
-  },
-  {
-    id: "DF-240601-004",
-    time: "10:05:33",
-    lotId: "LOT-DDR5-098",
-    waferId: "WF-12",
-    coord: "(10, 10)",
-    type: "Scratch",
-    process: "CMP",
-    status: "NEW",
-    image: true,
-  },
-  {
-    id: "DF-240601-005",
-    time: "09:30:15",
-    lotId: "LOT-DDR5-097",
-    waferId: "WF-01",
-    coord: "(05, 05)",
-    type: "Word-Line Open",
-    process: "EDS Test",
-    status: "VERIFIED",
-    image: false,
-  },
-];
-
-// 3. Wafer Map (Binning)
+// --- Wafer Map Logic (Client Side Generation 유지) ---
 // 1: Good (Prime), 2: Repairable (수리 가능), 0: Reject (폐기), -1: Empty
 const generateWaferMap = () => {
   const map = [];
-  const size = 14; // D-RAM은 칩 사이즈가 작아 Grid가 더 촘촘함
+  const size = 14;
   const center = size / 2;
   const radius = size / 2;
 
@@ -109,12 +36,10 @@ const generateWaferMap = () => {
         Math.pow(x - center + 0.5, 2) + Math.pow(y - center + 0.5, 2)
       );
       if (distance < radius) {
-        // 랜덤 상태 생성 (D-RAM은 Repairable 비중이 중요)
         const rand = Math.random();
         let status = 1; // Good
         if (rand > 0.9) status = 0; // Reject
         else if (rand > 0.8) status = 2; // Repairable
-
         map.push({ x, y, status });
       } else {
         map.push({ x, y, status: -1 });
@@ -127,10 +52,50 @@ const generateWaferMap = () => {
 const WAFER_MAP = generateWaferMap();
 
 const DefectPage = () => {
+  // --- State for Data ---
+  const [stats, setStats] = useState({
+    totalDefects: 0,
+    worstStep: "-",
+    repairedCount: 0,
+    primeYield: 0,
+  });
+  const [paretoData, setParetoData] = useState([]);
+  const [defectLogs, setDefectLogs] = useState([]);
+
+  // --- State for Filters ---
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  const filteredLogs = DEFECT_LOGS.filter((log) => {
+  // --- Data Fetching ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // json-server 기본 포트 3001 가정
+        const baseUrl = "http://localhost:3001";
+
+        const [statsRes, paretoRes, logsRes] = await Promise.all([
+          fetch(`${baseUrl}/stats`),
+          fetch(`${baseUrl}/paretoData`),
+          fetch(`${baseUrl}/defectLogs`),
+        ]);
+
+        const statsData = await statsRes.json();
+        const paretoData = await paretoRes.json();
+        const logsData = await logsRes.json();
+
+        setStats(statsData);
+        setParetoData(paretoData);
+        setDefectLogs(logsData);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // --- Filter Logic ---
+  const filteredLogs = defectLogs.filter((log) => {
     const matchSearch =
       log.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.lotId.toLowerCase().includes(searchTerm.toLowerCase());
@@ -140,7 +105,7 @@ const DefectPage = () => {
 
   return (
     <Container>
-      {/* 1. 상단 통계 카드 */}
+      {/* 1. 상단 통계 카드 (Dynamic Data) */}
       <StatsRow>
         <StatCard>
           <IconBox $color="#e74c3c">
@@ -149,7 +114,7 @@ const DefectPage = () => {
           <StatInfo>
             <Label>Total Defects</Label>
             <Value>
-              52 <Unit>ea</Unit>
+              {stats.totalDefects} <Unit>ea</Unit>
             </Value>
           </StatInfo>
         </StatCard>
@@ -159,7 +124,7 @@ const DefectPage = () => {
           </IconBox>
           <StatInfo>
             <Label>Worst Step</Label>
-            <Value style={{ fontSize: 20 }}>Poly Etching</Value>
+            <Value style={{ fontSize: 20 }}>{stats.worstStep}</Value>
           </StatInfo>
         </StatCard>
         <StatCard>
@@ -169,7 +134,7 @@ const DefectPage = () => {
           <StatInfo>
             <Label>Repaired Count</Label>
             <Value>
-              12 <Unit>chips</Unit>
+              {stats.repairedCount} <Unit>chips</Unit>
             </Value>
           </StatInfo>
         </StatCard>
@@ -180,7 +145,7 @@ const DefectPage = () => {
           <StatInfo>
             <Label>Prime Yield</Label>
             <Value>
-              94.8 <Unit>%</Unit>
+              {stats.primeYield} <Unit>%</Unit>
             </Value>
           </StatInfo>
         </StatCard>
@@ -188,7 +153,7 @@ const DefectPage = () => {
 
       {/* 2. 메인 시각화 영역 */}
       <VizSection>
-        {/* 파레토 차트 */}
+        {/* 파레토 차트 (Dynamic Data) */}
         <ChartCard>
           <CardHeader>
             <CardTitle>
@@ -197,7 +162,7 @@ const DefectPage = () => {
           </CardHeader>
           <ResponsiveContainer width="100%" height={300}>
             <ComposedChart
-              data={PARETO_DATA}
+              data={paretoData}
               margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
             >
               <CartesianGrid stroke="#f5f5f5" />
@@ -233,7 +198,7 @@ const DefectPage = () => {
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* 웨이퍼 맵 시각화 (Binning) */}
+        {/* 웨이퍼 맵 시각화 (Logic Maintained) */}
         <MapCard>
           <CardHeader>
             <CardTitle>EDS Map Monitoring</CardTitle>
@@ -260,7 +225,7 @@ const DefectPage = () => {
         </MapCard>
       </VizSection>
 
-      {/* 3. 하단 불량 상세 리스트 */}
+      {/* 3. 하단 불량 상세 리스트 (Dynamic Data) */}
       <ListSection>
         <ListHeader>
           <CardTitle>Defect Occurrence List</CardTitle>
@@ -301,35 +266,48 @@ const DefectPage = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.map((log) => (
-                <tr key={log.id}>
-                  <td>{log.time}</td>
-                  <td style={{ fontWeight: "bold", color: "#e74c3c" }}>
-                    {log.id}
-                  </td>
-                  <td>
-                    {log.lotId} / {log.waferId}
-                  </td>
-                  <td style={{ fontFamily: "monospace" }}>{log.coord}</td>
-                  <td>{log.type}</td>
-                  <td>{log.process}</td>
-                  <td>
-                    {log.image ? (
-                      <ImgBtn>
-                        <FaFileImage /> View
-                      </ImgBtn>
-                    ) : (
-                      <span style={{ color: "#ccc" }}>-</span>
-                    )}
-                  </td>
-                  <td>
-                    <StatusBadge $status={log.status}>{log.status}</StatusBadge>
-                  </td>
-                  <td>
-                    <ActionBtn>Detail</ActionBtn>
+              {filteredLogs.length > 0 ? (
+                filteredLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td>{log.time}</td>
+                    <td style={{ fontWeight: "bold", color: "#e74c3c" }}>
+                      {log.id}
+                    </td>
+                    <td>
+                      {log.lotId} / {log.waferId}
+                    </td>
+                    <td style={{ fontFamily: "monospace" }}>{log.coord}</td>
+                    <td>{log.type}</td>
+                    <td>{log.process}</td>
+                    <td>
+                      {log.image ? (
+                        <ImgBtn>
+                          <FaFileImage /> View
+                        </ImgBtn>
+                      ) : (
+                        <span style={{ color: "#ccc" }}>-</span>
+                      )}
+                    </td>
+                    <td>
+                      <StatusBadge $status={log.status}>
+                        {log.status}
+                      </StatusBadge>
+                    </td>
+                    <td>
+                      <ActionBtn>Detail</ActionBtn>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan="9"
+                    style={{ textAlign: "center", padding: "20px" }}
+                  >
+                    No defects found.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </Table>
         </TableContainer>
@@ -340,8 +318,7 @@ const DefectPage = () => {
 
 export default DefectPage;
 
-// --- Styled Components (기존 디자인 유지) ---
-
+// --- Styled Components (기존과 동일) ---
 const Container = styled.div`
   width: 100%;
   height: 100%;

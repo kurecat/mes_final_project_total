@@ -1,6 +1,7 @@
 // src/pages/mdm/RoutingPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
   FaProjectDiagram,
   FaSearch,
@@ -14,10 +15,11 @@ import {
   FaEdit,
   FaLayerGroup,
   FaBolt,
+  FaSync,
 } from "react-icons/fa";
 
-// --- Mock Data (D-RAM 제조 공정 라우팅) ---
-const ROUTING_LIST = [
+// --- Fallback Mock Data ---
+const MOCK_ROUTINGS = [
   {
     id: "RT-DDR5-FAB-01",
     name: "DDR5 FEOL Standard Process",
@@ -141,11 +143,39 @@ const ROUTING_LIST = [
 ];
 
 const RoutingPage = () => {
-  const [selectedRouting, setSelectedRouting] = useState(ROUTING_LIST[0]);
-  const [selectedStep, setSelectedStep] = useState(
-    ROUTING_LIST[0].operations[0]
-  );
+  const [routingList, setRoutingList] = useState(MOCK_ROUTINGS);
+  const [selectedRouting, setSelectedRouting] = useState(null);
+  const [selectedStep, setSelectedStep] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // 1. 데이터 조회 (READ)
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API: http://localhost:3001/routings
+      // const res = await axios.get("http://localhost:3001/routings");
+      // setRoutingList(res.data);
+      // if (res.data.length > 0) {
+      //   setSelectedRouting(res.data[0]);
+      //   setSelectedStep(res.data[0].operations[0]);
+      // }
+
+      setTimeout(() => {
+        setRoutingList(MOCK_ROUTINGS);
+        setSelectedRouting(MOCK_ROUTINGS[0]);
+        setSelectedStep(MOCK_ROUTINGS[0].operations[0]);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // 공정 타입별 아이콘 매핑
   const getStepIcon = (type) => {
@@ -153,11 +183,11 @@ const RoutingPage = () => {
       case "CLEAN":
         return <FaBroom />;
       case "PROCESS":
-        return <FaLayerGroup />; // Layer 적층/가공 의미
+        return <FaLayerGroup />;
       case "INSPECT":
         return <FaMicroscope />;
       case "TEST":
-        return <FaBolt />; // 전기적 테스트
+        return <FaBolt />;
       case "PACK":
         return <FaBox />;
       default:
@@ -168,10 +198,16 @@ const RoutingPage = () => {
   // 라우팅 선택 핸들러
   const handleRoutingClick = (routing) => {
     setSelectedRouting(routing);
-    setSelectedStep(routing.operations[0]);
+    setSelectedStep(routing.operations[0]); // 첫 번째 공정 자동 선택
   };
 
-  const filteredList = ROUTING_LIST.filter(
+  // 공정 스텝 저장 핸들러 (Mock)
+  const handleSaveStep = () => {
+    alert(`[${selectedStep.name}] 공정 정보가 저장되었습니다.`);
+    // 실제로는 여기서 axios.put/patch 호출
+  };
+
+  const filteredList = routingList.filter(
     (r) =>
       r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.id.toLowerCase().includes(searchTerm.toLowerCase())
@@ -184,6 +220,12 @@ const RoutingPage = () => {
         <SidebarHeader>
           <Title>
             <FaProjectDiagram /> Routing List
+            {loading && (
+              <FaSync
+                className="spin"
+                style={{ fontSize: 12, marginLeft: 8 }}
+              />
+            )}
           </Title>
           <SearchBox>
             <FaSearch color="#aaa" />
@@ -202,7 +244,7 @@ const RoutingPage = () => {
           {filteredList.map((routing) => (
             <RoutingItem
               key={routing.id}
-              $active={selectedRouting.id === routing.id}
+              $active={selectedRouting && selectedRouting.id === routing.id}
               onClick={() => handleRoutingClick(routing)}
             >
               <ItemHeader>
@@ -221,7 +263,7 @@ const RoutingPage = () => {
 
       {/* 2. 우측 컨텐츠: 공정 흐름도 및 상세 */}
       <ContentArea>
-        {selectedRouting && (
+        {selectedRouting ? (
           <>
             <HeaderSection>
               <HeaderTitle>
@@ -238,11 +280,14 @@ const RoutingPage = () => {
                 {selectedRouting.operations.map((op, index) => (
                   <React.Fragment key={op.id}>
                     <FlowStep
-                      $active={selectedStep?.id === op.id}
+                      $active={selectedStep && selectedStep.id === op.id}
                       onClick={() => setSelectedStep(op)}
                     >
                       <StepNumber>{op.step}</StepNumber>
-                      <StepIconWrapper $type={op.type}>
+                      <StepIconWrapper
+                        $type={op.type}
+                        $active={selectedStep && selectedStep.id === op.id}
+                      >
                         {getStepIcon(op.type)}
                       </StepIconWrapper>
                       <StepName>{op.name}</StepName>
@@ -258,66 +303,70 @@ const RoutingPage = () => {
             </FlowSection>
 
             {/* B. 선택된 공정 상세 설정 */}
-            <DetailSection>
-              <DetailHeader>
-                <SectionTitle>
-                  Operation Detail: {selectedStep.name}
-                </SectionTitle>
-                <ActionGroup>
-                  <Button>
-                    <FaEdit /> Edit Spec
-                  </Button>
-                  <Button $primary>
-                    <FaSave /> Save Changes
-                  </Button>
-                </ActionGroup>
-              </DetailHeader>
+            {selectedStep && (
+              <DetailSection>
+                <DetailHeader>
+                  <SectionTitle>
+                    Operation Detail: {selectedStep.name}
+                  </SectionTitle>
+                  <ActionGroup>
+                    <Button>
+                      <FaEdit /> Edit Spec
+                    </Button>
+                    <Button $primary onClick={handleSaveStep}>
+                      <FaSave /> Save Changes
+                    </Button>
+                  </ActionGroup>
+                </DetailHeader>
 
-              <DetailGrid>
-                <FormCard>
-                  <FormTitle>General Info</FormTitle>
-                  <InputGroup>
-                    <Label>Operation ID</Label>
-                    <ValueInput value={selectedStep.id} readOnly />
-                  </InputGroup>
-                  <InputGroup>
-                    <Label>Operation Name</Label>
-                    <ValueInput value={selectedStep.name} readOnly />
-                  </InputGroup>
-                  <InputGroup>
-                    <Label>Operation Type</Label>
-                    <Select value={selectedStep.type} disabled>
-                      <option value="PROCESS">Processing</option>
-                      <option value="TEST">Electrical Test</option>
-                      <option value="INSPECT">Inspection</option>
-                      <option value="CLEAN">Cleaning</option>
-                    </Select>
-                  </InputGroup>
-                </FormCard>
+                <DetailGrid>
+                  <FormCard>
+                    <FormTitle>General Info</FormTitle>
+                    <InputGroup>
+                      <Label>Operation ID</Label>
+                      <ValueInput value={selectedStep.id} readOnly />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Operation Name</Label>
+                      <ValueInput value={selectedStep.name} readOnly />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Operation Type</Label>
+                      <Select value={selectedStep.type} disabled>
+                        <option value="PROCESS">Processing</option>
+                        <option value="TEST">Electrical Test</option>
+                        <option value="INSPECT">Inspection</option>
+                        <option value="CLEAN">Cleaning</option>
+                      </Select>
+                    </InputGroup>
+                  </FormCard>
 
-                <FormCard>
-                  <FormTitle>Standard & Resource</FormTitle>
-                  <InputGroup>
-                    <Label>Target Resource (Equipment)</Label>
-                    <ValueInput value={selectedStep.resource} readOnly />
-                  </InputGroup>
-                  <InputGroup>
-                    <Label>Std Cycle Time (Sec)</Label>
-                    <ValueInput value={selectedStep.ct} readOnly />
-                  </InputGroup>
-                  <InputGroup>
-                    <Label>Target Yield (%)</Label>
-                    <ValueInput value={selectedStep.yield} readOnly />
-                  </InputGroup>
-                </FormCard>
+                  <FormCard>
+                    <FormTitle>Standard & Resource</FormTitle>
+                    <InputGroup>
+                      <Label>Target Resource (Equipment)</Label>
+                      <ValueInput value={selectedStep.resource} readOnly />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Std Cycle Time (Sec)</Label>
+                      <ValueInput value={selectedStep.ct} readOnly />
+                    </InputGroup>
+                    <InputGroup>
+                      <Label>Target Yield (%)</Label>
+                      <ValueInput value={selectedStep.yield} readOnly />
+                    </InputGroup>
+                  </FormCard>
 
-                <FormCard style={{ gridColumn: "span 2" }}>
-                  <FormTitle>Work Instruction / Description</FormTitle>
-                  <TextArea rows="3" value={selectedStep.desc} readOnly />
-                </FormCard>
-              </DetailGrid>
-            </DetailSection>
+                  <FormCard style={{ gridColumn: "span 2" }}>
+                    <FormTitle>Work Instruction / Description</FormTitle>
+                    <TextArea rows="3" value={selectedStep.desc} readOnly />
+                  </FormCard>
+                </DetailGrid>
+              </DetailSection>
+            )}
           </>
+        ) : (
+          <EmptyState>Select a routing to view process flow</EmptyState>
         )}
       </ContentArea>
     </Container>
@@ -326,7 +375,7 @@ const RoutingPage = () => {
 
 export default RoutingPage;
 
-// --- Styled Components (기존과 동일하게 유지) ---
+// --- Styled Components ---
 
 const Container = styled.div`
   width: 100%;
@@ -356,6 +405,14 @@ const Title = styled.h2`
   display: flex;
   align-items: center;
   gap: 10px;
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
 const SearchBox = styled.div`
@@ -533,8 +590,7 @@ const StepIconWrapper = styled.div`
   justify-content: center;
   font-size: 20px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  border: 2px solid
-    ${(props) => (props.theme?.active ? "#1a4f8b" : "transparent")};
+  border: 2px solid ${(props) => (props.$active ? "#1a4f8b" : "transparent")};
 `;
 const StepName = styled.div`
   margin-top: 8px;
@@ -640,4 +696,12 @@ const TextArea = styled.textarea`
   border-radius: 6px;
   background: #fafafa;
   resize: vertical;
+`;
+const EmptyState = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #999;
+  font-size: 16px;
 `;

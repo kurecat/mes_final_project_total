@@ -9,6 +9,7 @@ export const MENU_LIST = [
   { name: "검사 기준 설정", path: "/quality/standard" },
   { name: "불량 관리", path: "/quality/defect" },
   { name: "Lot 추적", path: "/quality/tracking" },
+  { name: "SPC 차트", path: "/quality/spcchart" },
 
   { name: "설비 가동 현황", path: "/resource/machine" },
   { name: "자재 입/출고", path: "/resource/material" },

@@ -1,69 +1,78 @@
 // src/pages/resource/MaterialPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
   FaTruckLoading,
   FaDolly,
   FaBarcode,
   FaCheck,
   FaHistory,
-  FaArrowRight,
-  FaTimes,
   FaSearch,
+  FaFlask,
+  FaCircle,
+  FaMicrochip,
+  FaSync,
 } from "react-icons/fa";
 
-// --- Mock Data (최근 입출고 이력) ---
-const INITIAL_HISTORY = [
+// --- Fallback Mock Data ---
+const MOCK_HISTORY = [
   {
     id: 105,
     type: "OUT",
-    item: "NCP Underfill Epoxy",
+    item: "Photo Resist (ArF)",
     qty: 5,
-    target: "Line-A (Bonding)",
+    unit: "Btl",
+    target: "Photo-Line-A",
     time: "14:20:05",
     worker: "Kim",
   },
   {
     id: 104,
     type: "IN",
-    item: "12-inch Si Wafer",
-    qty: 200,
-    target: "WH-A-01",
+    item: "12-inch Prime Wafer",
+    qty: 25,
+    unit: "Box",
+    target: "WH-Raw-01",
     time: "13:10:22",
     worker: "Lee",
   },
   {
     id: 103,
     type: "OUT",
-    item: "HBM Tray (JEDEC)",
-    qty: 50,
-    target: "Line-B (Pkg)",
+    item: "Etching Gas (C4F6)",
+    qty: 2,
+    unit: "Cyl",
+    target: "Etch-Line-B",
     time: "11:45:30",
     worker: "Park",
   },
   {
     id: 102,
     type: "IN",
-    item: "Micro Bump (SnAg)",
-    qty: 5000,
-    target: "WH-A-04",
+    item: "Copper Target (Cu)",
+    qty: 10,
+    unit: "ea",
+    target: "WH-Part-04",
     time: "10:05:11",
     worker: "Choi",
   },
   {
     id: 101,
     type: "IN",
-    item: "Flux Solvent",
-    qty: 10,
-    target: "WH-C-02",
+    item: "Slurry (Ceria)",
+    qty: 20,
+    unit: "Drum",
+    target: "WH-Chem-02",
     time: "09:15:44",
     worker: "Kim",
   },
 ];
 
 const MaterialPage = () => {
-  const [activeTab, setActiveTab] = useState("IN"); // IN (입고), OUT (불출)
-  const [history, setHistory] = useState(INITIAL_HISTORY);
+  const [activeTab, setActiveTab] = useState("IN"); // IN (입고) or OUT (불출)
+  const [history, setHistory] = useState(MOCK_HISTORY);
+  const [loading, setLoading] = useState(true);
 
   // 입력 폼 상태
   const [inputs, setInputs] = useState({
@@ -72,89 +81,127 @@ const MaterialPage = () => {
     location: "",
   });
 
+  // 데이터 조회
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API: http://localhost:3001/materialHistory?_sort=id&_order=desc
+      // const res = await axios.get("http://localhost:3001/materialHistory?_sort=id&_order=desc");
+      // setHistory(res.data);
+
+      setTimeout(() => {
+        setHistory(MOCK_HISTORY);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   // 입력 핸들러
   const handleChange = (e) => {
     setInputs({ ...inputs, [e.target.name]: e.target.value });
   };
 
-  // 등록(Submit) 핸들러
-  const handleSubmit = (e) => {
+  // 등록 핸들러 (API POST)
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!inputs.barcode || !inputs.qty) return alert("필수 정보를 입력하세요.");
 
+    // 바코드에 따른 자재명 자동 매핑 (예시)
+    let itemName = "Unknown Item";
+    if (inputs.barcode.includes("WF")) itemName = "12-inch Prime Wafer";
+    else if (inputs.barcode.includes("PR")) itemName = "Photo Resist (ArF)";
+    else if (inputs.barcode.includes("GAS")) itemName = "Etching Gas (C4F6)";
+    else if (inputs.barcode.includes("TGT")) itemName = "Copper Target";
+
     const newItem = {
-      id: history.length + 106,
+      // id: Date.now(), // json-server가 자동 생성하므로 생략 가능
       type: activeTab,
-      item: inputs.barcode === "RM001" ? "12-inch Wafer" : "Unknown Item", // Mock Logic
-      qty: inputs.qty,
+      item: itemName,
+      qty: Number(inputs.qty),
+      unit: itemName.includes("Wafer") ? "Box" : "ea",
       target:
-        inputs.location ||
-        (activeTab === "IN" ? "Warehouse" : "Production Line"),
+        inputs.location || (activeTab === "IN" ? "Warehouse" : "Fab Line"),
       time: new Date().toLocaleTimeString("en-US", { hour12: false }),
-      worker: "Admin",
+      worker: "Admin", // 현재 로그인 유저
     };
 
-    setHistory([newItem, ...history]);
-    setInputs({ barcode: "", qty: "", location: "" }); // 초기화
-    alert(`${activeTab === "IN" ? "입고" : "불출"} 처리가 완료되었습니다.`);
+    try {
+      // ★ 실제 API POST
+      // await axios.post("http://localhost:3001/materialHistory", newItem);
+      // fetchData(); // 목록 갱신
+
+      // Mock 동작
+      setHistory([{ ...newItem, id: Date.now() }, ...history]);
+
+      setInputs({ barcode: "", qty: "", location: "" });
+      alert(`${activeTab === "IN" ? "입고" : "불출"} 처리가 완료되었습니다.`);
+    } catch (err) {
+      console.error("Transcaton Error", err);
+    }
   };
 
   return (
     <Container>
-      {/* 1. 상단 탭 (입고 vs 불출 모드 전환) */}
+      {/* 1. 상단 탭 (입고 vs 불출) */}
       <HeaderSection>
         <TabButton
           $active={activeTab === "IN"}
           onClick={() => setActiveTab("IN")}
-          $color="#2ecc71" // Green
+          $color="#2ecc71"
         >
-          <FaTruckLoading size={20} />
+          <FaTruckLoading size={24} />
           <div>
-            <TabTitle>자재 입고 (Inbound)</TabTitle>
-            <TabDesc>외부 자재 창고 적재</TabDesc>
+            <TabTitle>Material Inbound (입고)</TabTitle>
+            <TabDesc>Raw Wafer / Chemical / Parts 입고 검수</TabDesc>
           </div>
         </TabButton>
-
         <TabButton
           $active={activeTab === "OUT"}
           onClick={() => setActiveTab("OUT")}
-          $color="#e67e22" // Orange
+          $color="#e67e22"
         >
-          <FaDolly size={20} />
+          <FaDolly size={24} />
           <div>
-            <TabTitle>생산 불출 (Outbound)</TabTitle>
-            <TabDesc>생산 라인 투입 처리</TabDesc>
+            <TabTitle>Line Outbound (불출)</TabTitle>
+            <TabDesc>Fab 설비 투입 및 자재 불출 스캔</TabDesc>
           </div>
         </TabButton>
       </HeaderSection>
 
       <ContentWrapper>
-        {/* 2. 좌측: 입력 폼 (스캐너 인터페이스) */}
+        {/* 2. 좌측: 스캔 및 입력 폼 */}
         <InputCard $mode={activeTab}>
-          <CardHeader>
-            <FaBarcode />
-            {activeTab === "IN" ? " 입고 등록 스캔" : " 불출 등록 스캔"}
+          <CardHeader $mode={activeTab}>
+            {activeTab === "IN" ? <FaTruckLoading /> : <FaDolly />}
+            {activeTab === "IN" ? " 입고 등록 (Scan)" : " 불출 등록 (Scan)"}
           </CardHeader>
-
           <Form onSubmit={handleSubmit}>
             <FormGroup>
-              <Label>Barcode / Item ID</Label>
+              <Label>Material Barcode *</Label>
               <InputWrapper>
                 <Input
                   name="barcode"
                   value={inputs.barcode}
                   onChange={handleChange}
-                  placeholder="바코드를 스캔하세요..."
+                  placeholder="Scan (ex: WF-001, PR-A)"
                   autoFocus
                 />
                 <ScanIcon>
                   <FaBarcode />
                 </ScanIcon>
               </InputWrapper>
+              <HintText>Tip: 'WF', 'PR', 'GAS' 등을 포함해보세요.</HintText>
             </FormGroup>
 
             <FormGroup>
-              <Label>Quantity (수량)</Label>
+              <Label>Quantity *</Label>
               <Input
                 type="number"
                 name="qty"
@@ -168,53 +215,53 @@ const MaterialPage = () => {
               <Label>
                 {activeTab === "IN"
                   ? "Target Location (적재 위치)"
-                  : "Target Line (투입 라인)"}
+                  : "Target Equipment (투입 설비)"}
               </Label>
               <Input
                 name="location"
                 value={inputs.location}
                 onChange={handleChange}
-                placeholder={activeTab === "IN" ? "예: WH-A-01" : "예: Line-2"}
+                placeholder={
+                  activeTab === "IN" ? "ex: WH-Raw-01" : "ex: Photo-02"
+                }
               />
             </FormGroup>
 
             <SubmitButton type="submit" $mode={activeTab}>
-              <FaCheck />
-              {activeTab === "IN"
-                ? "입고 확정 (Confirm In)"
-                : "불출 확정 (Confirm Out)"}
+              <FaCheck />{" "}
+              {activeTab === "IN" ? "CONFIRM INBOUND" : "CONFIRM OUTBOUND"}
             </SubmitButton>
           </Form>
-
-          {/* 스캔 가이드 */}
-          <ScanGuide>
-            * 스캐너가 연결된 경우 바코드를 찍으면 자동으로 입력됩니다.
-          </ScanGuide>
         </InputCard>
 
-        {/* 3. 우측: 금일 처리 이력 리스트 */}
+        {/* 3. 우측: 수불 이력 테이블 */}
         <HistorySection>
           <SectionHeader>
             <TitleArea>
-              <FaHistory /> 금일 처리 이력 (Today's Transactions)
+              <FaHistory /> Today's Transaction Log
+              {loading && (
+                <FaSync
+                  className="spin"
+                  style={{ fontSize: 12, marginLeft: 8, color: "#999" }}
+                />
+              )}
             </TitleArea>
             <SearchGroup>
               <FaSearch color="#aaa" />
-              <SmallInput placeholder="이력 검색..." />
+              <SmallInput placeholder="Search Item..." />
             </SearchGroup>
           </SectionHeader>
-
           <TableContainer>
             <Table>
               <thead>
                 <tr>
                   <th>Time</th>
                   <th>Type</th>
-                  <th>Item Name</th>
+                  <th>Material Name</th>
                   <th>Qty</th>
-                  <th>Location/Target</th>
+                  <th>Unit</th>
+                  <th>Target Loc/Eq</th>
                   <th>Worker</th>
-                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -226,13 +273,29 @@ const MaterialPage = () => {
                         {row.type === "IN" ? "입고" : "불출"}
                       </TypeBadge>
                     </td>
-                    <td style={{ fontWeight: "600" }}>{row.item}</td>
-                    <td>{row.qty}</td>
+                    <td
+                      style={{
+                        fontWeight: "600",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      {row.item.includes("Wafer") ? (
+                        <FaCircle size={8} color="#555" />
+                      ) : row.item.includes("Gas") ? (
+                        <FaFlask size={10} color="#3498db" />
+                      ) : (
+                        <FaMicrochip size={12} color="#f39c12" />
+                      )}
+                      {row.item}
+                    </td>
+                    <td style={{ fontWeight: "bold" }}>{row.qty}</td>
+                    <td>
+                      <UnitBadge>{row.unit}</UnitBadge>
+                    </td>
                     <td>{row.target}</td>
                     <td>{row.worker}</td>
-                    <td>
-                      <SuccessText>Completed</SuccessText>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -259,66 +322,58 @@ const Container = styled.div`
   box-sizing: border-box;
 `;
 
-// 1. Header Tabs
 const HeaderSection = styled.div`
   display: flex;
   gap: 20px;
-  height: 80px;
+  height: 90px;
   flex-shrink: 0;
 `;
-
 const TabButton = styled.div`
   flex: 1;
   background: white;
-  border-radius: 10px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 15px;
+  gap: 20px;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   border: 2px solid ${(props) => (props.$active ? props.$color : "transparent")};
   background-color: ${(props) =>
     props.$active ? `${props.$color}10` : "white"};
   transition: all 0.2s;
-
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
   }
-
   svg {
-    color: ${(props) => (props.$active ? props.$color : "#aaa")};
+    color: ${(props) => (props.$active ? props.$color : "#ccc")};
   }
 `;
-
 const TabTitle = styled.div`
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 800;
   color: #333;
 `;
-
 const TabDesc = styled.div`
   font-size: 13px;
   color: #888;
-  margin-top: 2px;
+  margin-top: 4px;
 `;
 
-// 2. Content Layout
 const ContentWrapper = styled.div`
   display: flex;
   gap: 20px;
   flex: 1;
-  min-height: 0; /* for nested scrolling */
+  min-height: 0;
 `;
 
-// Left: Input Card
 const InputCard = styled.div`
-  width: 400px;
+  width: 380px;
   background: white;
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 25px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   border-top: 5px solid
@@ -326,12 +381,13 @@ const InputCard = styled.div`
 `;
 
 const CardHeader = styled.h3`
-  margin: 0 0 30px 0;
+  margin: 0 0 25px 0;
   color: #333;
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 20px;
+  font-size: 18px;
+  color: ${(props) => (props.$mode === "IN" ? "#27ae60" : "#d35400")};
 `;
 
 const Form = styled.form`
@@ -339,56 +395,55 @@ const Form = styled.form`
   flex-direction: column;
   gap: 20px;
 `;
-
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 `;
-
 const Label = styled.label`
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: #555;
 `;
-
 const InputWrapper = styled.div`
   position: relative;
   display: flex;
   align-items: center;
 `;
-
 const Input = styled.input`
   width: 100%;
   padding: 12px 15px;
-  padding-right: 40px; /* 아이콘 공간 확보 */
+  padding-right: 40px;
   border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 15px;
+  border-radius: 8px;
+  font-size: 14px;
   outline: none;
   transition: border-color 0.2s;
-
   &:focus {
     border-color: #1a4f8b;
   }
 `;
-
 const ScanIcon = styled.div`
   position: absolute;
   right: 15px;
   color: #999;
-  font-size: 18px;
+  font-size: 16px;
+`;
+const HintText = styled.span`
+  font-size: 11px;
+  color: #999;
+  margin-left: 2px;
 `;
 
 const SubmitButton = styled.button`
-  margin-top: 20px;
-  padding: 15px;
+  margin-top: 15px;
+  padding: 14px;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   background-color: ${(props) =>
     props.$mode === "IN" ? "#2ecc71" : "#e67e22"};
   color: white;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   display: flex;
@@ -396,28 +451,16 @@ const SubmitButton = styled.button`
   justify-content: center;
   gap: 10px;
   transition: opacity 0.2s;
-
   &:hover {
     opacity: 0.9;
   }
 `;
 
-const ScanGuide = styled.div`
-  margin-top: auto;
-  font-size: 12px;
-  color: #999;
-  text-align: center;
-  background: #f9f9f9;
-  padding: 10px;
-  border-radius: 6px;
-`;
-
-// Right: History Section
 const HistorySection = styled.div`
   flex: 1;
   background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -430,7 +473,6 @@ const SectionHeader = styled.div`
   justify-content: space-between;
   align-items: center;
 `;
-
 const TitleArea = styled.div`
   font-size: 16px;
   font-weight: 700;
@@ -438,17 +480,23 @@ const TitleArea = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 `;
-
 const SearchGroup = styled.div`
   display: flex;
   align-items: center;
   background: #f5f5f5;
-  padding: 5px 12px;
+  padding: 6px 12px;
   border-radius: 20px;
   gap: 8px;
 `;
-
 const SmallInput = styled.input`
   border: none;
   background: transparent;
@@ -460,20 +508,16 @@ const SmallInput = styled.input`
 const TableContainer = styled.div`
   flex: 1;
   overflow-y: auto;
-  padding: 0;
 `;
-
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-
   thead {
     background-color: #fafafa;
     position: sticky;
     top: 0;
     z-index: 1;
-
     th {
       padding: 12px 15px;
       text-align: left;
@@ -482,7 +526,6 @@ const Table = styled.table`
       border-bottom: 1px solid #eee;
     }
   }
-
   tbody {
     td {
       padding: 12px 15px;
@@ -504,9 +547,10 @@ const TypeBadge = styled.span`
     props.$type === "IN" ? "#e8f5e9" : "#fff3e0"};
   color: ${(props) => (props.$type === "IN" ? "#2e7d32" : "#e67e22")};
 `;
-
-const SuccessText = styled.span`
-  color: #2ecc71;
-  font-weight: 600;
-  font-size: 12px;
+const UnitBadge = styled.span`
+  font-size: 11px;
+  background: #eee;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #666;
 `;
