@@ -19,7 +19,7 @@ public class MoldingInspectionDto
         dto.MoldingId = BitConverter.ToInt32(payload, offset); offset += 4;
         dto.SampleSize = BitConverter.ToInt32(payload, offset); offset += 4;
 
-        int strLen = BitConverter.ToInt32(payload, offset); offset += 4;
+        int strLen = BitConverter.ToInt16(payload, offset); offset += 2;
         if (strLen > 0)
         {
             dto.InspectionCriteria = System.Text.Encoding.UTF8.GetString(payload, offset, strLen);

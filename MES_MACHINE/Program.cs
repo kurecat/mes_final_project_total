@@ -59,7 +59,7 @@ namespace L1_MachineSim
         static void RunDeviceLoop(TcpClient client, NetworkStream stream)
         {
             Random rand = new Random();
-            int globalTick = 0;
+            int globalTick = 16;
             string currentLotId = "LOT-INIT";
 
             // 상태 변수
@@ -77,14 +77,13 @@ namespace L1_MachineSim
 
                 while (client.Connected)
                 {
-                    int step = globalTick % 17;
+                    int step = globalTick % 18;
                     if (step == 0) currentLotId = $"LOT-{DateTime.Now:HHmmss}";
 
                     bodyMs.SetLength(0); // 버퍼 초기화
                     DtoType procType = DtoType.Dicing;
                     string logMessage = "";
                     bool isArray = false;
-                    int arrayCount = 0;
 
                     // === 공정 데이터 생성 (메서드 분리 권장하지만, 여기선 BinaryWriter 예시를 위해 인라인 처리) ===
 
@@ -301,34 +300,49 @@ namespace L1_MachineSim
                     }
                     else if (step == 16) // Final Inspection (Array)
                     {
-                        procType = DtoType.FinalInspectionLog;
                         isArray = true;
-                        arrayCount = 2;
+                        // 배열 길이 랜덤 (예: 1~5개)
+                        short arrayLength = (short)rand.Next(1, 6);
 
-                        // Item 1
-                        writer.Write(0); // Id
-                        writer.Write(0); // WorkOrderId
-                        writer.Write(0); // ItemId
-                        writer.Write(0); // MemberId
-                        writer.Write(0); // EquipmentId
+                        for (int i = 0; i < arrayLength; i++)
+                        {
+                            using (MemoryStream itemMs = new MemoryStream())
+                            using (BinaryWriter itemWriter = new BinaryWriter(itemMs))
+                            {
+                                // 숫자 필드들 랜덤
+                                itemWriter.Write(0); // Id
+                                itemWriter.Write(0); // WorkOrderId
+                                itemWriter.Write(0); // ItemId
+                                itemWriter.Write(0); // MemberId
+                                itemWriter.Write(0); // EquipmentId
 
-                        WritePacketString(writer, "Normal");   // Electrical
-                        WritePacketString(writer, "Pass");     // Reliability
-                        WritePacketString(writer, "Good");     // Visual
-                        WritePacketString(writer, "Pass");     // FinalPass
+                                // 문자열 필드들 랜덤
+                                string[] electricalOptions = { "Normal", "Abnormal" };
+                                string[] reliabilityOptions = { "Pass", "Fail" };
+                                string[] visualOptions = { "Good", "Defect", "Average" };
+                                string[] finalPassOptions = { "Pass", "Fail" };
 
-                        // Item 2
-                        writer.Write(0); // Id
-                        writer.Write(0); // WorkOrderId
-                        writer.Write(0); // ItemId
-                        writer.Write(0); // MemberId
-                        writer.Write(0); // EquipmentId
+                                string electrical = electricalOptions[rand.Next(electricalOptions.Length)];
+                                string reliability = reliabilityOptions[rand.Next(reliabilityOptions.Length)];
+                                string visual = visualOptions[rand.Next(visualOptions.Length)];
+                                string finalPass = finalPassOptions[rand.Next(finalPassOptions.Length)];
 
-                        WritePacketString(writer, "Normal");   // Electrical
-                        WritePacketString(writer, "Fail");     // Reliability
-                        WritePacketString(writer, "Defect");   // Visual
-                        WritePacketString(writer, "Fail");     // FinalPass
+                                WritePacketString(itemWriter, electrical);
+                                WritePacketString(itemWriter, reliability);
+                                WritePacketString(itemWriter, visual);
+                                WritePacketString(itemWriter, finalPass);
 
+                                // body 완성
+                                byte[] body = itemMs.ToArray();
+
+                                // 헤더 붙이기
+                                writer.Write((short)body.Length); // size
+                                writer.Write((byte)0x39);         // type
+                                writer.Write(body);               // body
+                            }
+                        }
+                        byte[] packetBytes = bodyMs.ToArray();
+                        Console.WriteLine($"총 패킷 길이: {packetBytes.Length} 바이트, 아이템 수: {arrayLength}");
                         logMessage = "[★FINAL] 최종검사 배열 Data 전송 완료";
                     }
                     else
@@ -365,7 +379,7 @@ namespace L1_MachineSim
 
                     if (isArray)
                     {
-                        SendDtoArrayPacket(stream, procType, bodyBytes, (short)arrayCount);
+                        SendDtoArrayPacket(stream, procType, bodyBytes);
                     }
                     else
                     {
@@ -398,7 +412,7 @@ namespace L1_MachineSim
         }
 
         // --- 패킷 전송 메서드 (데이터용) ---
-        static void SendDtoArrayPacket(NetworkStream stream, DtoType procType, byte[] body, short count = 0)
+        static void SendDtoArrayPacket(NetworkStream stream, DtoType procType, byte[] body)
         {
             // 헤더(4~6바이트) + 바디(N바이트)
             // Header(1) + MsgType(1) + Length/Count(2) + BodyLength(2) + ProcType(1) + Body(N) ... 구조 통일
@@ -408,12 +422,9 @@ namespace L1_MachineSim
             packet.Add(0x01);           // Header
             packet.Add((byte)MsgType.ArrayData);  // MsgType
 
-            packet.AddRange(BitConverter.GetBytes((short)body.Length / count)); // Body Length (공통)
-
-            packet.AddRange(BitConverter.GetBytes(count)); // Item Count
-
-            packet.Add((byte)procType); // Specific Type
             packet.AddRange(body);      // Data
+            packet.Add(0x00);
+            packet.Add(0x00);   // end (다음객체의크기)
 
             byte[] finalPacket = packet.ToArray();
             stream.Write(finalPacket, 0, finalPacket.Length);
@@ -431,13 +442,13 @@ namespace L1_MachineSim
 
             packet.AddRange(BitConverter.GetBytes((short)body.Length)); // Body Length (공통)
 
-            packet.AddRange(new byte[2]); // Reserved
-
             packet.Add((byte)procType); // Specific Type
             packet.AddRange(body);      // Data
 
             byte[] finalPacket = packet.ToArray();
             stream.Write(finalPacket, 0, finalPacket.Length);
+
+            PrintByteLog(finalPacket);
         }
 
         // --- 패킷 전송 메서드 (온도용) ---
@@ -447,10 +458,16 @@ namespace L1_MachineSim
             packet.Add(0x01);
             packet.Add((byte)MsgType.Temperature);
             packet.AddRange(BitConverter.GetBytes(temp));
-            packet.AddRange(new byte[2]); // Reserved
 
             byte[] finalPacket = packet.ToArray();
             stream.Write(finalPacket, 0, finalPacket.Length);
         }
+        public static void PrintByteLog(byte[] data)
+        {
+            // 각 바이트를 16진수 두 자리로 변환해서 공백으로 구분
+            string hex = BitConverter.ToString(data).Replace("-", " ");
+            Console.WriteLine($"[ByteLog] {hex}");
+        }
     }
+
 }
