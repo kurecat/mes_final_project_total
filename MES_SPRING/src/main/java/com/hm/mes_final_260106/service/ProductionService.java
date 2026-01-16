@@ -85,6 +85,48 @@ public class ProductionService {
         return orderRepo.save(order);
     }
 
+    // ============================
+    // 작업지시 Start (RELEASED -> IN_PROGRESS)
+    // ============================
+    @Transactional
+    public WorkOrder startWorkOrder(Long orderId, String machineId) {
+        WorkOrder order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+
+        // 정책: RELEASED만 시작 가능
+        if (!"RELEASED".equals(order.getStatus())) {
+            throw new RuntimeException("RELEASED 상태에서만 Start 할 수 있습니다. 현재 상태: " + order.getStatus());
+        }
+
+        order.setStatus("IN_PROGRESS");
+        order.setAssignedMachineId(machineId); // 더미/선택값
+
+        // start_date는 PrePersist로 생성되지만
+        // 실제 시작시간을 따로 두고 싶으면 start_date 대신 run_start_date를 분리하는게 정석
+        // 지금은 구조 유지
+
+        return orderRepo.save(order);
+    }
+
+    // ============================
+    // 작업지시 Finish (IN_PROGRESS -> COMPLETED)
+    // ============================
+    @Transactional
+    public WorkOrder finishWorkOrder(Long orderId) {
+        WorkOrder order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+
+        // 정책: IN_PROGRESS만 완료 가능
+        if (!"IN_PROGRESS".equals(order.getStatus())) {
+            throw new RuntimeException("IN_PROGRESS 상태에서만 Finish 할 수 있습니다. 현재 상태: " + order.getStatus());
+        }
+
+        order.setStatus("COMPLETED");
+        order.setEnd_date(LocalDateTime.now());
+
+        return orderRepo.save(order);
+    }
+
     // =========================
     // 4) 작업지시 삭제
     // =========================
@@ -117,6 +159,54 @@ public class ProductionService {
         order.setProductId(productId);
         order.setTargetQty(targetQty);
         order.setTargetLine(targetLine);
+
+        return orderRepo.save(order);
+    }
+
+    @Transactional
+    public WorkOrder updateWorkOrderStatus(Long id, String status) {
+
+        WorkOrder order = orderRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + id));
+
+        if (status == null) {
+            throw new RuntimeException("status는 필수입니다.");
+        }
+
+        String next = status.trim().toUpperCase();
+        // 완료 상태는 변경 불가
+        if (!next.equals("WAITING") &&
+                !next.equals("RELEASED") &&
+                !next.equals("IN_PROGRESS") &&
+                !next.equals("PAUSED") &&
+                !next.equals("COMPLETED")) {
+            throw new RuntimeException("허용되지 않는 status: " + next);
+        }
+
+        String current = order.getStatus();
+
+        // 상태 전이 정책(정석)
+        boolean allowed =
+                ("RELEASED".equals(current) && "IN_PROGRESS".equals(status)) || // Start
+                        ("IN_PROGRESS".equals(current) && "PAUSED".equals(status)) ||   // Pause
+                        ("PAUSED".equals(current) && "IN_PROGRESS".equals(status)) ||   // Resume
+                        ("IN_PROGRESS".equals(current) && "COMPLETED".equals(status)) || // Finish
+                        ("PAUSED".equals(current) && "COMPLETED".equals(status)); // Finish
+
+        if (!allowed) {
+            throw new RuntimeException("허용되지 않는 상태 변경입니다. (" + current + " -> " + status + ")");
+        }
+
+        order.setStatus(status);
+
+        // 시작/종료 시간 기록
+        if ("IN_PROGRESS".equals(status) && order.getStart_date() == null) {
+            order.setStart_date(LocalDateTime.now()); // ⭐
+        }
+
+        if ("COMPLETED".equals(status)) {
+            order.setEnd_date(LocalDateTime.now()); // ⭐
+        }
 
         return orderRepo.save(order);
     }

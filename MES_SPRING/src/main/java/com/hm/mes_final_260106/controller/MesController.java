@@ -1,9 +1,6 @@
 package com.hm.mes_final_260106.controller;
 
-import com.hm.mes_final_260106.dto.MaterialInboundDto;
-import com.hm.mes_final_260106.dto.ProductionReportDto;
-import com.hm.mes_final_260106.dto.WorkOrderReqDto;
-import com.hm.mes_final_260106.dto.WorkOrderResDto;
+import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.WorkOrder;
 import com.hm.mes_final_260106.service.ProductionService;
@@ -74,6 +71,27 @@ public class MesController {
         return ResponseEntity.ok(WorkOrderResDto.fromEntity(order));
     }
 
+    // ============================
+    // 작업지시 Start (RELEASED -> IN_PROGRESS)
+    // ============================
+    @PostMapping("/order/{id}/start")
+    public ResponseEntity<WorkOrderResDto> startOrder(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "MACHINE-01") String machineId
+    ) {
+        WorkOrder order = productionService.startWorkOrder(id, machineId);
+        return ResponseEntity.ok(WorkOrderResDto.fromEntity(order));
+    }
+
+    // ============================
+    // 작업지시 Finish (IN_PROGRESS -> COMPLETED)
+    // ============================
+    @PostMapping("/order/{id}/finish")
+    public ResponseEntity<WorkOrderResDto> finishOrder(@PathVariable Long id) {
+        WorkOrder order = productionService.finishWorkOrder(id);
+        return ResponseEntity.ok(WorkOrderResDto.fromEntity(order));
+    }
+
     // =========================
     // 작업지시 삭제
     // =========================
@@ -92,6 +110,18 @@ public class MesController {
             @RequestBody WorkOrderReqDto dto
     ) {
         WorkOrder updated = productionService.updateWorkOrder(id, dto.getProductId(), dto.getTargetQty(),dto.getTargetLine());
+        return ResponseEntity.ok(WorkOrderResDto.fromEntity(updated));
+    }
+
+    // ================================
+    // ⭐ 정석: 작업지시 상태 변경 API (Start/Pause/Resume/Finish)
+    // ================================
+    @PatchMapping("/order/{id}/status")
+    public ResponseEntity<WorkOrderResDto> updateOrderStatus(
+            @PathVariable Long id,
+            @RequestBody WorkOrderStatusUpdateReqDto dto
+    ) {
+        WorkOrder updated = productionService.updateWorkOrderStatus(id, dto.getStatus()); // ⭐
         return ResponseEntity.ok(WorkOrderResDto.fromEntity(updated));
     }
 
