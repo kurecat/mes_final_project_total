@@ -117,27 +117,27 @@ public class MachineSimulator
                 if (typeBytes == null || typeBytes.Length == 0) continue;
                 byte type = typeBytes[0];
 
-                byte[] payload = await _tcpService.ReadPacketAsync(4);
-                if (payload == null || payload.Length < 4) continue;
+                byte[] payload = await _tcpService.ReadPacketAsync(2);
+                if (payload == null || payload.Length < 2) continue;
 
                 if (type == 0x31)   // 온도
                 {
-                    int val = BitConverter.ToInt16(payload, 0);
+                    short val = BitConverter.ToInt16(payload, 0);
                     await HandleTemerature(val);
                 }
                 else if (type == 0x32)    // 단일 DTO
                 {
                     int size = BitConverter.ToInt16(payload, 0);
 
-                    byte[] dtoTypeBytes = await _tcpService.ReadPacketAsync(1);
-                    var dtoType = (DtoType)dtoTypeBytes[0];
+                    DtoType dtoType = (DtoType)(await _tcpService.ReadPacketAsync(1))[0];
 
                     payload = await _tcpService.ReadPacketAsync(size);
                     if (payload == null || payload.Length < size) continue;
 
+                    PrintByteLog(payload);
+
                     try
                     {
-                        Console.WriteLine($"타입 : {dtoType}");
                         switch (dtoType)
                         {
                             case DtoType.Dicing:
@@ -197,30 +197,31 @@ public class MachineSimulator
                 }
                 else if (type == 0x33)    // 배열 DTO
                 {
-                    int size = BitConverter.ToInt16(payload, 2);
-                    int arrayLength = BitConverter.ToInt16(payload, 0);
-
-                    await _tcpService.ReadPacketAsync(1);   // 타입용바이트                 
-
-                    _finalInspectionLogDtos = new FinalInspectionLogDto[arrayLength];
-
-                    for (int i = 0; i < arrayLength; i++)
+                    int index = 0;
+                    int size = BitConverter.ToInt16(payload, 0);
+                    try
                     {
-                        try
+                        while (size > 0)
                         {
+                            Console.WriteLine($"사이즈 : {size}");
+                            await _tcpService.ReadPacketAsync(1);   // 타입용바이트
+
+                            _finalInspectionLogDtos = new FinalInspectionLogDto[size];
+
                             payload = await _tcpService.ReadPacketAsync(size);
                             if (payload == null || payload.Length < size) continue;
-                            Console.WriteLine(payload);
-                            PrintByteLog(payload);
 
-                            _finalInspectionLogDtos[i] = FinalInspectionLogDto.FromBytes(payload);
+                            _finalInspectionLogDtos[index++] = FinalInspectionLogDto.FromBytes(payload);
+
+                            size = BitConverter.ToInt16(await _tcpService.ReadPacketAsync(2));
                         }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"[Deserialize Error] FinalInspection DTO 변환 실패 (index={i}): {ex.Message}");
-                        }
+                        await HandleProductionResult();
+
                     }
-                    await HandleProductionResult();
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Deserialize Error] FinalInspection DTO 변환 실패 (index={index}): {ex.Message}");
+                    }
                 }
             }
             catch (Exception ex)
@@ -230,7 +231,7 @@ public class MachineSimulator
             }
         }
     }
-    private async Task HandleTemerature(int temp)
+    private async Task HandleTemerature(short temp)
     {
         var status = new MachineStatusDto
         {

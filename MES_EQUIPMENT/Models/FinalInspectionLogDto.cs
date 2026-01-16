@@ -23,28 +23,28 @@ public class FinalInspectionLogDto
         dto.EquipmentId = BitConverter.ToInt32(payload, offset); offset += 4;
 
         // 문자열 처리: 길이(int) → UTF8 디코딩
-        int strLen = BitConverter.ToInt32(payload, offset); offset += 4;
+        int strLen = BitConverter.ToInt16(payload, offset); offset += 2;
         if (strLen > 0)
         {
             dto.Electrical = System.Text.Encoding.UTF8.GetString(payload, offset, strLen);
             offset += strLen;
         }
 
-        strLen = BitConverter.ToInt32(payload, offset); offset += 4;
+        strLen = BitConverter.ToInt16(payload, offset); offset += 2;
         if (strLen > 0)
         {
             dto.Reliability = System.Text.Encoding.UTF8.GetString(payload, offset, strLen);
             offset += strLen;
         }
 
-        strLen = BitConverter.ToInt32(payload, offset); offset += 4;
+        strLen = BitConverter.ToInt16(payload, offset); offset += 2;
         if (strLen > 0)
         {
             dto.Visual = System.Text.Encoding.UTF8.GetString(payload, offset, strLen);
             offset += strLen;
         }
 
-        strLen = BitConverter.ToInt32(payload, offset); offset += 4;
+        strLen = BitConverter.ToInt16(payload, offset); offset += 2;
         if (strLen > 0)
         {
             dto.FinalPass = System.Text.Encoding.UTF8.GetString(payload, offset, strLen);
