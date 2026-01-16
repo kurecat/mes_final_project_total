@@ -59,7 +59,7 @@ namespace L1_MachineSim
         static void RunDeviceLoop(TcpClient client, NetworkStream stream)
         {
             Random rand = new Random();
-            int globalTick = 16;
+            int globalTick = 0;
             string currentLotId = "LOT-INIT";
 
             // 상태 변수
@@ -132,9 +132,8 @@ namespace L1_MachineSim
 
                         // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
                         byte[] criteriaBytes = System.Text.Encoding.UTF8.GetBytes(inspectionCriteria);
-                        writer.Write(criteriaBytes.Length);
+                        writer.Write((short)criteriaBytes.Length);
                         writer.Write(criteriaBytes);
-
                         writer.Write(thicknessPassRatio);
                         writer.Write(chippingPassRatio);
                         writer.Write(overallPassRatio);
@@ -181,7 +180,7 @@ namespace L1_MachineSim
 
                         // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
                         byte[] criteriaBytes = System.Text.Encoding.UTF8.GetBytes(inspectionCriteria);
-                        writer.Write(criteriaBytes.Length);
+                        writer.Write((short)criteriaBytes.Length);
                         writer.Write(criteriaBytes);
 
                         writer.Write(alignmentPass);
@@ -236,7 +235,7 @@ namespace L1_MachineSim
 
                         // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
                         byte[] criteriaBytes = System.Text.Encoding.UTF8.GetBytes(inspectionCriteria);
-                        writer.Write(criteriaBytes.Length);
+                        writer.Write((short)criteriaBytes.Length);
                         writer.Write(criteriaBytes);
 
                         writer.Write(pullTestPassRatio);
@@ -288,7 +287,7 @@ namespace L1_MachineSim
 
                         // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
                         byte[] criteriaBytes = System.Text.Encoding.UTF8.GetBytes(inspectionCriteria);
-                        writer.Write(criteriaBytes.Length);
+                        writer.Write((short)criteriaBytes.Length);
                         writer.Write(criteriaBytes);
 
                         writer.Write(thicknessPassRatio);
