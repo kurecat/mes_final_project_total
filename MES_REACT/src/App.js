@@ -36,9 +36,9 @@ const App = () => {
       <GlobalStyle />
 
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<LoginPage />} />
 
-        <Route path="/" element={<AdminMainPage />}>
+        <Route path="/admin" element={<AdminMainPage />}>
           <Route index element={<DashboardPage />} />
 
           <Route path="dashboard/kpi" element={<KpiPage />} />
