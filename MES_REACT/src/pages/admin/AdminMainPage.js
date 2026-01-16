@@ -93,6 +93,7 @@ const MainContent = styled.div`
   min-width: 0;
   border-bottom: 1px solid #ccc;
   border-right: 1px solid #ccc;
+  padding-bottom: 20px;
 `;
 
 const ContentArea = styled.div`

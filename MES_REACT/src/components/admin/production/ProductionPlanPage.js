@@ -1,7 +1,5 @@
-// src/pages/production/ProductionPlanPage.js
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import axios from "axios";
 import {
   FaCalendarAlt,
   FaPlus,
@@ -10,117 +8,127 @@ import {
   FaSearch,
   FaCheckDouble,
   FaSync,
-  FaArrowRight,
-  FaIndustry,
+  FaTimes,
 } from "react-icons/fa";
 
-// --- Fallback Mock Data ---
-const MOCK_PLANS = [
-  {
-    id: "PP-240601-01",
-    date: "2024-06-01",
-    product: "DDR5 1znm Wafer",
-    line: "Fab-Line-A",
-    type: "FAB",
-    planQty: 1000,
-    status: "COMPLETED",
-  },
-  {
-    id: "PP-240602-02",
-    date: "2024-06-02",
-    product: "16Gb DDR5 SDRAM",
-    line: "EDS-Line-01",
-    type: "EDS",
-    planQty: 50000,
-    status: "RELEASED",
-  },
-  {
-    id: "PP-240605-03",
-    date: "2024-06-05",
-    product: "DDR5 32GB UDIMM",
-    line: "Mod-Line-C",
-    type: "MOD",
-    planQty: 2000,
-    status: "PLANNED",
-  },
-  {
-    id: "PP-240606-04",
-    date: "2024-06-06",
-    product: "LPDDR5X Mobile",
-    line: "Fab-Line-B",
-    type: "FAB",
-    planQty: 800,
-    status: "PLANNED",
-  },
-];
-
 const ProductionPlanPage = () => {
-  const [plans, setPlans] = useState(MOCK_PLANS);
-  const [loading, setLoading] = useState(true);
+  // 1. 초기화: 로컬 스토리지 데이터만 사용 (없으면 빈 배열)
+  const [plans, setPlans] = useState(() => {
+    const saved = localStorage.getItem("productionPlans");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [loading, setLoading] = useState(false);
   const [filterLine, setFilterLine] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. 데이터 조회 (READ)
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // ★ 실제 API: http://localhost:3001/productionPlans
-      // const res = await axios.get("http://localhost:3001/productionPlans");
-      // setPlans(res.data);
+  // 수정 모달 상태
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
 
-      setTimeout(() => {
-        setPlans(MOCK_PLANS);
-        setLoading(false);
-      }, 500);
-    } catch (err) {
-      console.error(err);
+  // 상태가 변할 때마다 로컬 스토리지에 저장
+  useEffect(() => {
+    localStorage.setItem("productionPlans", JSON.stringify(plans));
+  }, [plans]);
+
+  // 데이터 로딩 효과 (0.3초)
+  const refreshData = () => {
+    setLoading(true);
+    setTimeout(() => {
       setLoading(false);
-    }
+    }, 300);
   };
 
   useEffect(() => {
-    fetchData();
+    refreshData();
   }, []);
 
-  // 2. 계획 확정 (UPDATE Status)
-  // PLANNED -> RELEASED (Work Order 생성 단계로 넘어감)
-  const handleRelease = async (id) => {
-    try {
-      // await axios.patch(`http://localhost:3001/productionPlans/${id}`, { status: "RELEASED" });
-      // fetchData();
+  // 2. 계획 확정 (RELEASE)
+  const handleRelease = (id) => {
+    const targetPlan = plans.find((p) => p.id === id);
+    if (!targetPlan) return;
 
-      setPlans((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, status: "RELEASED" } : p))
-      );
-      alert(`Plan [${id}] has been released to production.`);
-    } catch (err) {
-      console.error(err);
-    }
+    if (
+      !window.confirm(
+        `[${targetPlan.id}] 계획을 확정하고 작업지시를 발행하시겠습니까?`
+      )
+    )
+      return;
+
+    // 계획 상태 변경
+    const updatedPlans = plans.map((p) =>
+      p.id === id ? { ...p, status: "RELEASED" } : p
+    );
+    setPlans(updatedPlans);
+
+    // 작업 지시(Work Order) 생성 후 로컬 스토리지 저장
+    const newWorkOrder = {
+      id: `WO-${targetPlan.id.split("-")[1]}-${Math.floor(
+        Math.random() * 100
+      )}`,
+      product: targetPlan.product,
+      line: targetPlan.line,
+      type: targetPlan.type,
+      status: "READY",
+      planQty: targetPlan.planQty,
+      actualQty: 0,
+      unit:
+        targetPlan.type === "FAB"
+          ? "wfrs"
+          : targetPlan.type === "EDS"
+          ? "chips"
+          : "ea",
+      progress: 0,
+      priority: "NORMAL",
+      startTime: "-",
+      endTime: "-",
+    };
+
+    const existingOrders = JSON.parse(localStorage.getItem("workOrders")) || [];
+    localStorage.setItem(
+      "workOrders",
+      JSON.stringify([newWorkOrder, ...existingOrders])
+    );
+
+    alert("작업지시가 발행되었습니다.");
   };
 
-  // 3. 계획 삭제 (DELETE)
-  const handleDelete = async (id) => {
-    if (!window.confirm("삭제하시겠습니까? (확정된 계획은 삭제 주의)")) return;
-    try {
-      // await axios.delete(`http://localhost:3001/productionPlans/${id}`);
-      setPlans((prev) => prev.filter((p) => p.id !== id));
-    } catch (err) {
-      console.error(err);
-    }
+  // 3. 계획 삭제
+  const handleDelete = (id) => {
+    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+    setPlans((prev) => prev.filter((p) => p.id !== id));
   };
 
-  // 4. 새 계획 추가 (CREATE - Mock)
+  // 4. 새 계획 추가
   const handleAdd = () => {
     const newPlan = {
-      id: `PP-${Math.floor(Math.random() * 10000)}`,
+      id: `PP-${new Date()
+        .toISOString()
+        .slice(2, 10)
+        .replace(/-/g, "")}-${Math.floor(Math.random() * 1000)}`,
       date: new Date().toISOString().split("T")[0],
-      product: "New Product Plan",
+      product: "New Product",
       line: "Fab-Line-A",
       type: "FAB",
-      planQty: 500,
+      planQty: 1000,
       status: "PLANNED",
     };
     setPlans([newPlan, ...plans]);
+  };
+
+  // 5. 수정 버튼 클릭 핸들러
+  const handleEditClick = (plan) => {
+    setEditTarget({ ...plan }); // 깊은 복사
+    setIsModalOpen(true);
+  };
+
+  // 6. 수정 사항 저장 핸들러
+  const handleSaveEdit = () => {
+    setPlans((prev) =>
+      prev.map((p) => (p.id === editTarget.id ? editTarget : p))
+    );
+    setIsModalOpen(false);
+    setEditTarget(null);
   };
 
   // 필터링
@@ -134,7 +142,6 @@ const ProductionPlanPage = () => {
 
   return (
     <Container>
-      {/* 헤더 */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -155,33 +162,17 @@ const ProductionPlanPage = () => {
         </ActionGroup>
       </Header>
 
-      {/* 컨트롤 바 */}
       <ControlBar>
         <FilterGroup>
-          <FilterBtn
-            $active={filterLine === "ALL"}
-            onClick={() => setFilterLine("ALL")}
-          >
-            All Lines
-          </FilterBtn>
-          <FilterBtn
-            $active={filterLine === "FAB"}
-            onClick={() => setFilterLine("FAB")}
-          >
-            Fab (Wafer)
-          </FilterBtn>
-          <FilterBtn
-            $active={filterLine === "EDS"}
-            onClick={() => setFilterLine("EDS")}
-          >
-            EDS (Chip)
-          </FilterBtn>
-          <FilterBtn
-            $active={filterLine === "MOD"}
-            onClick={() => setFilterLine("MOD")}
-          >
-            Module
-          </FilterBtn>
+          {["ALL", "FAB", "EDS", "MOD"].map((type) => (
+            <FilterBtn
+              key={type}
+              $active={filterLine === type}
+              onClick={() => setFilterLine(type)}
+            >
+              {type === "ALL" ? "All Lines" : type}
+            </FilterBtn>
+          ))}
         </FilterGroup>
         <SearchBox>
           <FaSearch color="#999" />
@@ -193,7 +184,6 @@ const ProductionPlanPage = () => {
         </SearchBox>
       </ControlBar>
 
-      {/* 테이블 */}
       <TableContainer>
         <Table>
           <thead>
@@ -208,56 +198,155 @@ const ProductionPlanPage = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredPlans.map((plan) => (
-              <tr key={plan.id}>
-                <td>
-                  <StatusBadge $status={plan.status}>{plan.status}</StatusBadge>
-                </td>
-                <td style={{ fontWeight: "bold", color: "#1a4f8b" }}>
-                  {plan.id}
-                </td>
-                <td>{plan.date}</td>
-                <td style={{ fontSize: 13 }}>
-                  <LineTag $type={plan.type}>{plan.line}</LineTag>
-                </td>
-                <td style={{ fontWeight: "600" }}>{plan.product}</td>
-                <td>
-                  {plan.planQty.toLocaleString()}
-                  <Unit>
-                    {plan.type === "FAB"
-                      ? "wfrs"
-                      : plan.type === "EDS"
-                      ? "chips"
-                      : "ea"}
-                  </Unit>
-                </td>
-                <td>
-                  <ActionButtons>
-                    {plan.status === "PLANNED" && (
+            {filteredPlans.length > 0 ? (
+              filteredPlans.map((plan) => (
+                <tr key={plan.id}>
+                  <td>
+                    <StatusBadge $status={plan.status}>
+                      {plan.status}
+                    </StatusBadge>
+                  </td>
+                  <td style={{ fontWeight: "bold", color: "#1a4f8b" }}>
+                    {plan.id}
+                  </td>
+                  <td>{plan.date}</td>
+                  <td style={{ fontSize: 13 }}>
+                    <LineTag $type={plan.type}>{plan.line}</LineTag>
+                  </td>
+                  <td style={{ fontWeight: "600" }}>{plan.product}</td>
+                  <td>
+                    {Number(plan.planQty).toLocaleString()}
+                    <Unit>
+                      {plan.type === "FAB"
+                        ? "wfrs"
+                        : plan.type === "EDS"
+                        ? "chips"
+                        : "ea"}
+                    </Unit>
+                  </td>
+                  <td>
+                    <ActionButtons>
+                      {plan.status === "PLANNED" && (
+                        <IconBtn
+                          className="confirm"
+                          onClick={() => handleRelease(plan.id)}
+                          title="Release Plan"
+                        >
+                          <FaCheckDouble /> Release
+                        </IconBtn>
+                      )}
                       <IconBtn
-                        className="confirm"
-                        onClick={() => handleRelease(plan.id)}
-                        title="Release Plan"
+                        className="edit"
+                        onClick={() => handleEditClick(plan)}
                       >
-                        <FaCheckDouble /> Release
+                        <FaEdit />
                       </IconBtn>
-                    )}
-                    <IconBtn className="edit">
-                      <FaEdit />
-                    </IconBtn>
-                    <IconBtn
-                      className="del"
-                      onClick={() => handleDelete(plan.id)}
-                    >
-                      <FaTrash />
-                    </IconBtn>
-                  </ActionButtons>
+                      <IconBtn
+                        className="del"
+                        onClick={() => handleDelete(plan.id)}
+                      >
+                        <FaTrash />
+                      </IconBtn>
+                    </ActionButtons>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td
+                  colSpan="7"
+                  style={{
+                    textAlign: "center",
+                    padding: "40px",
+                    color: "#aaa",
+                  }}
+                >
+                  No plans found. Create a new plan.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </Table>
       </TableContainer>
+
+      {/* --- Edit Modal --- */}
+      {isModalOpen && editTarget && (
+        <Overlay onClick={() => setIsModalOpen(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <h3>Edit Production Plan</h3>
+              <CloseBtn onClick={() => setIsModalOpen(false)}>
+                <FaTimes />
+              </CloseBtn>
+            </ModalHeader>
+            <ModalBody>
+              <FormGroup>
+                <label>Plan ID (Read Only)</label>
+                <input value={editTarget.id} disabled />
+              </FormGroup>
+              <FormGroup>
+                <label>Target Date</label>
+                <input
+                  type="date"
+                  value={editTarget.date}
+                  onChange={(e) =>
+                    setEditTarget({ ...editTarget, date: e.target.value })
+                  }
+                />
+              </FormGroup>
+              <FormGroup>
+                <label>Product Name</label>
+                <input
+                  value={editTarget.product}
+                  onChange={(e) =>
+                    setEditTarget({ ...editTarget, product: e.target.value })
+                  }
+                />
+              </FormGroup>
+              <FormRow>
+                <FormGroup>
+                  <label>Process Type</label>
+                  <select
+                    value={editTarget.type}
+                    onChange={(e) =>
+                      setEditTarget({ ...editTarget, type: e.target.value })
+                    }
+                  >
+                    <option value="FAB">FAB</option>
+                    <option value="EDS">EDS</option>
+                    <option value="MOD">MOD</option>
+                  </select>
+                </FormGroup>
+                <FormGroup>
+                  <label>Line Name</label>
+                  <input
+                    value={editTarget.line}
+                    onChange={(e) =>
+                      setEditTarget({ ...editTarget, line: e.target.value })
+                    }
+                  />
+                </FormGroup>
+              </FormRow>
+              <FormGroup>
+                <label>Plan Quantity</label>
+                <input
+                  type="number"
+                  value={editTarget.planQty}
+                  onChange={(e) =>
+                    setEditTarget({ ...editTarget, planQty: e.target.value })
+                  }
+                />
+              </FormGroup>
+            </ModalBody>
+            <ModalFooter>
+              <CancelButton onClick={() => setIsModalOpen(false)}>
+                Cancel
+              </CancelButton>
+              <SaveButton onClick={handleSaveEdit}>Save Changes</SaveButton>
+            </ModalFooter>
+          </ModalContent>
+        </Overlay>
+      )}
     </Container>
   );
 };
@@ -273,7 +362,6 @@ const Container = styled.div`
   background-color: #f5f6fa;
   display: flex;
   flex-direction: column;
-  gap: 20px;
   box-sizing: border-box;
 `;
 
@@ -338,6 +426,7 @@ const ControlBar = styled.div`
   padding: 15px 20px;
   border-radius: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  margin-top: 20px;
 `;
 const FilterGroup = styled.div`
   display: flex;
@@ -380,6 +469,7 @@ const TableContainer = styled.div`
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   padding: 20px;
   overflow-y: auto;
+  margin-top: 20px;
 `;
 
 const Table = styled.table`
@@ -494,5 +584,124 @@ const IconBtn = styled.button`
   &.del:hover {
     color: #e74c3c;
     border-color: #e74c3c;
+  }
+`;
+
+// --- Modal Styles ---
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  width: 450px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+`;
+
+const ModalHeader = styled.div`
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+  }
+`;
+
+const CloseBtn = styled.button`
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+  &:hover {
+    color: #333;
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 20px;
+`;
+
+const FormRow = styled.div`
+  display: flex;
+  gap: 15px;
+`;
+
+const FormGroup = styled.div`
+  margin-bottom: 15px;
+  flex: 1;
+  label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+  }
+  input,
+  select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+    &:focus {
+      outline: none;
+      border-color: #1a4f8b;
+    }
+    &:disabled {
+      background-color: #f5f5f5;
+      color: #999;
+    }
+  }
+`;
+
+const ModalFooter = styled.div`
+  padding: 15px 20px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+`;
+
+const CancelButton = styled.button`
+  padding: 8px 16px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #666;
+  &:hover {
+    background: #eee;
+  }
+`;
+
+const SaveButton = styled.button`
+  padding: 8px 16px;
+  background: #1a4f8b;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  color: white;
+  &:hover {
+    background: #133b6b;
   }
 `;
