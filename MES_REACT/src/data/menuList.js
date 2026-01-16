@@ -1,10 +1,4 @@
 export const MENU_LIST = [
-<<<<<<< HEAD
-  { name: "MES Home", path: "/" },
-  { name: "대시보드", path: "/dashboard" },
-  { name: "자재 관리", path: "/material" },
-  { name: "생산 관리", path: "/workorder" },
-=======
   { name: "KPI 분석", path: "/admin/dashboard/kpi" },
 
   { name: "생산 계획", path: "/admin/production/plan" },
@@ -32,5 +26,4 @@ export const MENU_LIST = [
   { name: "권한/그룹 관리", path: "/admin/system/roles" },
   { name: "공통 코드", path: "/admin/system/codes" },
   { name: "로그 관리", path: "/admin/system/logs" },
->>>>>>> origin/master
 ];

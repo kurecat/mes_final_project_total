@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-const LoginPage = () => {
-  return (
-    <>
-      <p>LoginPage 임.</p>
-    </>
-=======
 // src/pages/auth/LoginPage.js
 import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
@@ -126,13 +119,10 @@ const LoginPage = () => {
         </RightPanel>
       </LoginCard>
     </Container>
->>>>>>> origin/master
   );
 };
 
 export default LoginPage;
-<<<<<<< HEAD
-=======
 
 // --- Styled Components ---
 
@@ -389,4 +379,3 @@ const LoginButton = styled.button`
     cursor: not-allowed;
   }
 `;
->>>>>>> origin/master

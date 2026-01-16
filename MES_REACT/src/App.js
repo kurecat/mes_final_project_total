@@ -5,13 +5,6 @@ import GlobalStyle from "./style/GlobalStyle";
 
 // 페이지 Import
 import AdminMainPage from "./pages/admin/AdminMainPage";
-<<<<<<< HEAD
-import DashboardPage from "./components/admin/DashboardPage";
-import MaterialPage from "./components/admin/materialPage";
-import WorkOrderPage from "./components/admin/WorkOrderPage";
-import LoginPage from "./pages/Auth/LoginPage";
-import Homepage from "./components/admin/HomePage";
-=======
 import DashboardPage from "./components/admin/dashboard/DashboardPage";
 import MaterialPage from "./components/admin/material/MaterialPage";
 import WorkOrderPage from "./components/admin/production/WorkOrderPage";
@@ -36,7 +29,6 @@ import StandardPage from "./components/admin/quality/StandardPage";
 import WorkerPage from "./components/admin/production/WorkerPage";
 import SpcChartPage from "./components/admin/quality/SpcChartPage";
 import BarcodePage from "./components/admin/production/BarcodePage";
->>>>>>> origin/master
 
 const App = () => {
   return (
@@ -44,16 +36,6 @@ const App = () => {
       <GlobalStyle />
 
       <Routes>
-<<<<<<< HEAD
-        <Route path="/login" element={<LoginPage />} />
-
-        <Route path="/" element={<AdminMainPage />}>
-          <Route index element={<Homepage />} />
-
-          <Route path="dashboard" element={<DashboardPage />} />
-          <Route path="material" element={<MaterialPage />} />
-          <Route path="workorder" element={<WorkOrderPage />} />
-=======
         <Route path="/" element={<LoginPage />} />
 
         <Route path="/admin" element={<AdminMainPage />}>
@@ -87,7 +69,6 @@ const App = () => {
           <Route path="system/logs" element={<LogsPage />} />
           <Route path="system/roles" element={<RolesPage />} />
           <Route path="system/users" element={<UsersPage />} />
->>>>>>> origin/master
         </Route>
       </Routes>
     </>

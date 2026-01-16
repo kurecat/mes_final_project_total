@@ -76,13 +76,8 @@ const PageContainer = styled.div`
   background-color: #f4f4f4;
 
   /* ★ 핵심 변경: 1920x1080 해상도 고정 전략 */
-<<<<<<< HEAD
-  min-width: 1920px; /* 너비가 1920px보다 작아지면 가로 스크롤 생성 */
-  min-height: 900px; /* 높이가 1080px보다 작아지면 세로 스크롤 생성 (선택 사항) */
-=======
   min-width: 1280px; /* 너비가 1920px보다 작아지면 가로 스크롤 생성 */
   min-height: 800px; /* 높이가 1080px보다 작아지면 세로 스크롤 생성 (선택 사항) */
->>>>>>> origin/master
 
   max-width: 2560px;
   max-height: 1440px;

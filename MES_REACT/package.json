@@ -1,10 +1,7 @@
 {
   "name": "final-project-react",
   "version": "0.1.0",
-<<<<<<< HEAD
-=======
   "homepage": "https://kurecat.github.io/mes_final_project_total",
->>>>>>> origin/master
   "private": true,
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
@@ -12,16 +9,12 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^13.2.1",
-<<<<<<< HEAD
-    "react": "^19.2.3",
-=======
     "axios": "^1.13.2",
     "concurrently": "^9.2.1",
     "gh-pages": "^6.3.0",
     "json-server": "^1.0.0-beta.3",
     "react": "^19.2.3",
     "react-barcode": "^1.6.1",
->>>>>>> origin/master
     "react-dom": "^19.2.3",
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.12.0",
@@ -34,15 +27,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-<<<<<<< HEAD
-    "eject": "react-scripts eject"
-=======
     "eject": "react-scripts eject",
     "server": "json-server --watch db.json --port 3001",
     "dev": "concurrently \"yarn server\" \"yarn start\"",
     "predeploy": "yarn build",
     "deploy": "gh-pages -d build"
->>>>>>> origin/master
   },
   "eslintConfig": {
     "extends": [
