@@ -270,13 +270,20 @@ const KpiPage = () => {
           <ResponsiveContainer width="100%" height={280}>
             <BarChart
               data={kpiData.equipmentOee}
-              margin={{ top: 20, right: 20, bottom: 20, left: 0 }}
+              // ▼▼▼ 여기를 수정하세요 (bottom: 40 -> bottom: 60) ▼▼▼
+              margin={{ top: 20, right: 20, bottom: 60, left: 0 }}
             >
               <CartesianGrid stroke="#f5f5f5" vertical={false} />
-              <XAxis dataKey="group" />
+              <XAxis
+                dataKey="group"
+                tick={{ fontSize: 12, fill: "#666" }} // 폰트 스타일 추가 (선택사항)
+                dy={10} // 텍스트를 살짝 아래로 내리기 (선택사항)
+              />
               <YAxis domain={[0, 100]} />
               <Tooltip />
-              <Legend />
+              {/* 범례 위치 조정 (선택사항: 차트 아래 공간 활용) */}
+              <Legend verticalAlign="bottom" height={36} />
+
               <Bar dataKey="availability" name="Availability" fill="#42a5f5" />
               <Bar dataKey="performance" name="Performance" fill="#66bb6a" />
               <Bar dataKey="quality" name="Quality" fill="#ffa726" />

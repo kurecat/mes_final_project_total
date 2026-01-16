@@ -27,8 +27,8 @@ const AdminSideBar = () => {
       title: "모니터링/대시보드",
       icon: <FaChartPie />,
       subMenus: [
-        { title: "종합 상황판", path: "/" },
-        { title: "KPI 분석", path: "/dashboard/kpi" },
+        { title: "종합 상황판", path: "/admin/dashboard" }, // /admin 추가
+        { title: "KPI 분석", path: "/admin/dashboard/kpi" }, // /admin 추가
       ],
     },
     {
@@ -36,22 +36,22 @@ const AdminSideBar = () => {
       title: "생산 관리",
       icon: <FaIndustry />,
       subMenus: [
-        { title: "생산 계획", path: "/production/plan" },
-        { title: "작업 지시", path: "/production/workorder" },
-        { title: "생산 실적 현황", path: "/production/performance" },
-        { title: "작업자 배치", path: "/production/worker" },
-        { title: "바코드", path: "/production/barcode" },
+        { title: "생산 계획", path: "/admin/production/plan" },
+        { title: "작업 지시", path: "/admin/production/workorder" },
+        { title: "생산 실적 현황", path: "/admin/production/performance" },
+        { title: "작업자 배치", path: "/admin/production/worker" },
+        { title: "바코드", path: "/admin/production/barcode" },
       ],
     },
     {
       id: "quality",
       title: "품질 관리",
-      icon: <FaClipboardList />, // 혹은 FaShieldAlt
+      icon: <FaClipboardList />,
       subMenus: [
-        { title: "검사 기준 설정", path: "/quality/standard" },
-        { title: "불량 관리", path: "/quality/defect" },
-        { title: "Lot 추적", path: "/quality/tracking" },
-        { title: "SPC 차트", path: "/quality/spcchart" },
+        { title: "검사 기준 설정", path: "/admin/quality/standard" },
+        { title: "불량 관리", path: "/admin/quality/defect" },
+        { title: "Lot 추적", path: "/admin/quality/tracking" },
+        { title: "SPC 차트", path: "/admin/quality/spcchart" },
       ],
     },
     {
@@ -59,9 +59,9 @@ const AdminSideBar = () => {
       title: "설비/자재 관리",
       icon: <FaBoxOpen />,
       subMenus: [
-        { title: "설비 가동 현황", path: "/resource/machine" },
-        { title: "자재 입/출고", path: "/resource/material" },
-        { title: "재고 현황", path: "/resource/inventory" },
+        { title: "설비 가동 현황", path: "/admin/resource/machine" },
+        { title: "자재 입/출고", path: "/admin/resource/material" },
+        { title: "재고 현황", path: "/admin/resource/inventory" },
       ],
     },
     {
@@ -69,11 +69,11 @@ const AdminSideBar = () => {
       title: "기준 정보 관리",
       icon: <FaDatabase />,
       subMenus: [
-        { title: "품목 관리", path: "/mdm/item" },
-        { title: "BOM 관리", path: "/mdm/bom" },
-        { title: "공정/라우팅", path: "/mdm/routing" },
-        { title: "설비 관리", path: "/mdm/equipment" },
-        { title: "창고/작업장", path: "/mdm/location" },
+        { title: "품목 관리", path: "/admin/mdm/item" },
+        { title: "BOM 관리", path: "/admin/mdm/bom" },
+        { title: "공정/라우팅", path: "/admin/mdm/routing" },
+        { title: "설비 관리", path: "/admin/mdm/equipment" },
+        { title: "창고/작업장", path: "/admin/mdm/location" },
       ],
     },
     {
@@ -81,14 +81,13 @@ const AdminSideBar = () => {
       title: "시스템 관리",
       icon: <FaCogs />,
       subMenus: [
-        { title: "사용자 관리", path: "/system/users" },
-        { title: "권한/그룹 관리", path: "/system/roles" },
-        { title: "공통 코드", path: "/system/codes" },
-        { title: "로그 관리", path: "/system/logs" },
+        { title: "사용자 관리", path: "/admin/system/users" },
+        { title: "권한/그룹 관리", path: "/admin/system/roles" },
+        { title: "공통 코드", path: "/admin/system/codes" },
+        { title: "로그 관리", path: "/admin/system/logs" },
       ],
     },
   ];
-
   // 메뉴 토글 함수
   const toggleMenu = (id) => {
     setOpenMenuId(openMenuId === id ? null : id);

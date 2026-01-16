@@ -32,7 +32,7 @@ const LoginPage = () => {
       // 테스트용 계정: admin / 1234
       if (inputs.id === "admin" && inputs.password === "1234") {
         // 로그인 성공 시 대시보드로 이동
-        navigate("/dashboard");
+        navigate("/admin");
       } else {
         setError("아이디 또는 비밀번호가 일치하지 않습니다.");
         setIsLoading(false);
