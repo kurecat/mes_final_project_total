@@ -1,0 +1,5 @@
+package com.hm.mes_final_260106.constant;
+
+public enum MemberStatus {
+    PENDING, ACTIVE, INACTIVE
+}
