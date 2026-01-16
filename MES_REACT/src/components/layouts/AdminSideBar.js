@@ -139,6 +139,7 @@ const AdminSideBar = () => {
       <Menu>
         {sortedMenuList.map((menu) => {
           const isOpen = openMenuId === menu.id;
+          // 현재 URL이 하위 메뉴 중 하나와 일치하는지 확인 (대메뉴 활성화 스타일용)
           const isActiveGroup = menu.subMenus.some(
             (sub) => sub.path === location.pathname,
           );
@@ -146,6 +147,7 @@ const AdminSideBar = () => {
 
           return (
             <MenuGroup key={menu.id}>
+              {/* 대메뉴 (클릭 시 토글) */}
               <ParentMenuItem
                 onClick={() => toggleMenu(menu.id)}
                 $active={isActiveGroup || isOpen}
@@ -316,6 +318,7 @@ const ArrowIcon = styled.div`
   opacity: 0.7;
 `;
 
+// 하위 메뉴 컨테이너 (애니메이션 효과 가능)
 const SubMenuContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -327,6 +330,7 @@ const SubMenuContainer = styled.div`
   margin-top: ${(props) => (props.$isOpen ? "5px" : "0")};
 `;
 
+// 하위 메뉴 아이템
 const SubMenuItem = styled(Link)`
   text-decoration: none;
   font-size: 14px;
