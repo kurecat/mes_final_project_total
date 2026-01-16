@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Transactional
 @Service @RequiredArgsConstructor @Slf4j
 public class ProductionService {
     private final ProductionLogRepository logRepo;
@@ -95,7 +96,7 @@ public class ProductionService {
 
         // 자재 차감 ( Backflushing ) - 양품일 때만 자재를 차감
         if ("OK".equals(result)) {
-            List<Bom> boms = bomRepo.findAllByProductCode(order.getProductCode());
+            List<Bom> boms = bomRepo.findAllByProductsCode(order.getProductCode());
             for (Bom bom : boms) {
                 Material mat = bom.getMaterial();
                 int required = bom.getRequiredQty();

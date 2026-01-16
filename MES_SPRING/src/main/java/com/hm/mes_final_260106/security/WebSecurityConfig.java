@@ -33,16 +33,15 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) //
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //
+                .csrf(csrf -> csrf.disable()) // CSRF 비활성화 (개발 편의성)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // CORS 설정 적용
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 미사용
                 .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint) //
-                        .accessDeniedHandler(jwtAccessDeniedHandler) //
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/**").permitAll() // 로그인/회원가입 허용
-                        .requestMatchers("/api/mes/order/**", "/api/mes/material/**").hasRole("ADMIN") //
-                        .requestMatchers("/api/mes/machine/**").hasAnyRole("OPERATOR", "ADMIN") //
+                        .requestMatchers("/**").permitAll() // 개발 중 모든 경로 허용 (Open Gate Strategy)
                         .anyRequest().authenticated()
                 )
                 // ★ 중요: JwtSecurityConfig를 그대로 유지하며 적용하는 부분

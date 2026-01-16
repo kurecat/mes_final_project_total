@@ -11,14 +11,29 @@ package com.hm.mes_final_260106.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-@Entity @Setter @Getter @NoArgsConstructor @AllArgsConstructor @Builder
+@Entity
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
+@Table(name = "bom")
 public class Bom {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "bom_id")
     private Long id;
-    private String productCode;
 
-    @ManyToOne
-    private Material material;  // 필요한 자재
-    private int requiredQty;    // 소요량
+    // ★ 중요: DB의 product_id (FK)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Products products;
+
+    // ★ 중요: DB의 material_id (FK)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "material_id", nullable = false)
+    private Material material;
+
+    @Column(name = "required_qty", nullable = false)
+    private int requiredQty; // 소요량 (예: 25)
 }
