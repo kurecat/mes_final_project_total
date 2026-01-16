@@ -8,15 +8,23 @@ import com.hm.mes_final_260106.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+<<<<<<< HEAD
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+=======
+import org.springframework.web.bind.annotation.*;
+>>>>>>> origin/master
 
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
 @Slf4j
+<<<<<<< HEAD
+=======
+@CrossOrigin(origins = "http://localhost:3000")
+>>>>>>> origin/master
 public class AuthController {
     private final AuthService authService;
 

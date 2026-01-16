@@ -1,0 +1,1765 @@
+{
+  "dashboardStats": {
+    "waferOut": 2510,
+    "yield": 94.8,
+    "utilization": 88.5,
+    "issues": 4
+  },
+  "dashboard": {
+    "stats": {
+      "waferOut": 2510,
+      "waferOutTrend": 2.5,
+      "yield": 94.8,
+      "yieldTrend": 0.8,
+      "utilization": 88.5,
+      "utilizationTrend": -1.2,
+      "issues": 4
+    },
+    "productionTrend": [
+      { "time": "06:00", "plan": 400, "actual": 380 },
+      { "time": "08:00", "plan": 450, "actual": 440 },
+      { "time": "10:00", "plan": 500, "actual": 510 }
+    ],
+    "wipBalance": [
+      { "step": "Clean", "count": 1200 },
+      { "step": "Photo", "count": 2600 },
+      { "step": "Etch", "count": 1800 }
+    ],
+    "alerts": [
+      {
+        "id": 1,
+        "time": "14:25",
+        "equip": "Photo-02",
+        "msg": "Focus Error (Overlay)",
+        "level": "CRITICAL"
+      }
+    ]
+  },
+  "kpi": {
+    "summary": {
+      "avgYield": 94.5,
+      "yieldTarget": 96.0,
+      "totalOutput": 15400,
+      "cycleTime": 45.2,
+      "avgOee": 88.2
+    },
+    "yieldTrend": [
+      { "date": "W20", "prime": 88.5, "final": 93.2, "target": 95 },
+      { "date": "W21", "prime": 89.1, "final": 93.8, "target": 95 },
+      { "date": "W22", "prime": 88.0, "final": 92.5, "target": 95 },
+      { "date": "W23", "prime": 90.2, "final": 94.5, "target": 95 },
+      { "date": "W24", "prime": 91.5, "final": 95.8, "target": 95 },
+      { "date": "W25", "prime": 92.0, "final": 96.2, "target": 95 }
+    ],
+    "binLoss": [
+      { "type": "Single Bit", "count": 1250, "desc": "Repairable" },
+      { "type": "Multi Bit", "count": 850, "desc": "Non-Repair" },
+      { "type": "Open/Short", "count": 620, "desc": "Hard Fail" },
+      { "type": "Func Fail", "count": 450, "desc": "Logic Error" },
+      { "type": "Leakage", "count": 300, "desc": "Power Spec" }
+    ],
+    "equipmentOee": [
+      {
+        "group": "Photo",
+        "availability": 95,
+        "performance": 92,
+        "quality": 99,
+        "oee": 86.5
+      },
+      {
+        "group": "Etch",
+        "availability": 90,
+        "performance": 88,
+        "quality": 98,
+        "oee": 77.6
+      },
+      {
+        "group": "Depo",
+        "availability": 92,
+        "performance": 95,
+        "quality": 99,
+        "oee": 86.5
+      },
+      {
+        "group": "CMP",
+        "availability": 85,
+        "performance": 90,
+        "quality": 97,
+        "oee": 74.2
+      }
+    ]
+  },
+  "inventory": [
+    {
+      "id": "RM-WF-12",
+      "name": "12-inch Prime Wafer",
+      "type": "RAW",
+      "loc": "WH-A-01",
+      "qty": 1200,
+      "safety": 500,
+      "unit": "ea",
+      "status": "NORMAL",
+      "condition": "23°C / 45%"
+    },
+    {
+      "id": "CHM-PR-ARF",
+      "name": "Photo Resist (ArF)",
+      "type": "CHEM",
+      "loc": "WH-Cold-02",
+      "qty": 45,
+      "safety": 50,
+      "unit": "Btl",
+      "status": "LOW",
+      "condition": "4°C (Cold)"
+    },
+    {
+      "id": "GAS-C4F6",
+      "name": "Etching Gas (C4F6)",
+      "type": "GAS",
+      "loc": "Gas-Bunker",
+      "qty": 800,
+      "safety": 200,
+      "unit": "kg",
+      "status": "NORMAL",
+      "condition": "High Press"
+    },
+    {
+      "id": "TGT-CU-01",
+      "name": "Copper Target (Cu)",
+      "type": "PART",
+      "loc": "WH-B-05",
+      "qty": 8,
+      "safety": 10,
+      "unit": "ea",
+      "status": "LOW",
+      "condition": "Vacuum"
+    },
+    {
+      "id": "MAT-EMC-G",
+      "name": "Epoxy Molding Comp.",
+      "type": "PKG",
+      "loc": "WH-C-12",
+      "qty": 500,
+      "safety": 300,
+      "unit": "kg",
+      "status": "NORMAL",
+      "condition": "Dry Box"
+    }
+  ],
+  "machines": [
+    {
+      "id": "EQ-PHO-01",
+      "name": "Photo Stepper #01 (ASML)",
+      "type": "Photo",
+      "status": "RUN",
+      "lotId": "LOT-DDR5-240601-A",
+      "uph": 140,
+      "temperature": 23.5,
+      "param": "Focus: 0.05um",
+      "progress": 82
+    },
+    {
+      "id": "EQ-ETC-03",
+      "name": "Poly Etcher #03 (Lam)",
+      "type": "Etch",
+      "status": "RUN",
+      "lotId": "LOT-DDR5-240601-B",
+      "uph": 55,
+      "temperature": 65,
+      "param": "Gas: 450sccm",
+      "progress": 45
+    },
+    {
+      "id": "EQ-DEP-02",
+      "name": "CVD Deposition #02",
+      "type": "Deposition",
+      "status": "DOWN",
+      "errorCode": "ERR-503: Gas Flow Low",
+      "lotId": "LOT-DDR5-240601-C",
+      "uph": 0,
+      "temperature": 450,
+      "param": "Vac: 2.1Torr",
+      "progress": 12
+    },
+    {
+      "id": "EQ-EDS-01",
+      "name": "EDS Tester #01 (Advantest)",
+      "type": "Test",
+      "status": "RUN",
+      "lotId": "LOT-DDR5-TEST-09",
+      "uph": 3,
+      "temperature": 85,
+      "param": "Yield: 98.2%",
+      "progress": 98
+    },
+    {
+      "id": "EQ-IMP-05",
+      "name": "Ion Implanter #05",
+      "type": "Implant",
+      "status": "IDLE",
+      "lotId": "-",
+      "uph": 0,
+      "temperature": 24,
+      "param": "Beam: 0mA",
+      "progress": 0
+    },
+    {
+      "id": "EQ-CMP-02",
+      "name": "CMP Polisher #02",
+      "type": "CMP",
+      "status": "PM",
+      "lotId": "-",
+      "uph": 0,
+      "temperature": 22,
+      "param": "-",
+      "progress": 0
+    }
+  ],
+  "materialHistory": [
+    {
+      "id": 105,
+      "type": "OUT",
+      "item": "Photo Resist (ArF)",
+      "qty": 5,
+      "unit": "Btl",
+      "target": "Photo-Line-A",
+      "time": "14:20:05",
+      "worker": "Kim"
+    },
+    {
+      "id": 104,
+      "type": "IN",
+      "item": "12-inch Prime Wafer",
+      "qty": 25,
+      "unit": "Box",
+      "target": "WH-Raw-01",
+      "time": "13:10:22",
+      "worker": "Lee"
+    },
+    {
+      "id": 103,
+      "type": "OUT",
+      "item": "Etching Gas (C4F6)",
+      "qty": 2,
+      "unit": "Cyl",
+      "target": "Etch-Line-B",
+      "time": "11:45:30",
+      "worker": "Park"
+    },
+    {
+      "id": 102,
+      "type": "IN",
+      "item": "Copper Target (Cu)",
+      "qty": 10,
+      "unit": "ea",
+      "target": "WH-Part-04",
+      "time": "10:05:11",
+      "worker": "Choi"
+    },
+    {
+      "id": 101,
+      "type": "IN",
+      "item": "Slurry (Ceria)",
+      "qty": 20,
+      "unit": "Drum",
+      "target": "WH-Chem-02",
+      "time": "09:15:44",
+      "worker": "Kim"
+    }
+  ],
+  "boms": [
+    {
+      "id": "BOM-DDR5-MOD-16G",
+      "name": "DDR5 16GB UDIMM 5600MHz",
+      "revision": "Rev. B",
+      "status": "ACTIVE",
+      "type": "FG",
+      "lastUpdated": "2024-06-01",
+      "children": [
+        {
+          "level": 1,
+          "id": "PCB-DDR5-U08",
+          "name": "DDR5 UDIMM PCB",
+          "type": "PART",
+          "qty": 1,
+          "unit": "ea",
+          "spec": "8-Layer, OSP"
+        },
+        {
+          "level": 1,
+          "id": "IC-DDR5-16Gb",
+          "name": "DDR5 16Gb SDRAM",
+          "type": "ASSY",
+          "qty": 8,
+          "unit": "ea",
+          "spec": "x8 Component"
+        },
+        {
+          "level": 1,
+          "id": "IC-SPD-HUB",
+          "name": "SPD Hub + PMIC",
+          "type": "PART",
+          "qty": 1,
+          "unit": "ea",
+          "spec": "Renesas"
+        },
+        {
+          "level": 1,
+          "id": "PASSIVE-R-0402",
+          "name": "Chip Resistor",
+          "type": "MAT",
+          "qty": 32,
+          "unit": "ea",
+          "spec": "100 ohm"
+        },
+        {
+          "level": 1,
+          "id": "PASSIVE-C-0402",
+          "name": "MLCC",
+          "type": "MAT",
+          "qty": 16,
+          "unit": "ea",
+          "spec": "10uF"
+        }
+      ]
+    },
+    {
+      "id": "BOM-DDR5-IC-16Gb",
+      "name": "DDR5 16Gb SDRAM Component",
+      "revision": "Rev. A",
+      "status": "ACTIVE",
+      "type": "ASSY",
+      "lastUpdated": "2024-05-20",
+      "children": [
+        {
+          "level": 1,
+          "id": "WF-DDR5-PROC",
+          "name": "Processed D-RAM Wafer",
+          "type": "ASSY",
+          "qty": 1,
+          "unit": "ea",
+          "spec": "1znm Node"
+        },
+        {
+          "level": 1,
+          "id": "LF-BGA-78",
+          "name": "BGA Substrate",
+          "type": "PART",
+          "qty": 1,
+          "unit": "ea",
+          "spec": "78-Ball"
+        },
+        {
+          "level": 1,
+          "id": "MAT-EMC-G700",
+          "name": "Epoxy Molding Compound",
+          "type": "MAT",
+          "qty": 0.5,
+          "unit": "g",
+          "spec": "Low Warpage"
+        },
+        {
+          "level": 1,
+          "id": "MAT-WIRE-AU",
+          "name": "Bonding Wire",
+          "type": "MAT",
+          "qty": 25,
+          "unit": "mm",
+          "spec": "Au 99.99%"
+        }
+      ]
+    },
+    {
+      "id": "BOM-WF-DDR5-PROC",
+      "name": "Processed D-RAM Wafer (Fab)",
+      "revision": "Rev. C",
+      "status": "ACTIVE",
+      "type": "ASSY",
+      "lastUpdated": "2024-05-15",
+      "children": [
+        {
+          "level": 1,
+          "id": "RM-WF-12-P",
+          "name": "12-inch Prime Wafer",
+          "type": "MAT",
+          "qty": 1,
+          "unit": "ea",
+          "spec": "Si (100) P-Type"
+        },
+        {
+          "level": 1,
+          "id": "CHM-PR-ARF",
+          "name": "Photo Resist (ArF)",
+          "type": "CHEM",
+          "qty": 15,
+          "unit": "ml",
+          "spec": "Immersion Grade"
+        },
+        {
+          "level": 1,
+          "id": "GAS-C4F6",
+          "name": "Etching Gas (C4F6)",
+          "type": "CHEM",
+          "qty": 500,
+          "unit": "sccm",
+          "spec": "99.999%"
+        },
+        {
+          "level": 1,
+          "id": "TGT-CU-01",
+          "name": "Copper Target",
+          "type": "MAT",
+          "qty": 0.01,
+          "unit": "ea",
+          "spec": "PVD Deposition"
+        }
+      ]
+    }
+  ],
+  "equipments": [
+    {
+      "id": "EQ-PHO-01",
+      "name": "Photo Stepper A",
+      "type": "PHOTO",
+      "model": "ASML-NXE:3400",
+      "location": "Bay-01",
+      "status": "RUN",
+      "installDate": "2023-01-15"
+    },
+    {
+      "id": "EQ-PHO-02",
+      "name": "Photo Stepper B",
+      "type": "PHOTO",
+      "model": "ASML-NXE:3400",
+      "location": "Bay-01",
+      "status": "PM",
+      "installDate": "2023-03-10"
+    },
+    {
+      "id": "EQ-ETC-01",
+      "name": "Poly Etcher A",
+      "type": "ETCH",
+      "model": "Lam-Kiyo",
+      "location": "Bay-03",
+      "status": "RUN",
+      "installDate": "2022-12-05"
+    },
+    {
+      "id": "EQ-ETC-02",
+      "name": "Poly Etcher B",
+      "type": "ETCH",
+      "model": "Lam-Kiyo",
+      "location": "Bay-03",
+      "status": "IDLE",
+      "installDate": "2023-02-20"
+    },
+    {
+      "id": "EQ-DEP-01",
+      "name": "CVD Deposition A",
+      "type": "DEPO",
+      "model": "AMAT-Producer",
+      "location": "Bay-05",
+      "status": "RUN",
+      "installDate": "2022-11-10"
+    },
+    {
+      "id": "EQ-DEP-02",
+      "name": "CVD Deposition B",
+      "type": "DEPO",
+      "model": "AMAT-Producer",
+      "location": "Bay-05",
+      "status": "DOWN",
+      "installDate": "2022-11-10"
+    },
+    {
+      "id": "EQ-CMP-01",
+      "name": "CMP Polisher A",
+      "type": "CMP",
+      "model": "AMAT-Reflexion",
+      "location": "Bay-07",
+      "status": "RUN",
+      "installDate": "2023-05-01"
+    },
+    {
+      "id": "EQ-EDS-01",
+      "name": "EDS Tester #1",
+      "type": "TEST",
+      "model": "Advantest-T5503",
+      "location": "Bay-EDS",
+      "status": "RUN",
+      "installDate": "2023-06-15"
+    }
+  ],
+
+  "items": [
+    {
+      "id": "ITM-DDR5-16G",
+      "name": "DDR5 16GB UDIMM",
+      "type": "FERT",
+      "spec": "5600MHz, 1.1V",
+      "unit": "EA",
+      "safetyStock": 1000
+    },
+    {
+      "id": "ITM-DDR5-32G",
+      "name": "DDR5 32GB UDIMM",
+      "type": "FERT",
+      "spec": "5600MHz, 1.1V",
+      "unit": "EA",
+      "safetyStock": 800
+    },
+    {
+      "id": "ITM-WF-PROC",
+      "name": "Processed D-RAM Wafer",
+      "type": "HALB",
+      "spec": "1znm Node, 12-inch",
+      "unit": "WF",
+      "safetyStock": 50
+    },
+    {
+      "id": "ITM-CHIP-16Gb",
+      "name": "16Gb SDRAM Die",
+      "type": "HALB",
+      "spec": "x8, BGA Type",
+      "unit": "EA",
+      "safetyStock": 20000
+    },
+    {
+      "id": "ITM-PCB-U08",
+      "name": "UDIMM PCB Board",
+      "type": "ROH",
+      "spec": "8-Layer, OSP",
+      "unit": "EA",
+      "safetyStock": 5000
+    },
+    {
+      "id": "ITM-RAW-WF",
+      "name": "12-inch Prime Wafer",
+      "type": "ROH",
+      "spec": "Si (100) P-Type",
+      "unit": "BOX",
+      "safetyStock": 200
+    },
+    {
+      "id": "ITM-PR-ARF",
+      "name": "Photo Resist (ArF)",
+      "type": "ROH",
+      "spec": "Immersion Grade",
+      "unit": "BTL",
+      "safetyStock": 20
+    },
+    {
+      "id": "ITM-GAS-C4F6",
+      "name": "Etching Gas (C4F6)",
+      "type": "ROH",
+      "spec": "Ultra High Purity",
+      "unit": "CYL",
+      "safetyStock": 10
+    }
+  ],
+  "locations": [
+    {
+      "id": "WH-RAW-A",
+      "name": "Raw Wafer Storage A",
+      "type": "RAW",
+      "condition": "Dry Box (23°C)",
+      "capacity": 1000,
+      "current": 450,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "WH-CHEM-C",
+      "name": "Chemical Cold Storage",
+      "type": "RAW",
+      "condition": "Cold (4°C)",
+      "capacity": 200,
+      "current": 180,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "WH-FAB-WIP",
+      "name": "Fab Line Stocker #1",
+      "type": "WIP",
+      "condition": "Clean Room",
+      "capacity": 500,
+      "current": 495,
+      "status": "FULL"
+    },
+    {
+      "id": "WH-EDS-BUF",
+      "name": "EDS Input Buffer",
+      "type": "WIP",
+      "condition": "N2 Purge",
+      "capacity": 300,
+      "current": 50,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "WH-FG-DDR5",
+      "name": "DDR5 Module Warehouse",
+      "type": "FG",
+      "condition": "Normal",
+      "capacity": 5000,
+      "current": 1200,
+      "status": "ACTIVE"
+    }
+  ],
+  "routings": [
+    {
+      "id": "RT-DDR5-FAB-01",
+      "name": "DDR5 FEOL Standard Process",
+      "version": "Ver 3.5",
+      "status": "ACTIVE",
+      "description": "1znm Class D-RAM Wafer 전공정 표준",
+      "totalSteps": 6,
+      "operations": [
+        {
+          "step": 10,
+          "id": "OP-CLN-100",
+          "name": "Pre-Gate Cleaning",
+          "type": "CLEAN",
+          "resource": "Wet Station",
+          "ct": 300,
+          "yield": 99.9,
+          "desc": "웨이퍼 표면 유기물 및 자연 산화막 제거"
+        },
+        {
+          "step": 20,
+          "id": "OP-PHO-200",
+          "name": "Gate Lithography",
+          "type": "PROCESS",
+          "resource": "Photo Stepper",
+          "ct": 45,
+          "yield": 99.5,
+          "desc": "Gate 회로 패턴 노광 (EUV Layer 포함)"
+        },
+        {
+          "step": 30,
+          "id": "OP-ETC-300",
+          "name": "Gate Etching",
+          "type": "PROCESS",
+          "resource": "Dry Etcher",
+          "ct": 120,
+          "yield": 99.2,
+          "desc": "플라즈마 식각을 통한 패턴 형성"
+        },
+        {
+          "step": 40,
+          "id": "OP-DEP-400",
+          "name": "Spacer Deposition",
+          "type": "PROCESS",
+          "resource": "CVD",
+          "ct": 200,
+          "yield": 99.8,
+          "desc": "절연막 증착 공정"
+        },
+        {
+          "step": 50,
+          "id": "OP-IMP-500",
+          "name": "Source/Drain Implant",
+          "type": "PROCESS",
+          "resource": "Ion Implanter",
+          "ct": 150,
+          "yield": 99.9,
+          "desc": "이온 주입을 통한 도핑"
+        },
+        {
+          "step": 60,
+          "id": "OP-CMP-600",
+          "name": "Planarization (CMP)",
+          "type": "PROCESS",
+          "resource": "CMP Polisher",
+          "ct": 180,
+          "yield": 99.7,
+          "desc": "표면 평탄화 및 연마"
+        }
+      ]
+    },
+    {
+      "id": "RT-DDR5-EDS-02",
+      "name": "DDR5 EDS Test Flow",
+      "version": "Ver 1.2",
+      "status": "ACTIVE",
+      "description": "Electrical Die Sorting 및 수리 공정",
+      "totalSteps": 4,
+      "operations": [
+        {
+          "step": 10,
+          "id": "OP-PRB-100",
+          "name": "Wafer Burn-in",
+          "type": "TEST",
+          "resource": "Burn-in Chamber",
+          "ct": 3600,
+          "yield": 99.0,
+          "desc": "고온/고전압 스트레스 테스트"
+        },
+        {
+          "step": 20,
+          "id": "OP-HOT-200",
+          "name": "Hot/Cold Test",
+          "type": "TEST",
+          "resource": "Probe Station",
+          "ct": 600,
+          "yield": 95.5,
+          "desc": "온도별 전기적 특성 검사"
+        },
+        {
+          "step": 30,
+          "id": "OP-REP-300",
+          "name": "Laser Repair",
+          "type": "PROCESS",
+          "resource": "Laser Trimmer",
+          "ct": 120,
+          "yield": 100.0,
+          "desc": "불량 셀 Redundancy 회로로 대체 (수리)"
+        },
+        {
+          "step": 40,
+          "id": "OP-FST-400",
+          "name": "Final Sorting",
+          "type": "INSPECT",
+          "resource": "Sorter",
+          "ct": 60,
+          "yield": 94.8,
+          "desc": "양품/불량품 Binning 분류"
+        }
+      ]
+    }
+  ],
+  "performanceHourly": [
+    { "time": "08:00", "plan": 50, "actual": 48, "scrap": 0 },
+    { "time": "09:00", "plan": 55, "actual": 55, "scrap": 0 },
+    { "time": "10:00", "plan": 60, "actual": 58, "scrap": 1 },
+    { "time": "11:00", "plan": 60, "actual": 62, "scrap": 0 },
+    { "time": "12:00", "plan": 50, "actual": 45, "scrap": 0 },
+    { "time": "13:00", "plan": 60, "actual": 59, "scrap": 0 },
+    { "time": "14:00", "plan": 60, "actual": 30, "scrap": 2 },
+    { "time": "15:00", "plan": 60, "actual": 55, "scrap": 1 }
+  ],
+  "performanceList": [
+    {
+      "woId": "WO-FAB-001",
+      "product": "DDR5 1znm Wafer",
+      "line": "Fab-Line-A",
+      "unit": "wfrs",
+      "planQty": 1200,
+      "actualQty": 1150,
+      "lossQty": 5,
+      "rate": 95.8,
+      "status": "RUNNING"
+    },
+    {
+      "woId": "WO-EDS-023",
+      "product": "16Gb DDR5 SDRAM",
+      "line": "EDS-Line-01",
+      "unit": "chips",
+      "planQty": 50000,
+      "actualQty": 48500,
+      "lossQty": 1200,
+      "rate": 97.0,
+      "status": "RUNNING"
+    },
+    {
+      "woId": "WO-MOD-105",
+      "product": "DDR5 32GB UDIMM",
+      "line": "Mod-Line-C",
+      "unit": "ea",
+      "planQty": 2000,
+      "actualQty": 2000,
+      "lossQty": 0,
+      "rate": 100.0,
+      "status": "COMPLETED"
+    },
+    {
+      "woId": "WO-FAB-002",
+      "product": "LPDDR5X Mobile",
+      "line": "Fab-Line-B",
+      "unit": "wfrs",
+      "planQty": 800,
+      "actualQty": 200,
+      "lossQty": 1,
+      "rate": 25.0,
+      "status": "RUNNING"
+    }
+  ],
+  "productionPlans": [
+    {
+      "id": "PP-240601-01",
+      "date": "2024-06-01",
+      "product": "DDR5 1znm Wafer",
+      "line": "Fab-Line-A",
+      "type": "FAB",
+      "planQty": 1000,
+      "status": "COMPLETED"
+    },
+    {
+      "id": "PP-240602-02",
+      "date": "2024-06-02",
+      "product": "16Gb DDR5 SDRAM",
+      "line": "EDS-Line-01",
+      "type": "EDS",
+      "planQty": 50000,
+      "status": "RELEASED"
+    },
+    {
+      "id": "PP-240605-03",
+      "date": "2024-06-05",
+      "product": "DDR5 32GB UDIMM",
+      "line": "Mod-Line-C",
+      "type": "MOD",
+      "planQty": 2000,
+      "status": "PLANNED"
+    },
+    {
+      "id": "PP-240606-04",
+      "date": "2024-06-06",
+      "product": "LPDDR5X Mobile",
+      "line": "Fab-Line-B",
+      "type": "FAB",
+      "planQty": 800,
+      "status": "PLANNED"
+    }
+  ],
+  "workers": [
+    {
+      "id": "24001",
+      "name": "Kim Min-su",
+      "role": "Engineer",
+      "dept": "Photo",
+      "shift": "Day",
+      "status": "WORKING",
+      "certifications": ["ASML Scanner", "Track System"],
+      "joinDate": "2020-03-01"
+    },
+    {
+      "id": "24002",
+      "name": "Lee Ji-eun",
+      "role": "Operator",
+      "dept": "Etch",
+      "shift": "Swing",
+      "status": "OFF",
+      "certifications": ["Lam Etcher"],
+      "joinDate": "2021-06-15"
+    },
+    {
+      "id": "24003",
+      "name": "Park Dong-hoon",
+      "role": "Manager",
+      "dept": "Fab-Common",
+      "shift": "Day",
+      "status": "WORKING",
+      "certifications": ["Safety Lv.1", "Process Mgmt"],
+      "joinDate": "2018-01-10"
+    },
+    {
+      "id": "24004",
+      "name": "Choi Yu-jin",
+      "role": "Engineer",
+      "dept": "EDS",
+      "shift": "Night",
+      "status": "BREAK",
+      "certifications": ["Advantest Tester", "Probe Card"],
+      "joinDate": "2022-11-20"
+    },
+    {
+      "id": "24005",
+      "name": "Jung Woo-sung",
+      "role": "Operator",
+      "dept": "Deposition",
+      "shift": "Day",
+      "status": "WORKING",
+      "certifications": ["AMAT Producer"],
+      "joinDate": "2023-01-05"
+    }
+  ],
+  "workOrders": [
+    {
+      "id": "WO-FAB-240601-A",
+      "product": "DDR5 1znm Wafer Process",
+      "line": "Fab-Line-A",
+      "type": "FAB",
+      "status": "RUNNING",
+      "planQty": 25,
+      "actualQty": 12,
+      "unit": "wfrs",
+      "startTime": "06:30:00",
+      "progress": 48,
+      "priority": "HIGH"
+    },
+    {
+      "id": "WO-EDS-240601-B",
+      "product": "16Gb DDR5 SDRAM Test",
+      "line": "EDS-Line-02",
+      "type": "EDS",
+      "status": "PAUSED",
+      "planQty": 5000,
+      "actualQty": 1200,
+      "unit": "chips",
+      "startTime": "09:00:00",
+      "progress": 24,
+      "issue": "Yield Drop Alert",
+      "priority": "NORMAL"
+    },
+    {
+      "id": "WO-MOD-240601-C",
+      "product": "DDR5 32GB UDIMM Assy",
+      "line": "Mod-Line-C",
+      "type": "MOD",
+      "status": "DONE",
+      "planQty": 1000,
+      "actualQty": 1000,
+      "unit": "ea",
+      "startTime": "08:00:00",
+      "endTime": "14:20:00",
+      "progress": 100,
+      "priority": "NORMAL"
+    },
+    {
+      "id": "WO-FAB-240602-D",
+      "product": "LPDDR5X Mobile DRAM",
+      "line": "Fab-Line-A",
+      "type": "FAB",
+      "status": "READY",
+      "planQty": 50,
+      "actualQty": 0,
+      "unit": "wfrs",
+      "progress": 0,
+      "priority": "URGENT"
+    }
+  ],
+
+  "stats": {
+    "totalDefects": 52,
+    "worstStep": "Poly Etching",
+    "repairedCount": 12,
+    "primeYield": 94.8
+  },
+  "paretoData": [
+    { "name": "Single Bit Fail", "count": 150, "cum": 30 },
+    { "name": "Word-Line Open", "count": 110, "cum": 52 },
+    { "name": "Pattern Short", "count": 80, "cum": 68 },
+    { "name": "Particle", "count": 60, "cum": 80 },
+    { "name": "Multi-Bit Fail", "count": 45, "cum": 89 },
+    { "name": "Scratch", "count": 35, "cum": 96 },
+    { "name": "Oxide Thickness", "count": 20, "cum": 100 }
+  ],
+  "defectLogs": [
+    {
+      "id": "DF-240601-001",
+      "time": "14:20:11",
+      "lotId": "LOT-DDR5-101",
+      "waferId": "WF-05",
+      "coord": "(12, 05)",
+      "type": "Pattern Short",
+      "process": "Etching (Poly)",
+      "status": "NEW",
+      "image": true
+    },
+    {
+      "id": "DF-240601-002",
+      "time": "13:45:22",
+      "lotId": "LOT-DDR5-101",
+      "waferId": "WF-05",
+      "coord": "(08, 11)",
+      "type": "Single Bit Fail",
+      "process": "EDS Test",
+      "status": "REPAIRED",
+      "image": false
+    },
+    {
+      "id": "DF-240601-003",
+      "time": "11:10:05",
+      "lotId": "LOT-DDR5-098",
+      "waferId": "WF-12",
+      "coord": "(15, 09)",
+      "type": "Particle",
+      "process": "Photo (Litho)",
+      "status": "CLOSED",
+      "image": true
+    },
+    {
+      "id": "DF-240601-004",
+      "time": "10:05:33",
+      "lotId": "LOT-DDR5-098",
+      "waferId": "WF-12",
+      "coord": "(10, 10)",
+      "type": "Scratch",
+      "process": "CMP",
+      "status": "NEW",
+      "image": true
+    },
+    {
+      "id": "DF-240601-005",
+      "time": "09:30:15",
+      "lotId": "LOT-DDR5-097",
+      "waferId": "WF-01",
+      "coord": "(05, 05)",
+      "type": "Word-Line Open",
+      "process": "EDS Test",
+      "status": "VERIFIED",
+      "image": false
+    }
+  ],
+  "trackingStats": {
+    "runningLots": 142,
+    "holdLots": 5,
+    "waitLots": 12,
+    "avgTat": "24.5 Days"
+  },
+  "lots": [
+    {
+      "id": "LOT-202401-001",
+      "product": "DDR5-16GB-A",
+      "currentStep": "Photo Lithography",
+      "equipmentId": "EQP-PH-05",
+      "status": "RUNNING",
+      "priority": "High",
+      "waferQty": 25,
+      "progress": 45,
+      "startTime": "2024-01-10 08:00",
+      "eta": "2024-02-15",
+      "route": [
+        { "step": "Cleaning", "status": "DONE" },
+        { "step": "Deposition", "status": "DONE" },
+        { "step": "Photo Lithography", "status": "RUNNING" },
+        { "step": "Etching", "status": "WAIT" },
+        { "step": "Ion Implant", "status": "WAIT" },
+        { "step": "Metalization", "status": "WAIT" }
+      ]
+    },
+    {
+      "id": "LOT-202401-002",
+      "product": "NAND-128L-V",
+      "currentStep": "Etching (Poly)",
+      "equipmentId": "EQP-ET-02",
+      "status": "HOLD",
+      "priority": "Normal",
+      "waferQty": 24,
+      "progress": 60,
+      "startTime": "2024-01-05 14:30",
+      "eta": "2024-02-10",
+      "holdReason": "Eqp Alarm (Gas Flow Error)",
+      "route": [
+        { "step": "Cleaning", "status": "DONE" },
+        { "step": "Photo", "status": "DONE" },
+        { "step": "Etching", "status": "HOLD" },
+        { "step": "Cleaning", "status": "WAIT" },
+        { "step": "EDS Test", "status": "WAIT" }
+      ]
+    },
+    {
+      "id": "LOT-202401-003",
+      "product": "DDR5-32GB-Pro",
+      "currentStep": "Wait for Dispatch",
+      "equipmentId": "Stocker-04",
+      "status": "WAIT",
+      "priority": "Critical",
+      "waferQty": 25,
+      "progress": 10,
+      "startTime": "2024-01-14 09:00",
+      "eta": "2024-02-28",
+      "route": [
+        { "step": "Input Check", "status": "DONE" },
+        { "step": "Cleaning", "status": "WAIT" },
+        { "step": "Oxidation", "status": "WAIT" }
+      ]
+    },
+    {
+      "id": "LOT-202401-004",
+      "product": "Logic-AP-X1",
+      "currentStep": "CMP (Polishing)",
+      "equipmentId": "EQP-CMP-01",
+      "status": "RUNNING",
+      "priority": "Normal",
+      "waferQty": 25,
+      "progress": 85,
+      "startTime": "2023-12-25 00:00",
+      "eta": "2024-01-20",
+      "route": [
+        { "step": "FEOL", "status": "DONE" },
+        { "step": "BEOL Metal 1", "status": "DONE" },
+        { "step": "CMP", "status": "RUNNING" },
+        { "step": "Passivation", "status": "WAIT" }
+      ]
+    }
+  ],
+  "spcParameters": [
+    {
+      "id": "PARAM-001",
+      "name": "Deposition Thickness",
+      "step": "Deposition",
+      "unit": "Å",
+      "target": 1000,
+      "ucl": 1050,
+      "lcl": 950
+    },
+    {
+      "id": "PARAM-002",
+      "name": "Etch Rate",
+      "step": "Etching (Poly)",
+      "unit": "Å/min",
+      "target": 550,
+      "ucl": 570,
+      "lcl": 530
+    },
+    {
+      "id": "PARAM-003",
+      "name": "Line Width (CD)",
+      "step": "Photo Lithography",
+      "unit": "nm",
+      "target": 45,
+      "ucl": 48,
+      "lcl": 42
+    }
+  ],
+  "spcData": [
+    {
+      "id": 1,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-001",
+      "value": 1002,
+      "time": "08:00"
+    },
+    {
+      "id": 2,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-002",
+      "value": 998,
+      "time": "09:00"
+    },
+    {
+      "id": 3,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-003",
+      "value": 1015,
+      "time": "10:00"
+    },
+    {
+      "id": 4,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-004",
+      "value": 1030,
+      "time": "11:00"
+    },
+    {
+      "id": 5,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-005",
+      "value": 980,
+      "time": "12:00"
+    },
+    {
+      "id": 6,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-006",
+      "value": 995,
+      "time": "13:00"
+    },
+    {
+      "id": 7,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-007",
+      "value": 1055,
+      "time": "14:00"
+    },
+    {
+      "id": 8,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-008",
+      "value": 1040,
+      "time": "15:00"
+    },
+    {
+      "id": 9,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-009",
+      "value": 1010,
+      "time": "16:00"
+    },
+    {
+      "id": 10,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-010",
+      "value": 990,
+      "time": "17:00"
+    },
+    {
+      "id": 11,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-011",
+      "value": 1005,
+      "time": "18:00"
+    },
+    {
+      "id": 12,
+      "paramId": "PARAM-001",
+      "lotId": "LOT-012",
+      "value": 1025,
+      "time": "19:00"
+    },
+    {
+      "id": 13,
+      "paramId": "PARAM-002",
+      "lotId": "LOT-013",
+      "value": 555,
+      "time": "08:00"
+    },
+    {
+      "id": 14,
+      "paramId": "PARAM-002",
+      "lotId": "LOT-014",
+      "value": 548,
+      "time": "09:00"
+    }
+  ],
+  "standards": [
+    {
+      "id": "STD-PH-001",
+      "title": "Photo Lithography Process SOP",
+      "category": "Process",
+      "revision": "Rev 3.0",
+      "status": "ACTIVE",
+      "owner": "Park. S.H (Process Eng)",
+      "updatedAt": "2024-01-10",
+      "description": "Standard operating procedure for ASML Scanner operation and track recipe setup.",
+      "revisions": [
+        {
+          "rev": "3.0",
+          "date": "2024-01-10",
+          "author": "Park. S.H",
+          "comment": "Updated exposure energy limits"
+        },
+        {
+          "rev": "2.1",
+          "date": "2023-11-05",
+          "author": "Kim. D.W",
+          "comment": "Added safety checklist"
+        },
+        {
+          "rev": "2.0",
+          "date": "2023-06-20",
+          "author": "Lee. M.J",
+          "comment": "Initial release for Gen 5 Tech"
+        }
+      ]
+    },
+    {
+      "id": "STD-ET-102",
+      "title": "Poly Etcher Maintenance Guide",
+      "category": "Equipment",
+      "revision": "Rev 1.5",
+      "status": "ACTIVE",
+      "owner": "Choi. K.M (Eqp Eng)",
+      "updatedAt": "2023-12-15",
+      "description": "Weekly and Monthly PM check points for Lam Etcher (Chamber cleaning).",
+      "revisions": [
+        {
+          "rev": "1.5",
+          "date": "2023-12-15",
+          "author": "Choi. K.M",
+          "comment": "Modified O-ring replacement cycle"
+        }
+      ]
+    },
+    {
+      "id": "STD-QA-205",
+      "title": "Visual Inspection Criteria (DDR5)",
+      "category": "Quality",
+      "revision": "Rev 0.9",
+      "status": "DRAFT",
+      "owner": "Jung. Y.H (QA)",
+      "updatedAt": "2024-01-20",
+      "description": "New defect classification standard for DDR5 products. Currently under review.",
+      "revisions": [
+        {
+          "rev": "0.9",
+          "date": "2024-01-20",
+          "author": "Jung. Y.H",
+          "comment": "Draft for approval"
+        }
+      ]
+    },
+    {
+      "id": "STD-SF-001",
+      "title": "Cleanroom Safety & Gowning Protocol",
+      "category": "Safety",
+      "revision": "Rev 5.0",
+      "status": "ACTIVE",
+      "owner": "Safety Team",
+      "updatedAt": "2024-01-02",
+      "description": "Mandatory gowning procedure and emergency evacuation manual.",
+      "revisions": [
+        {
+          "rev": "5.0",
+          "date": "2024-01-02",
+          "author": "Kang. H.S",
+          "comment": "Updated mask requirements"
+        }
+      ]
+    },
+    {
+      "id": "STD-PH-000",
+      "title": "Legacy I-Line Photo Recipe",
+      "category": "Process",
+      "revision": "Rev 12.0",
+      "status": "OBSOLETE",
+      "owner": "System",
+      "updatedAt": "2022-05-30",
+      "description": "Old process standard. Do not use for current production.",
+      "revisions": []
+    }
+  ],
+  "codeGroups": [
+    {
+      "id": "GRP_EQP_STATUS",
+      "name": "Equipment Status",
+      "description": "State definitions for production equipment",
+      "isSystem": true
+    },
+    {
+      "id": "GRP_DEFECT_TYPE",
+      "name": "Defect Category",
+      "description": "Classification of product defects",
+      "isSystem": false
+    },
+    {
+      "id": "GRP_MATERIAL_TYPE",
+      "name": "Material Type",
+      "description": "Raw material and chemical types",
+      "isSystem": true
+    },
+    {
+      "id": "GRP_UNIT",
+      "name": "Measurement Unit",
+      "description": "Standard units for sensors and counts",
+      "isSystem": true
+    },
+    {
+      "id": "GRP_PRIORITY",
+      "name": "Work Priority",
+      "description": "Task urgency levels",
+      "isSystem": false
+    }
+  ],
+  "commonCodes": [
+    {
+      "id": 1,
+      "groupId": "GRP_EQP_STATUS",
+      "code": "RUN",
+      "name": "Running",
+      "sortOrder": 1,
+      "isActive": true
+    },
+    {
+      "id": 2,
+      "groupId": "GRP_EQP_STATUS",
+      "code": "IDLE",
+      "name": "Idle / Wait",
+      "sortOrder": 2,
+      "isActive": true
+    },
+    {
+      "id": 3,
+      "groupId": "GRP_EQP_STATUS",
+      "code": "DOWN",
+      "name": "Down (Error)",
+      "sortOrder": 3,
+      "isActive": true
+    },
+    {
+      "id": 4,
+      "groupId": "GRP_EQP_STATUS",
+      "code": "PM",
+      "name": "Maintenance",
+      "sortOrder": 4,
+      "isActive": true
+    },
+
+    {
+      "id": 5,
+      "groupId": "GRP_DEFECT_TYPE",
+      "code": "PAT_SHORT",
+      "name": "Pattern Short",
+      "sortOrder": 1,
+      "isActive": true
+    },
+    {
+      "id": 6,
+      "groupId": "GRP_DEFECT_TYPE",
+      "code": "OPEN",
+      "name": "Line Open",
+      "sortOrder": 2,
+      "isActive": true
+    },
+    {
+      "id": 7,
+      "groupId": "GRP_DEFECT_TYPE",
+      "code": "PARTICLE",
+      "name": "Particle",
+      "sortOrder": 3,
+      "isActive": true
+    },
+    {
+      "id": 8,
+      "groupId": "GRP_DEFECT_TYPE",
+      "code": "SCRATCH",
+      "name": "Surface Scratch",
+      "sortOrder": 4,
+      "isActive": false
+    },
+
+    {
+      "id": 9,
+      "groupId": "GRP_MATERIAL_TYPE",
+      "code": "WAFER",
+      "name": "Silicon Wafer",
+      "sortOrder": 1,
+      "isActive": true
+    },
+    {
+      "id": 10,
+      "groupId": "GRP_MATERIAL_TYPE",
+      "code": "PR",
+      "name": "Photo Resist",
+      "sortOrder": 2,
+      "isActive": true
+    },
+    {
+      "id": 11,
+      "groupId": "GRP_MATERIAL_TYPE",
+      "code": "GAS",
+      "name": "Specialty Gas",
+      "sortOrder": 3,
+      "isActive": true
+    },
+
+    {
+      "id": 12,
+      "groupId": "GRP_UNIT",
+      "code": "EA",
+      "name": "Each (Count)",
+      "sortOrder": 1,
+      "isActive": true
+    },
+    {
+      "id": 13,
+      "groupId": "GRP_UNIT",
+      "code": "MM",
+      "name": "Millimeter",
+      "sortOrder": 2,
+      "isActive": true
+    },
+    {
+      "id": 14,
+      "groupId": "GRP_UNIT",
+      "code": "SEC",
+      "name": "Seconds",
+      "sortOrder": 3,
+      "isActive": true
+    }
+  ],
+  "systemLogs": [
+    {
+      "id": "LOG-10024",
+      "timestamp": "2024-01-25T14:22:10",
+      "level": "ERROR",
+      "category": "DATABASE",
+      "userId": "SYSTEM",
+      "userIp": "127.0.0.1",
+      "message": "Connection timeout: Connection pool limit exceeded",
+      "details": "Error: Timeout waiting for idle object\n    at GenericObjectPool.borrowObject (commons-pool.js:120)\n    at DbConnectionFactory.getConnection (db.js:45)"
+    },
+    {
+      "id": "LOG-10023",
+      "timestamp": "2024-01-25T14:20:05",
+      "level": "INFO",
+      "category": "AUTH",
+      "userId": "kim.dw",
+      "userIp": "192.168.0.105",
+      "message": "User login successful",
+      "details": "Session ID: sess_8d9f9a8s7d\nUser Agent: Chrome/120.0.0.0"
+    },
+    {
+      "id": "LOG-10022",
+      "timestamp": "2024-01-25T14:15:30",
+      "level": "WARN",
+      "category": "API",
+      "userId": "lee.mj",
+      "userIp": "192.168.0.112",
+      "message": "Slow response detected on /api/report/daily",
+      "details": "Duration: 5200ms\nQuery Params: { date: '2024-01-24', type: 'FULL' }"
+    },
+    {
+      "id": "LOG-10021",
+      "timestamp": "2024-01-25T13:50:00",
+      "level": "INFO",
+      "category": "SYSTEM",
+      "userId": "SYSTEM",
+      "userIp": "127.0.0.1",
+      "message": "Scheduled Batch Job [CleanupTempFiles] completed",
+      "details": "Deleted 45 files, freed 120MB space."
+    },
+    {
+      "id": "LOG-10020",
+      "timestamp": "2024-01-25T13:45:12",
+      "level": "SECURITY",
+      "category": "AUTH",
+      "userId": "unknown",
+      "userIp": "203.11.22.33",
+      "message": "Failed login attempt (Invalid Password)",
+      "details": "Target User: admin\nAttempt Count: 3"
+    },
+    {
+      "id": "LOG-10019",
+      "timestamp": "2024-01-25T13:30:22",
+      "level": "ERROR",
+      "category": "EQP_INTERFACE",
+      "userId": "SYSTEM",
+      "userIp": "10.0.5.20",
+      "message": "SECS-GEM Communication Loss: EQP-PH-05",
+      "details": "SocketException: Connection reset by peer\nRetrying connection..."
+    },
+    {
+      "id": "LOG-10018",
+      "timestamp": "2024-01-25T12:10:05",
+      "level": "INFO",
+      "category": "DATA",
+      "userId": "park.sh",
+      "userIp": "192.168.0.108",
+      "message": "Data Export: Production_Yield_2023.xlsx",
+      "details": "Export size: 4.5MB\nFilter: ALL"
+    }
+  ],
+
+  "roles": [
+    {
+      "id": "ROLE_ADMIN",
+      "name": "System Administrator",
+      "description": "Full access to all system resources and settings.",
+      "userCount": 3,
+      "isSystem": true,
+      "permissionIds": [
+        "PERM_DASH_VIEW",
+        "PERM_USR_MNG",
+        "PERM_ROLE_MNG",
+        "PERM_LOG_VIEW",
+        "PERM_DEF_VIEW",
+        "PERM_DEF_EDIT",
+        "PERM_LOT_VIEW",
+        "PERM_LOT_CTRL"
+      ]
+    },
+    {
+      "id": "ROLE_ENGINEER",
+      "name": "Process Engineer",
+      "description": "Can manage defects and view production data.",
+      "userCount": 12,
+      "isSystem": false,
+      "permissionIds": [
+        "PERM_DASH_VIEW",
+        "PERM_DEF_VIEW",
+        "PERM_DEF_EDIT",
+        "PERM_LOT_VIEW"
+      ]
+    },
+    {
+      "id": "ROLE_OPERATOR",
+      "name": "Line Operator",
+      "description": "Limited access. View-only for instructions and lots.",
+      "userCount": 45,
+      "isSystem": false,
+      "permissionIds": ["PERM_DASH_VIEW", "PERM_LOT_VIEW"]
+    },
+    {
+      "id": "ROLE_GUEST",
+      "name": "Guest Viewer",
+      "description": "Read-only access for external auditors.",
+      "userCount": 2,
+      "isSystem": false,
+      "permissionIds": ["PERM_DASH_VIEW"]
+    }
+  ],
+  "permissions": [
+    {
+      "id": "PERM_DASH_VIEW",
+      "group": "Dashboard",
+      "name": "View Dashboard",
+      "description": "Access to main KPIs"
+    },
+
+    {
+      "id": "PERM_USR_MNG",
+      "group": "System Admin",
+      "name": "Manage Users",
+      "description": "Create/Delete users"
+    },
+    {
+      "id": "PERM_ROLE_MNG",
+      "group": "System Admin",
+      "name": "Manage Roles",
+      "description": "Edit permissions"
+    },
+    {
+      "id": "PERM_LOG_VIEW",
+      "group": "System Admin",
+      "name": "View System Logs",
+      "description": "Access audit logs"
+    },
+
+    {
+      "id": "PERM_DEF_VIEW",
+      "group": "Quality (Defect)",
+      "name": "View Defects",
+      "description": "Read defect list"
+    },
+    {
+      "id": "PERM_DEF_EDIT",
+      "group": "Quality (Defect)",
+      "name": "Edit Defects",
+      "description": "Update defect status"
+    },
+    {
+      "id": "PERM_DEF_DEL",
+      "group": "Quality (Defect)",
+      "name": "Delete Defects",
+      "description": "Remove records"
+    },
+
+    {
+      "id": "PERM_LOT_VIEW",
+      "group": "Production (Lot)",
+      "name": "View Lots",
+      "description": "Track lot location"
+    },
+    {
+      "id": "PERM_LOT_CTRL",
+      "group": "Production (Lot)",
+      "name": "Control Lots",
+      "description": "Hold/Release lots"
+    }
+  ],
+  "users": [
+    {
+      "id": 101,
+      "employeeId": "EMP-2021-001",
+      "name": "Kim Chul-soo",
+      "email": "cs.kim@fab_system.com",
+      "role": "ADMIN",
+      "department": "IT Support",
+      "status": "ACTIVE",
+      "lastLogin": "2024-01-26 09:10:00",
+      "phone": "010-1234-5678",
+      "avatar": "https://i.pravatar.cc/150?u=101"
+    },
+    {
+      "id": 102,
+      "employeeId": "EMP-2021-023",
+      "name": "Lee Young-hee",
+      "email": "yh.lee@fab_system.com",
+      "role": "ENGINEER",
+      "department": "Process Tech (Photo)",
+      "status": "ACTIVE",
+      "lastLogin": "2024-01-25 18:30:00",
+      "phone": "010-2345-6789",
+      "avatar": "https://i.pravatar.cc/150?u=102"
+    },
+    {
+      "id": 103,
+      "employeeId": "EMP-2022-104",
+      "name": "Park Min-jun",
+      "email": "mj.park@fab_system.com",
+      "role": "OPERATOR",
+      "department": "Fab 1 - Shift A",
+      "status": "ACTIVE",
+      "lastLogin": "2024-01-26 07:50:00",
+      "phone": "010-3456-7890",
+      "avatar": null
+    },
+    {
+      "id": 104,
+      "employeeId": "EMP-2023-005",
+      "name": "Choi Ji-woo",
+      "email": "jw.choi@fab_system.com",
+      "role": "ENGINEER",
+      "department": "Quality Assurance",
+      "status": "INACTIVE",
+      "lastLogin": "2023-12-20 14:00:00",
+      "phone": "010-4567-8901",
+      "avatar": "https://i.pravatar.cc/150?u=104"
+    },
+    {
+      "id": 105,
+      "employeeId": "EMP-2020-099",
+      "name": "Jung Woo-sung",
+      "email": "ws.jung@fab_system.com",
+      "role": "MANAGER",
+      "department": "Production Planning",
+      "status": "ACTIVE",
+      "lastLogin": "2024-01-26 08:30:00",
+      "phone": "010-5678-9012",
+      "avatar": null
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "DDR5 Memory Module 16GB",
+      "barcode": "8801234567891",
+      "category": "Memory",
+      "price": 85000,
+      "stock": 150,
+      "location": "A-01-02",
+      "description": "High performance RAM for servers."
+    },
+    {
+      "id": 2,
+      "name": "NAND Flash Controller",
+      "barcode": "8801234567892",
+      "category": "Controller",
+      "price": 12000,
+      "stock": 5000,
+      "location": "B-05-11",
+      "description": "Next-gen storage controller chip."
+    },
+    {
+      "id": 3,
+      "name": "Display Driver IC (DDI)",
+      "barcode": "8801234567893",
+      "category": "Logic",
+      "price": 5500,
+      "stock": 1200,
+      "location": "A-02-05",
+      "description": "OLED display driver."
+    },
+    {
+      "id": 4,
+      "name": "Camera Image Sensor",
+      "barcode": "PROD-2024-001",
+      "category": "Sensor",
+      "price": 45000,
+      "stock": 300,
+      "location": "C-10-01",
+      "description": "108MP Mobile Image Sensor."
+    },
+    {
+      "id": 5,
+      "name": "test",
+      "barcode": "8801111111111",
+      "category": "Sensor",
+      "price": 45000,
+      "stock": 300,
+      "location": "C-01-01",
+      "description": "108MP Mobile Image Sensor."
+    },
+    {
+      "id": 6,
+      "name": "test2",
+      "barcode": "aaaaaaaa",
+      "category": "Sensor",
+      "price": 45000,
+      "stock": 300,
+      "location": "C-01-01",
+      "description": "108MP Mobile Image Sensor."
+    }
+  ]
+}
