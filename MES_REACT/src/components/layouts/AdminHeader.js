@@ -1,18 +1,28 @@
 // src/components/admin/AdminHeader.js
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
 import { IoMdClose } from "react-icons/io";
-import { FaHome } from "react-icons/fa";
+import { FaHome, FaSignOutAlt, FaUserCircle, FaClock } from "react-icons/fa";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const homeTab = tabs.find((tab) => tab.path === "/");
   const otherTabs = tabs.filter((tab) => tab.path !== "/");
 
+  // --- 실시간 시계 로직 ---
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // --- 드래그 앤 드롭 핸들러 ---
   const handleDragEnd = (result) => {
     if (!result.destination) return;
     const adjustedResult = {
@@ -26,15 +36,44 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
     onDragEnd(adjustedResult);
   };
 
+  // --- 로그아웃 핸들러 ---
+  const handleLogout = () => {
+    // 여기에 실제 로그아웃 로직 (토큰 삭제 등) 추가 가능
+    // alert("Logged out successfully.");
+    navigate("/"); // 로그인 페이지 경로에 맞게 수정하세요
+  };
+
   return (
     <Container>
+      {/* 1. 상단 메뉴바 (브레드크럼 + 우측 정보) */}
       <Menubar>
-        <Breadcrumb>MES Home</Breadcrumb>
+        <Breadcrumb>MES System Management</Breadcrumb>
+
         <RightSection>
-          <span>Admin</span>
+          {/* 시계 */}
+          <ClockItem>
+            <FaClock size={14} style={{ marginRight: 6 }} />
+            {currentTime.toLocaleTimeString()}
+          </ClockItem>
+
+          {/* 구분선 */}
+          <Divider />
+
+          {/* 마이페이지 */}
+          <HeaderBtn onClick={() => navigate("/mypage")} title="My Page">
+            <FaUserCircle size={18} />
+            <span>My Page</span>
+          </HeaderBtn>
+
+          {/* 로그아웃 */}
+          <HeaderBtn onClick={handleLogout} title="Logout" $logout>
+            <FaSignOutAlt size={16} />
+            <span>Logout</span>
+          </HeaderBtn>
         </RightSection>
       </Menubar>
 
+      {/* 2. 탭 툴바 (드래그 가능한 탭 목록) */}
       <Toolbar>
         {/* Home 탭 (고정) */}
         {homeTab && (
@@ -70,7 +109,7 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
                           $isDragging={snapshot.isDragging}
                           onClick={() => navigate(tab.path)}
                           style={{ ...provided.draggableProps.style }}
-                          title={tab.name} /* 마우스 올리면 전체 이름 표시 */
+                          title={tab.name}
                         >
                           <TabText>{tab.name}</TabText>
                           <CloseBtn
@@ -100,11 +139,11 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
 
 export default AdminHeader;
 
-// --- 스타일링 수정 ---
+// --- 스타일링 ---
 
 const Container = styled.div`
   height: 100px;
-  background-color: #cdd2d9;
+  background-color: #cdd2d9; /* 헤더 배경색 */
   display: flex;
   flex-direction: column;
 `;
@@ -115,10 +154,67 @@ const Menubar = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 30px;
+  padding: 0 20px;
   box-sizing: border-box;
+  background-color: #2c3e50; /* 상단 메뉴바 어두운 배경 */
+  color: white;
 `;
 
+const Breadcrumb = styled.div`
+  font-size: 18px;
+  font-weight: 700;
+  color: #ecf0f1;
+  letter-spacing: 0.5px;
+`;
+
+// 우측 영역 (시계, 버튼들)
+const RightSection = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  font-size: 14px;
+`;
+
+const ClockItem = styled.div`
+  display: flex;
+  align-items: center;
+  font-family: monospace; /* 숫자가 튀지 않게 고정폭 폰트 */
+  font-size: 15px;
+  color: #bdc3c7;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 5px 10px;
+  border-radius: 4px;
+`;
+
+const Divider = styled.div`
+  width: 1px;
+  height: 16px;
+  background-color: #7f8c8d;
+  margin: 0 5px;
+`;
+
+const HeaderBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: ${(props) =>
+    props.$logout ? "#e74c3c" : "#ecf0f1"}; /* 로그아웃은 빨간색 강조 */
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 4px;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+`;
+
+// --- 탭 툴바 영역 (기존 스타일 유지 및 보완) ---
 const Toolbar = styled.div`
   width: 100%;
   height: 40px;
@@ -127,30 +223,17 @@ const Toolbar = styled.div`
   align-items: flex-end;
   padding-left: 20px;
   border-bottom: 1px solid #ccc;
-  overflow: hidden; /* 자식 요소가 넘치지 않도록 */
+  overflow: hidden;
 `;
 
-const Breadcrumb = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-`;
-
-const RightSection = styled.div`
-  font-size: 14px;
-  color: #333;
-`;
-
-// ★ 스크롤 컨테이너 추가
 const ScrollContainer = styled.div`
-  flex: 1; /* 남은 공간 모두 차지 */
+  flex: 1;
   height: 100%;
-  overflow-x: auto; /* 내용 넘치면 가로 스크롤 생성 */
+  overflow-x: auto;
   overflow-y: hidden;
   display: flex;
   align-items: flex-end;
 
-  /* 스크롤바 커스텀 (선택 사항) */
   &::-webkit-scrollbar {
     height: 4px;
   }
@@ -168,10 +251,9 @@ const DraggableArea = styled.div`
   align-items: flex-end;
   height: 100%;
   margin-left: -1px;
-  min-width: max-content; /* 자식 탭들의 너비만큼 확보 */
+  min-width: max-content;
 `;
 
-// 공통 탭 스타일
 const BaseTabItem = styled.div`
   height: 39px;
   background-color: ${(props) =>
@@ -193,20 +275,18 @@ const BaseTabItem = styled.div`
   }
 `;
 
-// Home 탭 (고정 너비)
 const HomeTabItem = styled(BaseTabItem)`
   min-width: 50px;
   padding: 0 10px;
   justify-content: center;
   cursor: pointer;
-  flex-shrink: 0; /* 스크롤 시에도 줄어들지 않음 */
-  z-index: 10; /* 스크롤바 위로 올라오지 않게 하거나 필요시 조정 */
+  flex-shrink: 0;
+  z-index: 10;
 `;
 
-// 일반 탭 (가변 너비 + 말줄임표)
 const TabItem = styled(BaseTabItem)`
-  max-width: 180px; /* ★ 최대 너비 설정 */
-  min-width: 120px; /* ★ 최소 너비 설정 */
+  max-width: 180px;
+  min-width: 120px;
   padding: 0 10px 0 15px;
   justify-content: space-between;
   cursor: grab;
@@ -216,17 +296,15 @@ const TabItem = styled(BaseTabItem)`
   }
 `;
 
-// ★ 텍스트 말줄임표 처리용 컴포넌트
 const TabText = styled.span`
-  flex: 1; /* 남은 공간 차지 */
-  white-space: nowrap; /* 줄바꿈 금지 */
-  overflow: hidden; /* 넘치는 내용 숨김 */
-  text-overflow: ellipsis; /* ... 처리 */
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-right: 5px;
 `;
 
 const CloseBtn = styled.span`
-  /* flex-shrink: 0; 닫기 버튼은 줄어들지 않게 고정 */
   flex-shrink: 0;
   font-size: 16px;
   color: #999;

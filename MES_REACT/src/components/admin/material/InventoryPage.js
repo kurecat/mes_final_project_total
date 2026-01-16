@@ -1,239 +1,312 @@
 // src/pages/resource/InventoryPage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
-  FaSearch,
-  FaPlus,
-  FaFilter,
   FaBoxOpen,
+  FaSearch,
+  FaFilter,
   FaExclamationTriangle,
-  FaArrowDown,
+  FaThermometerHalf,
   FaHistory,
+  FaPlus,
+  FaMinus,
+  FaFlask,
+  FaMicrochip,
 } from "react-icons/fa";
 
-// --- Mock Data (HBM 반도체 자재) ---
-const INVENTORY_DATA = [
+// --- Fallback Mock Data ---
+const MOCK_INVENTORY = [
   {
-    id: "RM-WF-001",
-    name: "12-inch Si Wafer (TSV)",
-    category: "Raw Material",
-    location: "WH-A-01",
-    qty: 450,
-    safetyStock: 100,
-    maxStock: 1000,
+    id: "RM-WF-12",
+    name: "12-inch Prime Wafer",
+    type: "RAW",
+    loc: "WH-A-01",
+    qty: 1200,
+    safety: 500,
     unit: "ea",
-    lastUpdated: "2024-05-20 09:00",
+    status: "NORMAL",
+    condition: "23°C / 45%",
   },
   {
-    id: "CH-UF-023",
-    name: "NCP Underfill Epoxy",
-    category: "Chemical",
-    location: "WH-C-05",
-    qty: 15,
-    safetyStock: 20, // 안전재고 미달 (Low)
-    maxStock: 100,
-    unit: "btl",
-    lastUpdated: "2024-05-19 14:30",
+    id: "CHM-PR-ARF",
+    name: "Photo Resist (ArF)",
+    type: "CHEM",
+    loc: "WH-Cold-02",
+    qty: 45,
+    safety: 50,
+    unit: "Btl",
+    status: "LOW",
+    condition: "4°C (Cold)",
   },
   {
-    id: "PK-TR-102",
-    name: "HBM Tray (JEDEC)",
-    category: "Packaging",
-    location: "WH-B-12",
-    qty: 2100,
-    safetyStock: 500,
-    maxStock: 3000,
+    id: "GAS-C4F6",
+    name: "Etching Gas (C4F6)",
+    type: "GAS",
+    loc: "Gas-Bunker",
+    qty: 800,
+    safety: 200,
+    unit: "kg",
+    status: "NORMAL",
+    condition: "High Press",
+  },
+  {
+    id: "TGT-CU-01",
+    name: "Copper Target (Cu)",
+    type: "PART",
+    loc: "WH-B-05",
+    qty: 8,
+    safety: 10,
     unit: "ea",
-    lastUpdated: "2024-05-20 11:15",
+    status: "LOW",
+    condition: "Vacuum",
   },
   {
-    id: "RM-BM-005",
-    name: "Micro Bump (SnAg)",
-    category: "Raw Material",
-    location: "WH-A-04",
-    qty: 85000,
-    safetyStock: 10000,
-    maxStock: 100000,
-    unit: "ea",
-    lastUpdated: "2024-05-18 16:20",
-  },
-  {
-    id: "SP-FX-009",
-    name: "Soldering Flux",
-    category: "Chemical",
-    location: "WH-C-02",
-    qty: 25,
-    safetyStock: 20, // 주의 (Warning)
-    maxStock: 50,
-    unit: "btl",
-    lastUpdated: "2024-05-20 10:00",
-  },
-  {
-    id: "WP-ST-301",
-    name: "8-Hi Stacked Die (WIP)",
-    category: "WIP",
-    location: "LN-03-BF",
-    qty: 120,
-    safetyStock: 50,
-    maxStock: 500,
-    unit: "ea",
-    lastUpdated: "2024-05-20 13:45",
+    id: "MAT-EMC-G",
+    name: "Epoxy Molding Comp.",
+    type: "PKG",
+    loc: "WH-C-12",
+    qty: 500,
+    safety: 300,
+    unit: "kg",
+    status: "NORMAL",
+    condition: "Dry Box",
   },
 ];
 
 const InventoryPage = () => {
+  const [inventory, setInventory] = useState(MOCK_INVENTORY);
+  const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategory, setFilterCategory] = useState("All");
+
+  // API 호출
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API: http://localhost:3001/inventory
+      // const res = await axios.get("http://localhost:3001/inventory");
+      // setInventory(res.data);
+
+      setTimeout(() => {
+        setInventory(MOCK_INVENTORY);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // 필터링 로직
-  const filteredData = INVENTORY_DATA.filter((item) => {
-    const matchesSearch =
+  const filteredData = inventory.filter((item) => {
+    const matchType = filterType === "ALL" || item.type === filterType;
+    const matchSearch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      filterCategory === "All" || item.category === filterCategory;
-    return matchesSearch && matchesCategory;
+    return matchType && matchSearch;
   });
 
-  // 상태 계산 함수 (재고 수준에 따른 색상)
-  const getStatus = (qty, safety) => {
-    if (qty <= safety) return { label: "Low", color: "#e74c3c", bg: "#fadbd8" }; // 빨강
-    if (qty <= safety * 1.2)
-      return { label: "Warning", color: "#f39c12", bg: "#fdebd0" }; // 주황
-    return { label: "Normal", color: "#27ae60", bg: "#d5f5e3" }; // 초록
-  };
+  // KPI 계산
+  const totalItems = inventory.length;
+  const lowStockItems = inventory.filter((i) => i.qty <= i.safety).length;
+  const totalValue = 15.4; // 억원 (가정)
 
   return (
     <Container>
-      {/* 1. 상단 요약 카드 (Summary Stats) */}
-      <StatsRow>
-        <StatCard>
-          <IconWrapper $color="#3498db">
-            <FaBoxOpen />
-          </IconWrapper>
-          <StatInfo>
-            <StatLabel>총 품목 수</StatLabel>
-            <StatValue>{INVENTORY_DATA.length}</StatValue>
-          </StatInfo>
-        </StatCard>
-        <StatCard>
-          <IconWrapper $color="#e74c3c">
-            <FaExclamationTriangle />
-          </IconWrapper>
-          <StatInfo>
-            <StatLabel>재고 부족 (Low)</StatLabel>
-            <StatValue>1</StatValue> {/* 동적으로 계산 가능 */}
-          </StatInfo>
-        </StatCard>
-        <StatCard>
-          <IconWrapper $color="#2ecc71">
-            <FaArrowDown />
-          </IconWrapper>
-          <StatInfo>
-            <StatLabel>금일 입고 건수</StatLabel>
-            <StatValue>12</StatValue>
-          </StatInfo>
-        </StatCard>
-        <StatCard>
-          <IconWrapper $color="#9b59b6">
-            <FaHistory />
-          </IconWrapper>
-          <StatInfo>
-            <StatLabel>자재 회전율</StatLabel>
-            <StatValue>94%</StatValue>
-          </StatInfo>
-        </StatCard>
-      </StatsRow>
+      {/* 1. 헤더 */}
+      <Header>
+        <TitleArea>
+          <PageTitle>
+            <FaBoxOpen /> Material Inventory
+          </PageTitle>
+          <SubTitle>Warehouse Real-time Stock Monitoring</SubTitle>
+        </TitleArea>
+        <HeaderActions>
+          <ActionButton>
+            <FaHistory /> Transaction Log
+          </ActionButton>
+          <ActionButton $primary>
+            <FaPlus /> Stock In
+          </ActionButton>
+        </HeaderActions>
+      </Header>
 
-      {/* 2. 컨트롤 바 (검색 & 필터 & 버튼) */}
-      <ControlBar>
-        <LeftControls>
+      {/* 2. KPI 요약 */}
+      <StatsGrid>
+        <StatCard>
+          <IconBox $color="#1a4f8b">
+            <FaBoxOpen />
+          </IconBox>
+          <StatInfo>
+            <Label>Total SKU</Label>
+            <Value>{totalItems}</Value>
+          </StatInfo>
+        </StatCard>
+        <StatCard>
+          <IconBox $color="#e74c3c">
+            <FaExclamationTriangle />
+          </IconBox>
+          <StatInfo>
+            <Label>Low Stock Alert</Label>
+            <Value style={{ color: "#e74c3c" }}>
+              {lowStockItems} <small>items</small>
+            </Value>
+          </StatInfo>
+        </StatCard>
+        <StatCard>
+          <IconBox $color="#2ecc71">
+            <FaThermometerHalf />
+          </IconBox>
+          <StatInfo>
+            <Label>Storage Status</Label>
+            <Value style={{ fontSize: 18 }}>All Good</Value>
+          </StatInfo>
+        </StatCard>
+        <StatCard>
+          <IconBox $color="#f39c12">
+            <FaMicrochip />
+          </IconBox>
+          <StatInfo>
+            <Label>Total Asset Value</Label>
+            <Value>
+              ₩ {totalValue} <small>B</small>
+            </Value>
+          </StatInfo>
+        </StatCard>
+      </StatsGrid>
+
+      {/* 3. 리스트 및 컨트롤 */}
+      <ContentSection>
+        <ControlBar>
+          <FilterGroup>
+            <FilterBtn
+              $active={filterType === "ALL"}
+              onClick={() => setFilterType("ALL")}
+            >
+              All
+            </FilterBtn>
+            <FilterBtn
+              $active={filterType === "RAW"}
+              onClick={() => setFilterType("RAW")}
+            >
+              Raw Wafer
+            </FilterBtn>
+            <FilterBtn
+              $active={filterType === "CHEM"}
+              onClick={() => setFilterType("CHEM")}
+            >
+              Chemical
+            </FilterBtn>
+            <FilterBtn
+              $active={filterType === "GAS"}
+              onClick={() => setFilterType("GAS")}
+            >
+              Gas
+            </FilterBtn>
+            <FilterBtn
+              $active={filterType === "PKG"}
+              onClick={() => setFilterType("PKG")}
+            >
+              Packaging
+            </FilterBtn>
+          </FilterGroup>
           <SearchBox>
-            <FaSearch color="#999" />
-            <SearchInput
-              placeholder="품목명 또는 코드로 검색..."
+            <FaSearch color="#aaa" />
+            <input
+              placeholder="Search ID or Name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </SearchBox>
-          <SelectBox
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-          >
-            <option value="All">전체 카테고리</option>
-            <option value="Raw Material">원자재 (Raw)</option>
-            <option value="Chemical">화학 (Chemical)</option>
-            <option value="Packaging">포장재 (Packaging)</option>
-            <option value="WIP">재공품 (WIP)</option>
-          </SelectBox>
-        </LeftControls>
-        <RightControls>
-          <AddButton>
-            <FaPlus /> 자재 등록
-          </AddButton>
-        </RightControls>
-      </ControlBar>
+        </ControlBar>
 
-      {/* 3. 재고 목록 테이블 */}
-      <TableContainer>
-        <Table>
-          <thead>
-            <tr>
-              <th width="10%">Item Code</th>
-              <th width="20%">Item Name</th>
-              <th width="10%">Category</th>
-              <th width="10%">Location</th>
-              <th width="25%">Stock Level (Current / Max)</th>
-              <th width="10%">Qty</th>
-              <th width="10%">Status</th>
-              <th width="5%">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.map((item) => {
-              const status = getStatus(item.qty, item.safetyStock);
-              const percent = Math.min((item.qty / item.maxStock) * 100, 100);
+        <TableContainer>
+          <Table>
+            <thead>
+              <tr>
+                <th width="15%">Material ID</th>
+                <th>Material Name</th>
+                <th width="10%">Type</th>
+                <th width="12%">Location</th>
+                <th width="10%">Condition</th>
+                <th width="20%">Stock Level (Curr / Safety)</th>
+                <th width="10%">Qty</th>
+                <th width="10%">Status</th>
+                <th width="8%">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.map((item) => {
+                const percent = Math.min(
+                  (item.qty / (item.safety * 2)) * 100,
+                  100
+                );
+                const isLow = item.qty <= item.safety;
 
-              return (
-                <tr key={item.id}>
-                  <td className="code">{item.id}</td>
-                  <td className="name">{item.name}</td>
-                  <td>
-                    <CategoryBadge $type={item.category}>
-                      {item.category}
-                    </CategoryBadge>
-                  </td>
-                  <td>{item.location}</td>
-                  <td>
-                    {/* 재고 시각화 바 */}
-                    <StockBarWrapper>
-                      <StockBarBg>
-                        <StockBarFill
-                          $percent={percent}
-                          $color={status.color}
-                        />
-                      </StockBarBg>
-                      <StockText>{percent.toFixed(0)}%</StockText>
-                    </StockBarWrapper>
-                  </td>
-                  <td>
-                    <strong>{item.qty.toLocaleString()}</strong>{" "}
-                    <small>{item.unit}</small>
-                  </td>
-                  <td>
-                    <StatusBadge $color={status.color} $bg={status.bg}>
-                      {status.label}
-                    </StatusBadge>
-                  </td>
-                  <td>
-                    <ActionButton>More</ActionButton>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-      </TableContainer>
+                return (
+                  <tr key={item.id}>
+                    <td style={{ fontFamily: "monospace", color: "#555" }}>
+                      {item.id}
+                    </td>
+                    <td
+                      style={{
+                        fontWeight: "600",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                      }}
+                    >
+                      {item.type === "CHEM" ? (
+                        <FaFlask color="#e67e22" />
+                      ) : (
+                        <FaBoxOpen color="#1a4f8b" />
+                      )}
+                      {item.name}
+                    </td>
+                    <td>
+                      <TypeBadge $type={item.type}>{item.type}</TypeBadge>
+                    </td>
+                    <td>{item.loc}</td>
+                    <td style={{ fontSize: 12, color: "#666" }}>
+                      {item.condition}
+                    </td>
+                    <td>
+                      <ProgressWrapper>
+                        <ProgressBar>
+                          <ProgressFill $width={percent} $isLow={isLow} />
+                        </ProgressBar>
+                        <ProgressLabel>
+                          {item.qty} / {item.safety}
+                        </ProgressLabel>
+                      </ProgressWrapper>
+                    </td>
+                    <td style={{ fontWeight: "bold" }}>
+                      {item.qty} <small>{item.unit}</small>
+                    </td>
+                    <td>
+                      {isLow ? (
+                        <StatusBadge $status="LOW">Refill Req</StatusBadge>
+                      ) : (
+                        <StatusBadge $status="NORMAL">Normal</StatusBadge>
+                      )}
+                    </td>
+                    <td>
+                      <TableActionBtn>
+                        <FaMinus /> Issue
+                      </TableActionBtn>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </TableContainer>
+      </ContentSection>
     </Container>
   );
 };
@@ -253,26 +326,65 @@ const Container = styled.div`
   box-sizing: border-box;
 `;
 
-// 1. Stats Section
-const StatsRow = styled.div`
+const Header = styled.div`
   display: flex;
-  gap: 20px;
-  height: 100px;
-  flex-shrink: 0;
+  justify-content: space-between;
+  align-items: center;
 `;
-
-const StatCard = styled.div`
-  flex: 1;
-  background: white;
-  border-radius: 8px;
+const TitleArea = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+const PageTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  color: #333;
   display: flex;
   align-items: center;
-  padding: 0 25px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  gap: 20px;
+  gap: 10px;
+`;
+const SubTitle = styled.span`
+  font-size: 13px;
+  color: #888;
+  margin-top: 5px;
+  margin-left: 34px;
 `;
 
-const IconWrapper = styled.div`
+const HeaderActions = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+const ActionButton = styled.button`
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid ${(props) => (props.$primary ? "#1a4f8b" : "#ddd")};
+  background: ${(props) => (props.$primary ? "#1a4f8b" : "white")};
+  color: ${(props) => (props.$primary ? "white" : "#555")};
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+`;
+const StatCard = styled.div`
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+`;
+const IconBox = styled.div`
   width: 50px;
   height: 50px;
   border-radius: 12px;
@@ -283,222 +395,164 @@ const IconWrapper = styled.div`
   justify-content: center;
   font-size: 24px;
 `;
-
 const StatInfo = styled.div`
   display: flex;
   flex-direction: column;
 `;
-
-const StatLabel = styled.span`
+const Label = styled.span`
   font-size: 13px;
   color: #888;
   margin-bottom: 5px;
 `;
-
-const StatValue = styled.span`
+const Value = styled.span`
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 800;
   color: #333;
+  small {
+    font-size: 14px;
+    color: #888;
+    margin-left: 5px;
+  }
 `;
 
-// 2. Control Bar
+const ContentSection = styled.div`
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+`;
 const ControlBar = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 50px;
-  flex-shrink: 0;
+  margin-bottom: 20px;
 `;
-
-const LeftControls = styled.div`
+const FilterGroup = styled.div`
   display: flex;
-  gap: 15px;
+  gap: 8px;
 `;
-
-const RightControls = styled.div``;
-
+const FilterBtn = styled.button`
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid ${(props) => (props.$active ? "#1a4f8b" : "#eee")};
+  background: ${(props) => (props.$active ? "#1a4f8b" : "#f9f9f9")};
+  color: ${(props) => (props.$active ? "white" : "#666")};
+  &:hover {
+    background: ${(props) => (props.$active ? "#133b6b" : "#eee")};
+  }
+`;
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
-  background: white;
-  border: 1px solid #ddd;
+  background: #f5f5f5;
+  padding: 8px 12px;
   border-radius: 6px;
-  padding: 0 15px;
-  width: 300px;
-  height: 40px;
-
-  &:focus-within {
-    border-color: #1a4f8b;
+  input {
+    border: none;
+    background: transparent;
+    margin-left: 8px;
+    outline: none;
+    width: 200px;
   }
 `;
 
-const SearchInput = styled.input`
-  border: none;
-  margin-left: 10px;
-  outline: none;
-  font-size: 14px;
-  width: 100%;
-`;
-
-const SelectBox = styled.select`
-  height: 40px;
-  padding: 0 15px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  outline: none;
-  cursor: pointer;
-  background: white;
-  font-size: 14px;
-  color: #555;
-
-  &:focus {
-    border-color: #1a4f8b;
-  }
-`;
-
-const AddButton = styled.button`
-  background-color: #1a4f8b;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 0 20px;
-  height: 40px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: 0.2s;
-
-  &:hover {
-    background-color: #133b6b;
-  }
-`;
-
-// 3. Table
 const TableContainer = styled.div`
   flex: 1;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  overflow: hidden; /* 모서리 둥글게 */
-  display: flex;
-  flex-direction: column;
+  overflow-y: auto;
 `;
-
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
-
-  thead {
-    background-color: #f8f9fa;
-    tr {
-      height: 50px;
-      border-bottom: 2px solid #eee;
-    }
-    th {
-      text-align: left;
-      padding: 0 20px;
-      color: #555;
-      font-weight: 600;
-    }
+  th {
+    text-align: left;
+    padding: 12px;
+    background: #f9f9f9;
+    color: #666;
+    border-bottom: 1px solid #eee;
+    position: sticky;
+    top: 0;
   }
-
-  tbody {
-    tr {
-      height: 60px;
-      border-bottom: 1px solid #f0f0f0;
-      transition: background-color 0.2s;
-
-      &:hover {
-        background-color: #f9fbff;
-      }
-    }
-    td {
-      padding: 0 20px;
-      color: #333;
-      vertical-align: middle;
-
-      &.code {
-        font-family: monospace;
-        color: #666;
-      }
-      &.name {
-        font-weight: 600;
-      }
-    }
+  td {
+    padding: 12px;
+    border-bottom: 1px solid #f5f5f5;
+    color: #333;
+    vertical-align: middle;
   }
 `;
-
-// 배지 및 시각화 컴포넌트
-const CategoryBadge = styled.span`
-  padding: 4px 8px;
+const TypeBadge = styled.span`
+  padding: 3px 8px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 11px;
+  font-weight: 700;
   background-color: ${(props) =>
-    props.$type === "Raw Material"
+    props.$type === "CHEM"
+      ? "#ffebee"
+      : props.$type === "GAS"
       ? "#e3f2fd"
-      : props.$type === "Chemical"
-      ? "#f3e5f5"
-      : "#fff3e0"};
+      : props.$type === "RAW"
+      ? "#e8f5e9"
+      : "#f3e5f5"};
   color: ${(props) =>
-    props.$type === "Raw Material"
-      ? "#1976d2"
-      : props.$type === "Chemical"
-      ? "#7b1fa2"
-      : "#e65100"};
+    props.$type === "CHEM"
+      ? "#c62828"
+      : props.$type === "GAS"
+      ? "#1565c0"
+      : props.$type === "RAW"
+      ? "#2e7d32"
+      : "#7b1fa2"};
 `;
-
-const StatusBadge = styled.span`
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 600;
-  background-color: ${(props) => props.$bg};
-  color: ${(props) => props.$color};
-`;
-
-const StockBarWrapper = styled.div`
+const ProgressWrapper = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-`;
-
-const StockBarBg = styled.div`
   width: 100%;
-  height: 8px;
-  background-color: #eee;
-  border-radius: 4px;
+`;
+const ProgressBar = styled.div`
+  flex: 1;
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
   overflow: hidden;
 `;
-
-const StockBarFill = styled.div`
-  width: ${(props) => props.$percent}%;
+const ProgressFill = styled.div`
   height: 100%;
-  background-color: ${(props) => props.$color};
-  border-radius: 4px;
+  width: ${(props) => props.$width}%;
+  background-color: ${(props) => (props.$isLow ? "#e74c3c" : "#2ecc71")};
+  transition: width 0.3s;
 `;
-
-const StockText = styled.span`
-  font-size: 12px;
-  color: #888;
-  width: 35px; /* 고정 너비 */
+const ProgressLabel = styled.span`
+  font-size: 11px;
+  color: #666;
+  width: 80px;
   text-align: right;
 `;
-
-const ActionButton = styled.button`
-  background: transparent;
-  border: 1px solid #ddd;
+const StatusBadge = styled.span`
+  font-size: 11px;
+  font-weight: 700;
+  color: ${(props) => (props.$status === "LOW" ? "#e74c3c" : "#2ecc71")};
+  background: ${(props) => (props.$status === "LOW" ? "#ffebee" : "#e8f5e9")};
+  padding: 3px 6px;
   border-radius: 4px;
+`;
+const TableActionBtn = styled.button`
+  border: 1px solid #ddd;
+  background: white;
   padding: 4px 8px;
+  border-radius: 4px;
   cursor: pointer;
-  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 12px;
-
   &:hover {
     background: #f5f5f5;
-    color: #333;
   }
 `;

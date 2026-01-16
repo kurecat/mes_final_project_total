@@ -1,532 +1,473 @@
-// src/pages/system/RolesPage.js
-import React, { useState } from "react";
+// src/pages/admin/RolesPage.js
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import {
   FaUserShield,
-  FaShieldAlt,
-  FaPlus,
-  FaSave,
+  FaLock,
   FaCheck,
-  FaTimes,
-  FaEdit,
-  FaTrash,
-  FaSearch,
+  FaPlus,
+  FaTrashAlt,
+  FaSave,
+  FaUserFriends,
 } from "react-icons/fa";
 
-// --- Mock Data ---
-
-// 1. 역할 목록 (Role List)
-const ROLE_LIST = [
-  {
-    id: "ROLE_ADMIN",
-    name: "System Administrator",
-    desc: "전체 시스템 접근 및 설정 권한",
-    users: 2,
-    type: "SYSTEM",
-  },
-  {
-    id: "ROLE_MANAGER",
-    name: "Production Manager",
-    desc: "생산 계획 및 기준 정보 승인 권한",
-    users: 5,
-    type: "CUSTOM",
-  },
-  {
-    id: "ROLE_ENGINEER",
-    name: "Process Engineer",
-    desc: "공정 라우팅 및 설비 설정 권한",
-    users: 12,
-    type: "CUSTOM",
-  },
-  {
-    id: "ROLE_OPERATOR",
-    name: "Line Operator",
-    desc: "작업 지시 조회 및 실적 등록 권한",
-    users: 45,
-    type: "CUSTOM",
-  },
-  {
-    id: "ROLE_QUALITY",
-    name: "Quality Inspector",
-    desc: "품질 검사 및 불량 판정 권한",
-    users: 8,
-    type: "CUSTOM",
-  },
-];
-
-// 2. 전체 메뉴 구조 (Permissions Structure)
-const MENU_STRUCTURE = [
-  {
-    category: "Monitoring",
-    menus: [
-      { id: "DASHBOARD", name: "Dashboard (종합 상황판)" },
-      { id: "KPI", name: "KPI Analytics" },
-    ],
-  },
-  {
-    category: "Production",
-    menus: [
-      { id: "PLAN", name: "Production Plan (생산 계획)" },
-      { id: "WORK_ORDER", name: "Work Order (작업 지시)" },
-      { id: "PERFORMANCE", name: "Performance (실적 현황)" },
-      { id: "WORKER", name: "Worker Assign (작업자 배치)" },
-    ],
-  },
-  {
-    category: "Quality",
-    menus: [
-      { id: "STD", name: "Inspection Standard (검사 기준)" },
-      { id: "DEFECT", name: "Defect Management (불량 관리)" },
-      { id: "TRACKING", name: "Lot Tracking (이력 추적)" },
-    ],
-  },
-  {
-    category: "Master Data",
-    menus: [
-      { id: "ITEM", name: "Item Master (품목)" },
-      { id: "BOM", name: "BOM Management" },
-      { id: "ROUTING", name: "Routing (공정)" },
-      { id: "EQUIP", name: "Equipment (설비)" },
-    ],
-  },
-  {
-    category: "System",
-    menus: [
-      { id: "USER", name: "User Management" },
-      { id: "ROLE", name: "Role & Permission" },
-      { id: "CODE", name: "Common Code" },
-      { id: "LOG", name: "System Log" },
-    ],
-  },
-];
-
-// 3. (가상) 선택된 권한 데이터 생성 함수
-const generateMockPermissions = (roleId) => {
-  // 예시: Admin은 전부 True, Operator는 일부만 True
-  return MENU_STRUCTURE.flatMap((group) =>
-    group.menus.map((menu) => ({
-      menuId: menu.id,
-      read:
-        roleId === "ROLE_ADMIN"
-          ? true
-          : roleId === "ROLE_OPERATOR"
-          ? ["WORK_ORDER", "PERFORMANCE"].includes(menu.id)
-          : Math.random() > 0.3,
-      write:
-        roleId === "ROLE_ADMIN"
-          ? true
-          : roleId === "ROLE_OPERATOR"
-          ? ["PERFORMANCE"].includes(menu.id)
-          : Math.random() > 0.6,
-    }))
-  );
-};
-
 const RolesPage = () => {
-  const [roles, setRoles] = useState(ROLE_LIST);
-  const [selectedRole, setSelectedRole] = useState(ROLE_LIST[0]);
-  const [permissions, setPermissions] = useState(
-    generateMockPermissions(ROLE_LIST[0].id)
-  );
-  const [isEditing, setIsEditing] = useState(false);
+  // --- State ---
+  const [roles, setRoles] = useState([]);
+  const [allPermissions, setAllPermissions] = useState([]);
+  const [selectedRole, setSelectedRole] = useState(null);
+  const [editedPermissionIds, setEditedPermissionIds] = useState([]);
+  const [isDirty, setIsDirty] = useState(false);
 
-  // 역할 선택 핸들러
-  const handleRoleClick = (role) => {
-    setSelectedRole(role);
-    setPermissions(generateMockPermissions(role.id)); // 실제론 서버에서 가져옴
-    setIsEditing(false);
-  };
+  // --- Fetch Data ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const baseUrl = "http://localhost:3001";
+        const [rolesRes, permsRes] = await Promise.all([
+          fetch(`${baseUrl}/roles`),
+          fetch(`${baseUrl}/permissions`),
+        ]);
 
-  // 권한 토글 핸들러
-  const togglePermission = (menuId, type) => {
-    if (!isEditing) return; // 편집 모드 아닐 땐 수정 불가
+        const rolesData = await rolesRes.json();
+        const permsData = await permsRes.json();
 
-    setPermissions((prev) =>
-      prev.map((p) => {
-        if (p.menuId === menuId) {
-          return { ...p, [type]: !p[type] };
+        setRoles(rolesData);
+        setAllPermissions(permsData);
+
+        // Default select first role
+        if (rolesData.length > 0) {
+          handleSelectRole(rolesData[0]);
         }
-        return p;
-      })
-    );
+      } catch (err) {
+        console.error("Error loading roles:", err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // --- Helpers ---
+  const handleSelectRole = (role) => {
+    setSelectedRole(role);
+    setEditedPermissionIds([...role.permissionIds]); // Deep copy for editing
+    setIsDirty(false);
   };
 
-  // 저장 핸들러
-  const handleSave = () => {
-    // API Call Logic Here
-    alert(`Permissions for [${selectedRole.name}] saved successfully.`);
-    setIsEditing(false);
+  const handleTogglePermission = (permId) => {
+    if (selectedRole?.isSystem && selectedRole.id === "ROLE_ADMIN") return; // Protect Admin
+
+    setEditedPermissionIds((prev) => {
+      const exists = prev.includes(permId);
+      if (exists) {
+        return prev.filter((id) => id !== permId);
+      } else {
+        return [...prev, permId];
+      }
+    });
+    setIsDirty(true);
   };
+
+  const handleSave = () => {
+    // In Real App: API PUT request here
+    const updatedRoles = roles.map((r) =>
+      r.id === selectedRole.id
+        ? { ...r, permissionIds: editedPermissionIds }
+        : r
+    );
+    setRoles(updatedRoles);
+
+    // Update selected role ref
+    const updatedSelected = updatedRoles.find((r) => r.id === selectedRole.id);
+    setSelectedRole(updatedSelected);
+    setIsDirty(false);
+
+    alert(`Permissions for ${selectedRole.name} saved successfully!`);
+  };
+
+  // Group permissions by 'group' field for rendering
+  const groupedPermissions = useMemo(() => {
+    const groups = {};
+    allPermissions.forEach((p) => {
+      if (!groups[p.group]) groups[p.group] = [];
+      groups[p.group].push(p);
+    });
+    return groups;
+  }, [allPermissions]);
 
   return (
     <Container>
-      {/* 1. 좌측: 역할 목록 */}
-      <Sidebar>
-        <SidebarHeader>
-          <Title>
-            <FaUserShield /> Role Management
-          </Title>
-          <AddButton>
-            <FaPlus /> Create Role
-          </AddButton>
-        </SidebarHeader>
+      <Header>
+        <TitleGroup>
+          <FaUserShield size={24} color="#34495e" />
+          <h1>Role & Permission Management</h1>
+        </TitleGroup>
+      </Header>
 
-        <RoleList>
-          {roles.map((role) => (
-            <RoleItem
-              key={role.id}
-              $active={selectedRole.id === role.id}
-              onClick={() => handleRoleClick(role)}
-            >
-              <RoleIconWrapper $active={selectedRole.id === role.id}>
-                <FaShieldAlt />
-              </RoleIconWrapper>
-              <RoleInfo>
-                <RoleName>{role.name}</RoleName>
-                <RoleDesc>{role.users} Users Assigned</RoleDesc>
-              </RoleInfo>
-              {role.type === "SYSTEM" && <SystemBadge>SYS</SystemBadge>}
-            </RoleItem>
-          ))}
-        </RoleList>
-      </Sidebar>
-
-      {/* 2. 우측: 권한 매트릭스 */}
       <ContentArea>
-        <HeaderSection>
-          <HeaderLeft>
-            <HeaderTitle>Permission Settings: {selectedRole.name}</HeaderTitle>
-            <HeaderDesc>{selectedRole.desc}</HeaderDesc>
-          </HeaderLeft>
-          <HeaderRight>
-            {isEditing ? (
-              <>
-                <Button onClick={() => setIsEditing(false)}>Cancel</Button>
-                <Button $primary onClick={handleSave}>
-                  <FaSave /> Save Changes
-                </Button>
-              </>
-            ) : (
-              <Button
-                $primary
-                onClick={() => setIsEditing(true)}
-                disabled={selectedRole.type === "SYSTEM"}
+        {/* Left Panel: Role List */}
+        <RoleListPanel>
+          <PanelHeader>
+            <h3>Roles</h3>
+            <AddButton>
+              <FaPlus />
+            </AddButton>
+          </PanelHeader>
+          <ListContainer>
+            {roles.map((role) => (
+              <RoleCard
+                key={role.id}
+                $active={selectedRole?.id === role.id}
+                onClick={() =>
+                  isDirty
+                    ? alert("Please save changes first.")
+                    : handleSelectRole(role)
+                }
               >
-                <FaEdit /> Edit Permissions
-              </Button>
-            )}
-          </HeaderRight>
-        </HeaderSection>
+                <RoleHeader>
+                  <RoleName>{role.name}</RoleName>
+                  {role.isSystem && <SystemBadge>System</SystemBadge>}
+                </RoleHeader>
+                <RoleDesc>{role.description}</RoleDesc>
+                <RoleMeta>
+                  <FaUserFriends /> {role.userCount} Users assigned
+                </RoleMeta>
+              </RoleCard>
+            ))}
+          </ListContainer>
+        </RoleListPanel>
 
-        <MatrixContainer>
-          <Table>
-            <thead>
-              <tr>
-                <th width="20%">Category</th>
-                <th width="40%">Menu Name</th>
-                <th width="20%" align="center">
-                  Read (Access)
-                </th>
-                <th width="20%" align="center">
-                  Write (Edit/Delete)
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {MENU_STRUCTURE.map((group, gIdx) => (
-                <React.Fragment key={group.category}>
-                  {/* 그룹 헤더 */}
-                  <GroupRow>
-                    <td colSpan="4">{group.category}</td>
-                  </GroupRow>
+        {/* Right Panel: Permission Matrix */}
+        <PermissionPanel>
+          {selectedRole ? (
+            <>
+              <DetailHeader>
+                <div>
+                  <h2 style={{ margin: 0, color: "#333" }}>
+                    {selectedRole.name}
+                  </h2>
+                  <span style={{ fontSize: 13, color: "#666" }}>
+                    Manage permissions for this role
+                  </span>
+                </div>
+                <ActionGroup>
+                  {isDirty && (
+                    <SaveBtn onClick={handleSave}>
+                      <FaSave /> Save Changes
+                    </SaveBtn>
+                  )}
+                  {!selectedRole.isSystem && (
+                    <DeleteBtn>
+                      <FaTrashAlt />
+                    </DeleteBtn>
+                  )}
+                </ActionGroup>
+              </DetailHeader>
 
-                  {/* 메뉴 리스트 */}
-                  {group.menus.map((menu, mIdx) => {
-                    const perm = permissions.find(
-                      (p) => p.menuId === menu.id
-                    ) || { read: false, write: false };
-                    return (
-                      <tr key={menu.id}>
-                        {/* 카테고리 명은 첫 번째 행에만 표시하거나 비워둠 */}
-                        <td></td>
-                        <td style={{ fontWeight: 500 }}>{menu.name}</td>
-
-                        {/* Read Checkbox */}
-                        <td align="center">
-                          <CheckboxWrapper
-                            $checked={perm.read}
-                            $disabled={!isEditing}
-                            onClick={() => togglePermission(menu.id, "read")}
+              <MatrixContainer>
+                {Object.keys(groupedPermissions).map((groupName) => (
+                  <GroupSection key={groupName}>
+                    <GroupTitle>{groupName}</GroupTitle>
+                    <Grid>
+                      {groupedPermissions[groupName].map((perm) => {
+                        const isChecked = editedPermissionIds.includes(perm.id);
+                        return (
+                          <PermCard
+                            key={perm.id}
+                            $checked={isChecked}
+                            onClick={() => handleTogglePermission(perm.id)}
                           >
-                            {perm.read && <FaCheck size={12} color="white" />}
-                          </CheckboxWrapper>
-                        </td>
-
-                        {/* Write Checkbox */}
-                        <td align="center">
-                          <CheckboxWrapper
-                            $checked={perm.write}
-                            $disabled={!isEditing}
-                            onClick={() => togglePermission(menu.id, "write")}
-                          >
-                            {perm.write && <FaCheck size={12} color="white" />}
-                          </CheckboxWrapper>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </Table>
-        </MatrixContainer>
+                            <Checkbox $checked={isChecked}>
+                              {isChecked && <FaCheck size={10} color="white" />}
+                            </Checkbox>
+                            <PermInfo>
+                              <PermName>{perm.name}</PermName>
+                              <PermDesc>{perm.description}</PermDesc>
+                            </PermInfo>
+                          </PermCard>
+                        );
+                      })}
+                    </Grid>
+                  </GroupSection>
+                ))}
+              </MatrixContainer>
+            </>
+          ) : (
+            <EmptyState>Select a role to view permissions</EmptyState>
+          )}
+        </PermissionPanel>
       </ContentArea>
     </Container>
   );
 };
 
 export default RolesPage;
-
 // --- Styled Components ---
 
+// 1. 컨테이너: 부모 높이(100%)에 맞추고 외부 스크롤 방지
 const Container = styled.div`
   width: 100%;
   height: 100%;
-  display: flex;
+  padding: 20px;
   background-color: #f5f6fa;
-  box-sizing: border-box;
-`;
-
-// Sidebar
-const Sidebar = styled.div`
-  width: 320px;
-  background: white;
-  border-right: 1px solid #ddd;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+`;
+
+const Header = styled.div`
+  margin-bottom: 20px;
   flex-shrink: 0;
 `;
 
-const SidebarHeader = styled.div`
-  padding: 20px;
-  border-bottom: 1px solid #eee;
-`;
-
-const Title = styled.h2`
-  font-size: 18px;
-  margin: 0 0 15px 0;
-  color: #333;
+const TitleGroup = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
+  h1 {
+    font-size: 24px;
+    color: #2c3e50;
+    margin: 0;
+  }
+`;
+
+// 2. 메인 콘텐츠 영역: 남은 높이 차지 및 내부 스크롤 제어
+const ContentArea = styled.div`
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0; /* Flex 자식 요소 스크롤 버그 방지 */
+`;
+
+// Left Panel
+const RoleListPanel = styled.div`
+  width: 320px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 패널 자체 스크롤 방지 */
+`;
+
+const PanelHeader = styled.div`
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+  }
 `;
 
 const AddButton = styled.button`
-  width: 100%;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &:hover {
+    background: #eee;
+  }
+`;
+
+const ListContainer = styled.div`
+  flex: 1;
+  overflow-y: auto; /* 리스트 내부 스크롤 */
   padding: 10px;
-  background: #1a4f8b;
-  color: white;
-  border: none;
+`;
+
+const RoleCard = styled.div`
+  background: ${(props) => (props.$active ? "#e8f0fe" : "white")};
+  border: 1px solid ${(props) => (props.$active ? "#3498db" : "#eee")};
+  padding: 15px;
   border-radius: 6px;
-  font-weight: 600;
+  margin-bottom: 8px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  transition: all 0.2s;
   &:hover {
-    background: #133b6b;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    border-color: #3498db;
   }
 `;
 
-const RoleList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-`;
-
-const RoleItem = styled.div`
-  padding: 15px 20px;
-  border-bottom: 1px solid #f5f5f5;
-  cursor: pointer;
+const RoleHeader = styled.div`
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 15px;
-  background-color: ${(props) => (props.$active ? "#eef2f8" : "white")};
-  border-left: 4px solid
-    ${(props) => (props.$active ? "#1a4f8b" : "transparent")};
-
-  &:hover {
-    background-color: #f9f9f9;
-  }
-`;
-
-const RoleIconWrapper = styled.div`
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background-color: ${(props) => (props.$active ? "#1a4f8b" : "#eee")};
-  color: ${(props) => (props.$active ? "white" : "#999")};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-`;
-
-const RoleInfo = styled.div`
-  flex: 1;
+  margin-bottom: 5px;
 `;
 
 const RoleName = styled.div`
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700;
   color: #333;
+  font-size: 15px;
+`;
+
+const SystemBadge = styled.span`
+  background: #eee;
+  color: #555;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
 `;
 
 const RoleDesc = styled.div`
   font-size: 12px;
-  color: #888;
-  margin-top: 3px;
+  color: #666;
+  margin-bottom: 10px;
+  line-height: 1.4;
 `;
 
-const SystemBadge = styled.span`
-  font-size: 10px;
-  padding: 2px 6px;
-  background: #333;
-  color: white;
-  border-radius: 4px;
-  font-weight: 700;
+const RoleMeta = styled.div`
+  font-size: 11px;
+  color: #999;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 `;
 
-// Content Area
-const ContentArea = styled.div`
+// Right Panel
+const PermissionPanel = styled.div`
   flex: 1;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: hidden; /* 패널 자체 스크롤 방지 */
 `;
 
-const HeaderSection = styled.div`
-  padding: 20px 30px;
-  background: white;
-  border-bottom: 1px solid #ddd;
+const DetailHeader = styled.div`
+  padding: 20px;
+  border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: #fdfdfd;
+  flex-shrink: 0;
 `;
 
-const HeaderLeft = styled.div``;
-
-const HeaderTitle = styled.h1`
-  margin: 0;
-  font-size: 20px;
-  color: #333;
-`;
-
-const HeaderDesc = styled.div`
-  margin-top: 5px;
-  font-size: 14px;
-  color: #666;
-`;
-
-const HeaderRight = styled.div`
+const ActionGroup = styled.div`
   display: flex;
   gap: 10px;
 `;
 
-const Button = styled.button`
+const SaveBtn = styled.button`
+  background: #2ecc71;
+  color: white;
+  border: none;
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: 4px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid ${(props) => (props.$primary ? "#1a4f8b" : "#ddd")};
-  background: ${(props) => (props.$primary ? "#1a4f8b" : "white")};
-  color: ${(props) => (props.$primary ? "white" : "#555")};
-
+  gap: 8px;
   &:hover {
-    opacity: 0.9;
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+    background: #27ae60;
   }
 `;
 
-// Matrix Table
-const MatrixContainer = styled.div`
-  flex: 1;
-  padding: 20px 30px;
-  overflow-y: auto;
-`;
-
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  overflow: hidden;
-
-  thead {
-    background-color: #f1f3f5;
-    position: sticky;
-    top: 0;
-    th {
-      padding: 12px;
-      text-align: left;
-      font-weight: 700;
-      color: #555;
-      border-bottom: 1px solid #ddd;
-
-      &:not(:first-child) {
-        text-align: center;
-      }
-    }
-  }
-
-  tbody {
-    tr {
-      border-bottom: 1px solid #eee;
-    }
-    td {
-      padding: 10px 12px;
-      color: #333;
-      vertical-align: middle;
-    }
-    tr:hover {
-      background-color: #f8fbff;
-    }
-  }
-`;
-
-const GroupRow = styled.tr`
-  background-color: #fafafa;
-  font-weight: 700;
-  color: #1a4f8b !important;
-  td {
-    padding: 12px 15px !important;
-    background-color: #fcfcfc;
-    border-bottom: 2px solid #eee !important;
-  }
-`;
-
-const CheckboxWrapper = styled.div`
-  width: 20px;
-  height: 20px;
+const DeleteBtn = styled.button`
+  background: #fff;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+  padding: 8px 12px;
   border-radius: 4px;
-  border: 1px solid ${(props) => (props.$checked ? "#1a4f8b" : "#ccc")};
-  background-color: ${(props) => (props.$checked ? "#1a4f8b" : "white")};
+  cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: ${(props) => (props.$disabled ? "not-allowed" : "pointer")};
-  opacity: ${(props) => (props.$disabled ? 0.6 : 1)};
-  margin: 0 auto;
+  &:hover {
+    background: #ffebee;
+  }
+`;
+
+const MatrixContainer = styled.div`
+  flex: 1;
+  overflow-y: auto; /* 매트릭스 내부 스크롤 */
+  padding: 20px;
+`;
+
+const GroupSection = styled.div`
+  margin-bottom: 30px;
+`;
+
+const GroupTitle = styled.h4`
+  margin: 0 0 15px 0;
+  color: #34495e;
+  font-size: 14px;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 5px;
+  display: inline-block;
+`;
+
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+`;
+
+const PermCard = styled.div`
+  display: flex;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid ${(props) => (props.$checked ? "#3498db" : "#eee")};
+  background: ${(props) => (props.$checked ? "#f4f9ff" : "white")};
+  border-radius: 6px;
+  cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    border-color: ${(props) => (props.$disabled ? "#ccc" : "#1a4f8b")};
+    border-color: #3498db;
   }
+`;
+
+const Checkbox = styled.div`
+  width: 18px;
+  height: 18px;
+  border: 2px solid ${(props) => (props.$checked ? "#3498db" : "#ccc")};
+  background: ${(props) => (props.$checked ? "#3498db" : "white")};
+  border-radius: 4px;
+  margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+`;
+
+const PermInfo = styled.div`
+  flex: 1;
+`;
+
+const PermName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+`;
+
+const PermDesc = styled.div`
+  font-size: 11px;
+  color: #777;
+`;
+
+const EmptyState = styled.div`
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ccc;
+  font-size: 16px;
 `;

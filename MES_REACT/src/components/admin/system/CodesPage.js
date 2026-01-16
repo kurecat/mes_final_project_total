@@ -1,422 +1,204 @@
-// src/pages/system/CodesPage.js
-import React, { useState } from "react";
+// src/pages/admin/CodesPage.js
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import {
   FaFolder,
   FaFolderOpen,
   FaTag,
-  FaSearch,
   FaPlus,
+  FaSearch,
   FaEdit,
-  FaTrash,
-  FaSave,
-  FaTimes,
-  FaCheckCircle,
-  FaBan,
+  FaTrashAlt,
+  FaCheck,
+  FaDatabase,
 } from "react-icons/fa";
 
-// --- Mock Data ---
-// 1. 코드 그룹 (Master)
-const CODE_GROUPS = [
-  {
-    id: "DEFECT_TYPE",
-    name: "불량 유형 코드",
-    desc: "공정 불량 분류 기준",
-    useYn: "Y",
-  },
-  {
-    id: "UNIT_TYPE",
-    name: "단위 코드 (Unit)",
-    desc: "자재 및 제품 수량 단위",
-    useYn: "Y",
-  },
-  {
-    id: "MAT_TYPE",
-    name: "자재 유형",
-    desc: "원자재, 부자재, 반제품 구분",
-    useYn: "Y",
-  },
-  {
-    id: "EQ_STATUS",
-    name: "설비 상태 코드",
-    desc: "가동, 비가동, 고장 등",
-    useYn: "Y",
-  },
-  {
-    id: "PROCESS_TYPE",
-    name: "공정 구분",
-    desc: "세정, 가공, 검사 등",
-    useYn: "Y",
-  },
-];
-
-// 2. 상세 코드 (Detail)
-const CODE_DETAILS = [
-  // 불량 유형
-  {
-    groupId: "DEFECT_TYPE",
-    code: "DF_001",
-    name: "Scratch",
-    sort: 1,
-    useYn: "Y",
-    desc: "표면 긁힘",
-  },
-  {
-    groupId: "DEFECT_TYPE",
-    code: "DF_002",
-    name: "Void",
-    sort: 2,
-    useYn: "Y",
-    desc: "내부 기포 발생",
-  },
-  {
-    groupId: "DEFECT_TYPE",
-    code: "DF_003",
-    name: "Crack",
-    sort: 3,
-    useYn: "Y",
-    desc: "칩 깨짐",
-  },
-  {
-    groupId: "DEFECT_TYPE",
-    code: "DF_004",
-    name: "Contamination",
-    sort: 4,
-    useYn: "N",
-    desc: "이물질 오염 (사용 중지)",
-  },
-
-  // 단위
-  {
-    groupId: "UNIT_TYPE",
-    code: "EA",
-    name: "Each (개)",
-    sort: 1,
-    useYn: "Y",
-    desc: "낱개 단위",
-  },
-  {
-    groupId: "UNIT_TYPE",
-    code: "KG",
-    name: "Kilogram",
-    sort: 2,
-    useYn: "Y",
-    desc: "중량 단위",
-  },
-  {
-    groupId: "UNIT_TYPE",
-    code: "L",
-    name: "Liter",
-    sort: 3,
-    useYn: "Y",
-    desc: "액체 부피",
-  },
-];
-
 const CodesPage = () => {
-  const [groups, setGroups] = useState(CODE_GROUPS);
-  const [details, setDetails] = useState(CODE_DETAILS);
-
-  const [selectedGroup, setSelectedGroup] = useState(CODE_GROUPS[0]);
+  // --- State ---
+  const [groups, setGroups] = useState([]);
+  const [allCodes, setAllCodes] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 모달 상태
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState("DETAIL"); // GROUP or DETAIL
-  const [formData, setFormData] = useState({});
+  // --- Data Fetching ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const baseUrl = "http://localhost:3001";
+        const [grpRes, codeRes] = await Promise.all([
+          fetch(`${baseUrl}/codeGroups`),
+          fetch(`${baseUrl}/commonCodes`),
+        ]);
 
-  // 필터링된 그룹 목록
-  const filteredGroups = groups.filter(
-    (g) =>
-      g.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      g.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+        const grpData = await grpRes.json();
+        const codeData = await codeRes.json();
 
-  // 선택된 그룹의 상세 코드 목록
-  const currentDetails = details.filter((d) => d.groupId === selectedGroup.id);
+        setGroups(grpData);
+        setAllCodes(codeData);
 
-  // 모달 열기
-  const openModal = (type, data = null) => {
-    setModalType(type);
-    if (data) {
-      setFormData(data); // 수정 모드
-    } else {
-      // 추가 모드 (초기값)
-      setFormData(
-        type === "GROUP"
-          ? { id: "", name: "", desc: "", useYn: "Y" }
-          : {
-              groupId: selectedGroup.id,
-              code: "",
-              name: "",
-              sort: currentDetails.length + 1,
-              useYn: "Y",
-              desc: "",
-            }
+        // Default selection
+        if (grpData.length > 0) setSelectedGroup(grpData[0]);
+      } catch (err) {
+        console.error("Failed to load codes:", err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // --- Filtering Logic ---
+  const currentCodes = useMemo(() => {
+    if (!selectedGroup) return [];
+
+    // 1. Filter by Group
+    let filtered = allCodes.filter((c) => c.groupId === selectedGroup.id);
+
+    // 2. Filter by Search
+    if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (c) =>
+          c.code.toLowerCase().includes(lower) ||
+          c.name.toLowerCase().includes(lower)
       );
     }
-    setIsModalOpen(true);
-  };
 
-  // 저장 핸들러 (Mock)
-  const handleSave = () => {
-    if (modalType === "GROUP") {
-      // 그룹 저장 로직 (중복 체크 생략)
-      const exists = groups.find((g) => g.id === formData.id);
-      if (exists) {
-        setGroups(groups.map((g) => (g.id === formData.id ? formData : g)));
-      } else {
-        setGroups([...groups, formData]);
-      }
-    } else {
-      // 상세 코드 저장 로직
-      const exists = details.find(
-        (d) => d.code === formData.code && d.groupId === formData.groupId
-      );
-      if (exists) {
-        setDetails(
-          details.map((d) =>
-            d.code === formData.code && d.groupId === formData.groupId
-              ? formData
-              : d
-          )
-        );
-      } else {
-        setDetails([...details, formData]);
-      }
-    }
-    setIsModalOpen(false);
+    // 3. Sort by SortOrder
+    return filtered.sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [selectedGroup, allCodes, searchTerm]);
+
+  // --- Handlers (Mock UI Only) ---
+  const handleToggleActive = (codeId) => {
+    // In real app: PUT API request here
+    const updated = allCodes.map((c) =>
+      c.id === codeId ? { ...c, isActive: !c.isActive } : c
+    );
+    setAllCodes(updated);
   };
 
   return (
     <Container>
-      {/* 1. 좌측: 코드 그룹 목록 (Master) */}
-      <Sidebar>
-        <SidebarHeader>
-          <Title>
-            <FaFolderOpen /> Code Groups
-          </Title>
-          <SearchBox>
-            <FaSearch color="#aaa" />
-            <input
-              placeholder="Search Group..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </SearchBox>
-          <AddButton onClick={() => openModal("GROUP")}>
-            <FaPlus /> New Group
-          </AddButton>
-        </SidebarHeader>
+      <Header>
+        <TitleGroup>
+          <FaDatabase size={22} color="#34495e" />
+          <h1>Common Code Management</h1>
+        </TitleGroup>
+      </Header>
 
-        <GroupList>
-          {filteredGroups.map((group) => (
-            <GroupItem
-              key={group.id}
-              $active={selectedGroup.id === group.id}
-              onClick={() => setSelectedGroup(group)}
-            >
-              <GroupIcon>
-                {selectedGroup.id === group.id ? (
-                  <FaFolderOpen />
+      <SplitView>
+        {/* Left Panel: Code Groups */}
+        <LeftPanel>
+          <PanelHeader>
+            <h3>Code Groups</h3>
+            <IconButton>
+              <FaPlus />
+            </IconButton>
+          </PanelHeader>
+          <GroupList>
+            {groups.map((group) => (
+              <GroupItem
+                key={group.id}
+                $active={selectedGroup?.id === group.id}
+                onClick={() => {
+                  setSelectedGroup(group);
+                  setSearchTerm(""); // Reset search on group change
+                }}
+              >
+                <IconWrapper>
+                  {selectedGroup?.id === group.id ? (
+                    <FaFolderOpen color="#3498db" />
+                  ) : (
+                    <FaFolder color="#95a5a6" />
+                  )}
+                </IconWrapper>
+                <GroupInfo>
+                  <GroupName>{group.name}</GroupName>
+                  <GroupDesc>{group.id}</GroupDesc>
+                </GroupInfo>
+                {group.isSystem && <SystemBadge>Sys</SystemBadge>}
+              </GroupItem>
+            ))}
+          </GroupList>
+        </LeftPanel>
+
+        {/* Right Panel: Detail Codes */}
+        <RightPanel>
+          <PanelHeader>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <h3>{selectedGroup ? selectedGroup.name : "Select Group"}</h3>
+              <SubText>{selectedGroup?.description}</SubText>
+            </div>
+            <ActionArea>
+              <SearchBox>
+                <FaSearch color="#aaa" />
+                <input
+                  placeholder="Search code..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </SearchBox>
+              <PrimaryBtn>
+                <FaPlus /> Add Code
+              </PrimaryBtn>
+            </ActionArea>
+          </PanelHeader>
+
+          <TableContainer>
+            <Table>
+              <thead>
+                <tr>
+                  <th width="60">Active</th>
+                  <th width="120">Code</th>
+                  <th>Code Name</th>
+                  <th width="80">Sort</th>
+                  <th width="100">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentCodes.length > 0 ? (
+                  currentCodes.map((code) => (
+                    <tr
+                      key={code.id}
+                      className={!code.isActive ? "inactive" : ""}
+                    >
+                      <td align="center">
+                        <ToggleSwitch
+                          $active={code.isActive}
+                          onClick={() => handleToggleActive(code.id)}
+                        >
+                          <div className="knob" />
+                        </ToggleSwitch>
+                      </td>
+                      <td>
+                        <CodeTag>{code.code}</CodeTag>
+                      </td>
+                      <td>{code.name}</td>
+                      <td align="center">{code.sortOrder}</td>
+                      <td>
+                        <ActionBtnGroup>
+                          <ActionBtn>
+                            <FaEdit />
+                          </ActionBtn>
+                          {!selectedGroup?.isSystem && (
+                            <ActionBtn className="delete">
+                              <FaTrashAlt />
+                            </ActionBtn>
+                          )}
+                        </ActionBtnGroup>
+                      </td>
+                    </tr>
+                  ))
                 ) : (
-                  <FaFolder />
-                )}
-              </GroupIcon>
-              <GroupInfo>
-                <GroupName>{group.name}</GroupName>
-                <GroupId>{group.id}</GroupId>
-              </GroupInfo>
-              <StatusDot $active={group.useYn === "Y"} />
-            </GroupItem>
-          ))}
-        </GroupList>
-      </Sidebar>
-
-      {/* 2. 우측: 상세 코드 목록 (Detail) */}
-      <ContentArea>
-        <HeaderSection>
-          <HeaderLeft>
-            <HeaderTitle>
-              <FaTag /> {selectedGroup.name}
-              <SubText>({selectedGroup.id})</SubText>
-            </HeaderTitle>
-            <HeaderDesc>{selectedGroup.desc}</HeaderDesc>
-          </HeaderLeft>
-          <HeaderRight>
-            <SmallButton onClick={() => openModal("GROUP", selectedGroup)}>
-              <FaEdit /> Edit Group
-            </SmallButton>
-            <AddDetailButton onClick={() => openModal("DETAIL")}>
-              <FaPlus /> Add Code
-            </AddDetailButton>
-          </HeaderRight>
-        </HeaderSection>
-
-        <TableContainer>
-          <Table>
-            <thead>
-              <tr>
-                <th width="15%">Code</th>
-                <th width="20%">Code Name</th>
-                <th width="10%">Sort</th>
-                <th width="35%">Description</th>
-                <th width="10%">Use Y/N</th>
-                <th width="10%">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentDetails.length > 0 ? (
-                currentDetails.map((detail) => (
-                  <tr key={detail.code}>
-                    <td className="mono">{detail.code}</td>
-                    <td className="bold">{detail.name}</td>
-                    <td align="center">{detail.sort}</td>
-                    <td>{detail.desc}</td>
-                    <td align="center">
-                      <UseBadge $use={detail.useYn === "Y"}>
-                        {detail.useYn === "Y" ? "Active" : "Inactive"}
-                      </UseBadge>
-                    </td>
-                    <td align="center">
-                      <ActionIcon onClick={() => openModal("DETAIL", detail)}>
-                        <FaEdit />
-                      </ActionIcon>
+                  <tr>
+                    <td colSpan="5" className="empty">
+                      No codes found in this group.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan="6"
-                    align="center"
-                    style={{ padding: "40px", color: "#999" }}
-                  >
-                    No codes registered in this group.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-        </TableContainer>
-      </ContentArea>
-
-      {/* 3. 모달 (공통 사용) */}
-      {isModalOpen && (
-        <Overlay>
-          <ModalBox>
-            <ModalHeader>
-              <h3>
-                {modalType === "GROUP" ? "Code Group" : "Detail Code"}{" "}
-                {formData.code || formData.id ? "Edit" : "Registration"}
-              </h3>
-              <CloseBtn onClick={() => setIsModalOpen(false)}>
-                <FaTimes />
-              </CloseBtn>
-            </ModalHeader>
-            <ModalBody>
-              {modalType === "GROUP" ? (
-                // 그룹 입력 폼
-                <>
-                  <FormGroup>
-                    <Label>Group ID (Code)</Label>
-                    <Input
-                      value={formData.id}
-                      onChange={(e) =>
-                        setFormData({ ...formData, id: e.target.value })
-                      }
-                      placeholder="e.g. DEFECT_TYPE"
-                      disabled={
-                        formData.id && groups.some((g) => g.id === formData.id)
-                      }
-                    />
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Group Name</Label>
-                    <Input
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      placeholder="e.g. 불량 유형"
-                    />
-                  </FormGroup>
-                </>
-              ) : (
-                // 상세 코드 입력 폼
-                <>
-                  <FormGroup>
-                    <Label>Detail Code</Label>
-                    <Input
-                      value={formData.code}
-                      onChange={(e) =>
-                        setFormData({ ...formData, code: e.target.value })
-                      }
-                      placeholder="e.g. DF_001"
-                      disabled={details.some(
-                        (d) =>
-                          d.code === formData.code &&
-                          d.groupId === formData.groupId
-                      )}
-                    />
-                  </FormGroup>
-                  <FormGroup>
-                    <Label>Code Name</Label>
-                    <Input
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      placeholder="e.g. Scratch"
-                    />
-                  </FormGroup>
-                  <Row>
-                    <FormGroup>
-                      <Label>Sort Order</Label>
-                      <Input
-                        type="number"
-                        value={formData.sort}
-                        onChange={(e) =>
-                          setFormData({ ...formData, sort: e.target.value })
-                        }
-                      />
-                    </FormGroup>
-                    <FormGroup>
-                      <Label>Use Y/N</Label>
-                      <Select
-                        value={formData.useYn}
-                        onChange={(e) =>
-                          setFormData({ ...formData, useYn: e.target.value })
-                        }
-                      >
-                        <option value="Y">Active (Y)</option>
-                        <option value="N">Inactive (N)</option>
-                      </Select>
-                    </FormGroup>
-                  </Row>
-                </>
-              )}
-
-              <FormGroup>
-                <Label>Description</Label>
-                <TextArea
-                  rows="3"
-                  value={formData.desc}
-                  onChange={(e) =>
-                    setFormData({ ...formData, desc: e.target.value })
-                  }
-                />
-              </FormGroup>
-            </ModalBody>
-            <ModalFooter>
-              <Button onClick={() => setIsModalOpen(false)}>Cancel</Button>
-              <Button $primary onClick={handleSave}>
-                <FaSave /> Save
-              </Button>
-            </ModalFooter>
-          </ModalBox>
-        </Overlay>
-      )}
+                )}
+              </tbody>
+            </Table>
+          </TableContainer>
+        </RightPanel>
+      </SplitView>
     </Container>
   );
 };
@@ -425,381 +207,298 @@ export default CodesPage;
 
 // --- Styled Components ---
 
+// 1. 컨테이너: 부모 높이(100%)에 맞추고 외부 스크롤 방지
 const Container = styled.div`
   width: 100%;
   height: 100%;
-  display: flex;
+  padding: 20px;
   background-color: #f5f6fa;
-  box-sizing: border-box;
-`;
-
-// Sidebar
-const Sidebar = styled.div`
-  width: 300px;
-  background: white;
-  border-right: 1px solid #ddd;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+`;
+
+const Header = styled.div`
+  margin-bottom: 20px;
   flex-shrink: 0;
 `;
 
-const SidebarHeader = styled.div`
-  padding: 20px;
-  border-bottom: 1px solid #eee;
-`;
-
-const Title = styled.h2`
-  font-size: 18px;
-  margin: 0 0 15px 0;
-  color: #333;
+const TitleGroup = styled.div`
   display: flex;
   align-items: center;
+  gap: 10px;
+  h1 {
+    font-size: 24px;
+    color: #2c3e50;
+    margin: 0;
+  }
+`;
+
+// 2. 분할 뷰: 남은 높이를 모두 차지하며, 내부 스크롤을 위해 overflow 제어
+const SplitView = styled.div`
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0; /* Flex 자식 요소 스크롤 버그 방지 */
+`;
+
+// Left Panel
+const LeftPanel = styled.div`
+  width: 300px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 패널 자체는 스크롤 안 됨 */
+`;
+
+const PanelHeader = styled.div`
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+  }
+`;
+
+const GroupList = styled.div`
+  flex: 1;
+  overflow-y: auto; /* 리스트만 스크롤 */
+  padding: 10px;
+`;
+
+const GroupItem = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 12px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 5px;
+  background: ${(props) => (props.$active ? "#e8f0fe" : "transparent")};
+  border: 1px solid ${(props) => (props.$active ? "#3498db" : "transparent")};
+
+  &:hover {
+    background: ${(props) => (props.$active ? "#e8f0fe" : "#f8f9fa")};
+  }
+`;
+
+const IconWrapper = styled.div`
+  margin-right: 12px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+`;
+
+const GroupInfo = styled.div`
+  flex: 1;
+  overflow: hidden;
+`;
+
+const GroupName = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
+const GroupDesc = styled.div`
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+`;
+
+const SystemBadge = styled.span`
+  font-size: 10px;
+  background: #eee;
+  color: #666;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: bold;
+`;
+
+// Right Panel
+const RightPanel = styled.div`
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 패널 자체 스크롤 방지 */
+`;
+
+const SubText = styled.span`
+  font-size: 13px;
+  color: #888;
+  margin-left: 10px;
+  border-left: 1px solid #ddd;
+  padding-left: 10px;
+`;
+
+const ActionArea = styled.div`
+  display: flex;
   gap: 10px;
 `;
 
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
-  background: #f5f5f5;
-  padding: 10px;
-  border-radius: 6px;
-  margin-bottom: 10px;
+  background: #f8f9fa;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+
   input {
     border: none;
     background: transparent;
     margin-left: 8px;
-    width: 100%;
     outline: none;
-  }
-`;
-
-const AddButton = styled.button`
-  width: 100%;
-  padding: 10px;
-  background: white;
-  color: #1a4f8b;
-  border: 1px solid #1a4f8b;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  &:hover {
-    background: #e3f2fd;
-  }
-`;
-
-const GroupList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-`;
-
-const GroupItem = styled.div`
-  padding: 15px 20px;
-  border-bottom: 1px solid #f5f5f5;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background-color: ${(props) => (props.$active ? "#eef2f8" : "white")};
-  border-left: 4px solid
-    ${(props) => (props.$active ? "#1a4f8b" : "transparent")};
-
-  &:hover {
-    background-color: #f9f9f9;
-  }
-`;
-
-const GroupIcon = styled.div`
-  color: #f39c12; /* Folder Color */
-  font-size: 18px;
-`;
-
-const GroupInfo = styled.div`
-  flex: 1;
-`;
-
-const GroupName = styled.div`
-  font-weight: 600;
-  font-size: 14px;
-  color: #333;
-`;
-
-const GroupId = styled.div`
-  font-size: 11px;
-  color: #888;
-`;
-
-const StatusDot = styled.div`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: ${(props) => (props.$active ? "#2ecc71" : "#ccc")};
-`;
-
-// Content Area
-const ContentArea = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-`;
-
-const HeaderSection = styled.div`
-  padding: 20px 30px;
-  background: white;
-  border-bottom: 1px solid #ddd;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-
-const HeaderLeft = styled.div``;
-
-const HeaderTitle = styled.h1`
-  margin: 0;
-  font-size: 20px;
-  color: #333;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-`;
-
-const SubText = styled.span`
-  font-size: 14px;
-  color: #1a4f8b;
-  font-family: monospace;
-`;
-
-const HeaderDesc = styled.div`
-  margin-top: 5px;
-  font-size: 13px;
-  color: #666;
-`;
-
-const HeaderRight = styled.div`
-  display: flex;
-  gap: 10px;
-`;
-
-const SmallButton = styled.button`
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: white;
-  border: 1px solid #ddd;
-  color: #555;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  &:hover {
-    background: #f5f5f5;
-  }
-`;
-
-const AddDetailButton = styled.button`
-  padding: 8px 16px;
-  border-radius: 6px;
-  background: #1a4f8b;
-  border: 1px solid #1a4f8b;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 600;
-  &:hover {
-    background: #133b6b;
+    font-size: 13px;
+    width: 150px;
   }
 `;
 
 const TableContainer = styled.div`
   flex: 1;
-  padding: 20px 30px;
-  overflow-y: auto;
+  overflow: auto; /* 테이블 영역만 스크롤 */
+  padding: 0;
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  background: white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  overflow: hidden;
+  white-space: nowrap; /* 줄바꿈 방지 */
 
   thead {
-    background-color: #f1f3f5;
-    th {
-      padding: 12px;
-      text-align: left;
-      font-weight: 700;
-      color: #555;
-      border-bottom: 1px solid #ddd;
-    }
+    position: sticky; /* 헤더 고정 */
+    top: 0;
+    z-index: 5;
+    background: #fcfcfc;
   }
 
-  tbody {
-    tr {
-      border-bottom: 1px solid #eee;
-    }
-    td {
-      padding: 12px;
-      color: #333;
-      font-size: 14px;
-      vertical-align: middle;
+  th {
+    text-align: left;
+    background: #fcfcfc;
+    padding: 12px 20px;
+    font-size: 12px;
+    color: #888;
+    border-bottom: 1px solid #eee;
+  }
 
-      &.mono {
-        font-family: monospace;
-        color: #1a4f8b;
-      }
-      &.bold {
-        font-weight: 600;
-      }
-    }
-    tr:hover {
-      background-color: #f8fbff;
-    }
+  td {
+    padding: 12px 20px;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 14px;
+    color: #333;
+    vertical-align: middle;
+  }
+
+  tr.inactive td {
+    color: #aaa;
+    background: #fdfdfd;
+  }
+
+  td.empty {
+    text-align: center;
+    padding: 40px;
+    color: #aaa;
   }
 `;
 
-const UseBadge = styled.span`
+const CodeTag = styled.span`
+  font-family: monospace;
+  background: #eff3f8;
+  color: #2c3e50;
   padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
+  border-radius: 4px;
   font-weight: 600;
-  background-color: ${(props) => (props.$use ? "#e8f5e9" : "#ffebee")};
-  color: ${(props) => (props.$use ? "#2e7d32" : "#c62828")};
+  font-size: 13px;
 `;
 
-const ActionIcon = styled.button`
+const ToggleSwitch = styled.div`
+  width: 36px;
+  height: 20px;
+  background: ${(props) => (props.$active ? "#2ecc71" : "#ddd")};
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+
+  .knob {
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: ${(props) => (props.$active ? "18px" : "2px")};
+    transition: left 0.3s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
+`;
+
+const ActionBtnGroup = styled.div`
+  display: flex;
+  gap: 8px;
+`;
+
+const ActionBtn = styled.button`
   border: none;
   background: transparent;
-  color: #999;
   cursor: pointer;
+  color: #7f8c8d;
+  padding: 5px;
+  border-radius: 4px;
   &:hover {
-    color: #1a4f8b;
-  }
-`;
-
-// Modal Styles
-const Overlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-const ModalBox = styled.div`
-  background: white;
-  width: 450px;
-  border-radius: 8px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  h3 {
-    margin: 0;
+    background: #eee;
     color: #333;
-    font-size: 18px;
+  }
+  &.delete:hover {
+    background: #fee;
+    color: #e74c3c;
   }
 `;
 
-const CloseBtn = styled.button`
-  background: none;
-  border: none;
-  font-size: 18px;
+const IconButton = styled.button`
+  border: 1px solid #ddd;
+  background: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
   cursor: pointer;
-  color: #999;
-`;
-
-const ModalBody = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-`;
-
-const Row = styled.div`
-  display: flex;
-  gap: 15px;
-`;
-
-const FormGroup = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-`;
-
-const Label = styled.label`
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-`;
-
-const Input = styled.input`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  outline: none;
-  &:disabled {
-    background: #f5f5f5;
-    color: #999;
-  }
-  &:focus {
-    border-color: #1a4f8b;
-  }
-`;
-
-const Select = styled.select`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  outline: none;
-`;
-
-const TextArea = styled.textarea`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  outline: none;
-  resize: none;
-`;
-
-const ModalFooter = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-`;
-
-const Button = styled.button`
-  padding: 10px 20px;
-  border-radius: 4px;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid ${(props) => (props.$primary ? "#1a4f8b" : "#ddd")};
-  background: ${(props) => (props.$primary ? "#1a4f8b" : "white")};
-  color: ${(props) => (props.$primary ? "white" : "#555")};
-
   display: flex;
   align-items: center;
-  gap: 6px;
-
+  justify-content: center;
+  color: #555;
   &:hover {
-    opacity: 0.9;
+    background: #f5f5f5;
+  }
+`;
+
+const PrimaryBtn = styled.button`
+  background: #1a4f8b;
+  color: white;
+  border: none;
+  padding: 0 16px;
+  height: 34px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  &:hover {
+    background: #133b6b;
   }
 `;

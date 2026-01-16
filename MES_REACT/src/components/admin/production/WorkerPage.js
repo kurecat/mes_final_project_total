@@ -1,309 +1,278 @@
-// src/pages/production/WorkerPage.js
-import React, { useState } from "react";
+// src/pages/resource/WorkerPage.js
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
-  FaUserFriends,
-  FaUserClock,
   FaUserTie,
   FaSearch,
-  FaFilter,
-  FaExchangeAlt,
-  FaHardHat,
-  FaStar,
-  FaCircle,
+  FaPlus,
+  FaTrash,
+  FaEdit,
+  FaIdBadge,
+  FaCertificate,
+  FaBriefcase,
+  FaClock,
+  FaSync,
 } from "react-icons/fa";
 
-// --- Mock Data ---
-// 작업자 리스트
-const WORKER_DATA = [
+// --- Fallback Mock Data ---
+const MOCK_WORKERS = [
   {
-    id: "OP-001",
-    name: "Kim Min-Su",
-    role: "Operator",
-    skill: "Master",
+    id: "24001",
+    name: "Kim Min-su",
+    role: "Engineer",
+    dept: "Photo",
+    shift: "Day",
     status: "WORKING",
-    line: "LINE-A",
-    shift: "Day",
+    certifications: ["ASML Scanner", "Track System"],
+    joinDate: "2020-03-01",
   },
   {
-    id: "OP-002",
-    name: "Lee Ji-Hyun",
+    id: "24002",
+    name: "Lee Ji-eun",
     role: "Operator",
-    skill: "Senior",
-    status: "WORKING",
-    line: "LINE-A",
-    shift: "Day",
+    dept: "Etch",
+    shift: "Swing",
+    status: "OFF",
+    certifications: ["Lam Etcher"],
+    joinDate: "2021-06-15",
   },
   {
-    id: "OP-003",
-    name: "Park Dong-Hoon",
-    role: "Lead",
-    skill: "Master",
-    status: "WORKING",
-    line: "LINE-B",
-    shift: "Day",
-  },
-  {
-    id: "OP-004",
-    name: "Choi Soo-Young",
-    role: "Operator",
-    skill: "Junior",
-    status: "BREAK",
-    line: "LINE-B",
-    shift: "Day",
-  },
-  {
-    id: "OP-005",
-    name: "Jung Jae-Min",
-    role: "Operator",
-    skill: "Senior",
-    status: "WORKING",
-    line: "LINE-C",
-    shift: "Day",
-  },
-  {
-    id: "OP-006",
-    name: "Han Ye-Seul",
-    role: "Operator",
-    skill: "Junior",
-    status: "WAITING",
-    line: null,
-    shift: "Day",
-  }, // 대기중
-  {
-    id: "OP-007",
-    name: "Kang Ho-Dong",
-    role: "Operator",
-    skill: "Senior",
-    status: "ABSENT",
-    line: null,
-    shift: "Day",
-  }, // 결근
-  {
-    id: "OP-008",
-    name: "Yoo Jae-Suk",
+    id: "24003",
+    name: "Park Dong-hoon",
     role: "Manager",
-    skill: "Master",
-    status: "MEETING",
-    line: null,
+    dept: "Fab-Common",
     shift: "Day",
+    status: "WORKING",
+    certifications: ["Safety Lv.1", "Process Mgmt"],
+    joinDate: "2018-01-10",
   },
-];
-
-// 라인 정보 (Drop Zone 역할)
-const LINES = [
-  { id: "LINE-A", name: "Line-A (Stacking)", required: 3, current: 2 },
-  { id: "LINE-B", name: "Line-B (Pkg/Reflow)", required: 4, current: 2 },
-  { id: "LINE-C", name: "Line-C (Test)", required: 2, current: 1 },
+  {
+    id: "24004",
+    name: "Choi Yu-jin",
+    role: "Engineer",
+    dept: "EDS",
+    shift: "Night",
+    status: "BREAK",
+    certifications: ["Advantest Tester", "Probe Card"],
+    joinDate: "2022-11-20",
+  },
 ];
 
 const WorkerPage = () => {
+  const [workers, setWorkers] = useState(MOCK_WORKERS);
+  const [loading, setLoading] = useState(true);
+  const [filterRole, setFilterRole] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
-  const [draggedWorker, setDraggedWorker] = useState(null); // (DnD 시뮬레이션용)
 
-  // 필터링
-  const filteredWorkers = WORKER_DATA.filter((w) =>
-    w.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // 1. 데이터 조회 (READ)
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API: http://localhost:3001/workers
+      // const res = await axios.get("http://localhost:3001/workers");
+      // setWorkers(res.data);
 
-  // 그룹화: 라인별 작업자, 대기 작업자
-  const assignedWorkers = {};
-  LINES.forEach((line) => {
-    assignedWorkers[line.id] = filteredWorkers.filter(
-      (w) => w.line === line.id
-    );
-  });
-  const unassignedWorkers = filteredWorkers.filter((w) => !w.line);
-
-  // 스킬별 별점 렌더링
-  const renderStars = (skill) => {
-    const count = skill === "Master" ? 3 : skill === "Senior" ? 2 : 1;
-    return (
-      <SkillStars>
-        {[...Array(count)].map((_, i) => (
-          <FaStar key={i} size={10} color="#f1c40f" />
-        ))}
-        <span style={{ marginLeft: 3, fontSize: 11, color: "#666" }}>
-          {skill}
-        </span>
-      </SkillStars>
-    );
-  };
-
-  // 상태별 색상
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "WORKING":
-        return "#2ecc71";
-      case "BREAK":
-        return "#f39c12";
-      case "WAITING":
-        return "#3498db";
-      case "ABSENT":
-        return "#e74c3c";
-      case "MEETING":
-        return "#9b59b6";
-      default:
-        return "#95a5a6";
+      setTimeout(() => {
+        setWorkers(MOCK_WORKERS);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // 2. 삭제 (DELETE)
+  const handleDelete = async (id) => {
+    if (!window.confirm("해당 작업자를 삭제하시겠습니까?")) return;
+    try {
+      // await axios.delete(`http://localhost:3001/workers/${id}`);
+      setWorkers((prev) => prev.filter((w) => w.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 3. 추가 (CREATE - Mock)
+  const handleAdd = () => {
+    const newWorker = {
+      id: `2400${Math.floor(Math.random() * 9)}`,
+      name: "New Worker",
+      role: "Operator",
+      dept: "TBD",
+      shift: "Day",
+      status: "OFF",
+      certifications: ["Basic Safety"],
+      joinDate: new Date().toISOString().split("T")[0],
+    };
+    setWorkers([newWorker, ...workers]);
+  };
+
+  // 필터링
+  const filteredList = workers.filter((w) => {
+    const matchRole = filterRole === "ALL" || w.role === filterRole;
+    const matchSearch =
+      w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      w.dept.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchRole && matchSearch;
+  });
+
+  // KPI 계산
+  const total = workers.length;
+  const onDuty = workers.filter((w) => w.status === "WORKING").length;
+  const engineers = workers.filter((w) => w.role === "Engineer").length;
+
   return (
     <Container>
-      {/* 1. 상단 통계 카드 */}
-      <StatsRow>
+      {/* 헤더 */}
+      <Header>
+        <TitleArea>
+          <PageTitle>
+            <FaUserTie /> Worker Management
+            {loading && (
+              <FaSync
+                className="spin"
+                style={{ fontSize: 14, marginLeft: 10 }}
+              />
+            )}
+          </PageTitle>
+          <SubTitle>Fab Operators & Engineers Certification Status</SubTitle>
+        </TitleArea>
+        <ActionGroup>
+          <AddButton onClick={handleAdd}>
+            <FaPlus /> Register Worker
+          </AddButton>
+        </ActionGroup>
+      </Header>
+
+      {/* KPI 카드 */}
+      <StatsGrid>
         <StatCard>
           <IconBox $color="#1a4f8b">
-            <FaUserFriends />
+            <FaUserTie />
           </IconBox>
           <StatInfo>
-            <StatLabel>Total Workers</StatLabel>
-            <StatValue>{WORKER_DATA.length}</StatValue>
+            <Label>Total Personnel</Label>
+            <Value>{total}</Value>
           </StatInfo>
         </StatCard>
         <StatCard>
           <IconBox $color="#2ecc71">
-            <FaUserClock />
+            <FaBriefcase />
           </IconBox>
           <StatInfo>
-            <StatLabel>Working Now</StatLabel>
-            <StatValue>
-              {WORKER_DATA.filter((w) => w.status === "WORKING").length}
-            </StatValue>
+            <Label>On-Duty (Working)</Label>
+            <Value>{onDuty}</Value>
           </StatInfo>
         </StatCard>
         <StatCard>
-          <IconBox $color="#f39c12">
-            <FaExchangeAlt />
+          <IconBox $color="#e67e22">
+            <FaCertificate />
           </IconBox>
           <StatInfo>
-            <StatLabel>Shift Type</StatLabel>
-            <StatValue style={{ fontSize: 20 }}>Day Shift (A)</StatValue>
+            <Label>Certified Engineers</Label>
+            <Value>{engineers}</Value>
           </StatInfo>
         </StatCard>
-        <StatCard>
-          <IconBox $color="#e74c3c">
-            <FaUserTie />
-          </IconBox>
-          <StatInfo>
-            <StatLabel>Absence</StatLabel>
-            <StatValue>
-              {WORKER_DATA.filter((w) => w.status === "ABSENT").length}
-            </StatValue>
-          </StatInfo>
-        </StatCard>
-      </StatsRow>
+      </StatsGrid>
 
-      <ContentArea>
-        {/* 2. 좌측: 대기 인원 풀 (Unassigned Pool) */}
-        <PoolSection>
-          <SectionHeader>
-            <Title>Waiting / Unassigned Pool</Title>
-            <SearchBox>
-              <FaSearch color="#aaa" />
-              <input
-                placeholder="Search Name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </SearchBox>
-          </SectionHeader>
+      {/* 컨트롤 바 */}
+      <ControlBar>
+        <FilterGroup>
+          <FilterBtn
+            $active={filterRole === "ALL"}
+            onClick={() => setFilterRole("ALL")}
+          >
+            All
+          </FilterBtn>
+          <FilterBtn
+            $active={filterRole === "Engineer"}
+            onClick={() => setFilterRole("Engineer")}
+          >
+            Engineers
+          </FilterBtn>
+          <FilterBtn
+            $active={filterRole === "Operator"}
+            onClick={() => setFilterRole("Operator")}
+          >
+            Operators
+          </FilterBtn>
+          <FilterBtn
+            $active={filterRole === "Manager"}
+            onClick={() => setFilterRole("Manager")}
+          >
+            Managers
+          </FilterBtn>
+        </FilterGroup>
+        <SearchBox>
+          <FaSearch color="#999" />
+          <input
+            placeholder="Search Name or Dept..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </SearchBox>
+      </ControlBar>
 
-          <WorkerGrid>
-            {unassignedWorkers.map((worker) => (
-              <WorkerCard key={worker.id} $status={worker.status}>
-                <CardTop>
-                  <Avatar>
-                    <FaHardHat />
-                  </Avatar>
-                  <Info>
-                    <Name>{worker.name}</Name>
-                    <Role>{worker.role}</Role>
-                  </Info>
-                  <StatusDot color={getStatusColor(worker.status)} />
-                </CardTop>
-                <CardBottom>
-                  {renderStars(worker.skill)}
-                  <StatusBadge $color={getStatusColor(worker.status)}>
-                    {worker.status}
-                  </StatusBadge>
-                </CardBottom>
-              </WorkerCard>
-            ))}
-          </WorkerGrid>
-        </PoolSection>
+      {/* 작업자 카드 그리드 */}
+      <GridContainer>
+        {filteredList.map((worker) => (
+          <WorkerCard key={worker.id} $status={worker.status}>
+            <CardHeader>
+              <ProfileSection>
+                <Avatar>{worker.name.charAt(0)}</Avatar>
+                <NameInfo>
+                  <Name>{worker.name}</Name>
+                  <Role>
+                    {worker.role} | {worker.dept}
+                  </Role>
+                </NameInfo>
+              </ProfileSection>
+              <StatusBadge $status={worker.status}>{worker.status}</StatusBadge>
+            </CardHeader>
 
-        {/* 3. 우측: 라인별 배치 현황 (Line Assignment) */}
-        <LineSection>
-          <SectionHeader>
-            <Title>Line Assignment Status</Title>
-            <FilterBtn>
-              <FaFilter /> Filter
-            </FilterBtn>
-          </SectionHeader>
+            <CardBody>
+              <InfoRow>
+                <FaIdBadge color="#aaa" /> <span>ID: {worker.id}</span>
+              </InfoRow>
+              <InfoRow>
+                <FaClock color="#aaa" /> <span>Shift: {worker.shift}</span>
+              </InfoRow>
 
-          <LineContainer>
-            {LINES.map((line) => (
-              <LineBox key={line.id}>
-                <LineHeader>
-                  <LineName>{line.name}</LineName>
-                  <HeadCount>
-                    Manpower:{" "}
-                    <strong
-                      style={{
-                        color:
-                          assignedWorkers[line.id].length < line.required
-                            ? "#e74c3c"
-                            : "#2ecc71",
-                      }}
-                    >
-                      {assignedWorkers[line.id].length}
-                    </strong>{" "}
-                    / {line.required}
-                  </HeadCount>
-                </LineHeader>
-
-                <LineBody>
-                  {assignedWorkers[line.id].length > 0 ? (
-                    assignedWorkers[line.id].map((worker) => (
-                      <CompactWorkerCard
-                        key={worker.id}
-                        $status={worker.status}
-                      >
-                        <CompactAvatar>
-                          <FaHardHat />
-                        </CompactAvatar>
-                        <CompactInfo>
-                          <CompactName>{worker.name}</CompactName>
-                          <CompactMeta>
-                            {worker.skill} • {worker.role}
-                          </CompactMeta>
-                        </CompactInfo>
-                        <StatusIndicator
-                          $color={getStatusColor(worker.status)}
-                        />
-                      </CompactWorkerCard>
-                    ))
-                  ) : (
-                    <EmptyState>No workers assigned</EmptyState>
-                  )}
-                  {/* 빈 슬롯 표시 (채워야 할 인원만큼) */}
-                  {[
-                    ...Array(
-                      Math.max(
-                        0,
-                        line.required - assignedWorkers[line.id].length
-                      )
-                    ),
-                  ].map((_, i) => (
-                    <EmptySlot key={i}>+ Assign</EmptySlot>
+              <CertiSection>
+                <CertiTitle>
+                  <FaCertificate size={10} /> Certifications (Skill)
+                </CertiTitle>
+                <TagWrapper>
+                  {worker.certifications.map((cert, idx) => (
+                    <CertTag key={idx}>{cert}</CertTag>
                   ))}
-                </LineBody>
-              </LineBox>
-            ))}
-          </LineContainer>
-        </LineSection>
-      </ContentArea>
+                </TagWrapper>
+              </CertiSection>
+            </CardBody>
+
+            <CardFooter>
+              <JoinDate>Joined: {worker.joinDate}</JoinDate>
+              <ActionArea>
+                <IconBtn className="edit">
+                  <FaEdit />
+                </IconBtn>
+                <IconBtn
+                  className="del"
+                  onClick={() => handleDelete(worker.id)}
+                >
+                  <FaTrash />
+                </IconBtn>
+              </ActionArea>
+            </CardFooter>
+          </WorkerCard>
+        ))}
+      </GridContainer>
     </Container>
   );
 };
@@ -315,32 +284,81 @@ export default WorkerPage;
 const Container = styled.div`
   width: 100%;
   height: 100%;
-  background-color: #f5f6fa;
   padding: 20px;
+  background-color: #f5f6fa;
   display: flex;
   flex-direction: column;
+  gap: 20px;
   box-sizing: border-box;
 `;
 
-// Stats Section
-const StatsRow = styled.div`
+const Header = styled.div`
   display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
-  flex-shrink: 0;
+  justify-content: space-between;
+  align-items: center;
+`;
+const TitleArea = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+const PageTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  .spin {
+    animation: spin 1s linear infinite;
+    color: #aaa;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+`;
+const SubTitle = styled.span`
+  font-size: 13px;
+  color: #888;
+  margin-top: 5px;
+  margin-left: 34px;
 `;
 
+const ActionGroup = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+const AddButton = styled.button`
+  background: #1a4f8b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  &:hover {
+    background: #133b6b;
+  }
+`;
+
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+`;
 const StatCard = styled.div`
-  flex: 1;
   background: white;
-  border-radius: 10px;
   padding: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
   gap: 15px;
 `;
-
 const IconBox = styled.div`
   width: 50px;
   height: 50px;
@@ -352,307 +370,223 @@ const IconBox = styled.div`
   justify-content: center;
   font-size: 24px;
 `;
-
 const StatInfo = styled.div`
   display: flex;
   flex-direction: column;
 `;
-
-const StatLabel = styled.span`
+const Label = styled.span`
   font-size: 13px;
   color: #888;
   margin-bottom: 5px;
 `;
-
-const StatValue = styled.span`
+const Value = styled.span`
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 800;
   color: #333;
 `;
 
-// Main Content
-const ContentArea = styled.div`
-  flex: 1;
-  display: flex;
-  gap: 20px;
-  overflow: hidden;
-`;
-
-// Left: Pool
-const PoolSection = styled.div`
-  flex: 1;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-`;
-
-const SectionHeader = styled.div`
+const ControlBar = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
-  flex-shrink: 0;
+  background: white;
+  padding: 15px 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
-
-const Title = styled.h3`
-  margin: 0;
-  font-size: 16px;
-  color: #333;
+const FilterGroup = styled.div`
+  display: flex;
+  gap: 8px;
 `;
-
+const FilterBtn = styled.button`
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid ${(props) => (props.$active ? "#1a4f8b" : "#eee")};
+  background: ${(props) => (props.$active ? "#1a4f8b" : "#f9f9f9")};
+  color: ${(props) => (props.$active ? "white" : "#666")};
+  &:hover {
+    background: ${(props) => (props.$active ? "#133b6b" : "#eee")};
+  }
+`;
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
   background: #f5f5f5;
   padding: 8px 12px;
   border-radius: 6px;
+  border: 1px solid #ddd;
   input {
     border: none;
     background: transparent;
-    margin-left: 8px;
     outline: none;
-    width: 120px;
-    font-size: 13px;
+    margin-left: 8px;
+    width: 200px;
+    font-size: 14px;
   }
 `;
 
-const WorkerGrid = styled.div`
-  flex: 1;
-  overflow-y: auto;
+const GridContainer = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 15px;
-  align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding-bottom: 20px;
+  overflow-y: auto;
 `;
 
-// Worker Card (Pool)
 const WorkerCard = styled.div`
   background: white;
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  cursor: grab;
-  transition: all 0.2s;
-
+  overflow: hidden;
+  border-top: 4px solid
+    ${(props) =>
+      props.$status === "WORKING"
+        ? "#2ecc71"
+        : props.$status === "BREAK"
+        ? "#f39c12"
+        : "#ccc"};
+  transition: transform 0.2s;
   &:hover {
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-    border-color: #1a4f8b;
-    transform: translateY(-2px);
-  }
-  &:active {
-    cursor: grabbing;
+    transform: translateY(-4px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
   }
 `;
 
-const CardTop = styled.div`
+const CardHeader = styled.div`
+  padding: 15px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  position: relative;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid #f0f0f0;
 `;
-
+const ProfileSection = styled.div`
+  display: flex;
+  gap: 12px;
+`;
 const Avatar = styled.div`
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: #e3f2fd;
-  color: #1a4f8b;
+  background: #1a4f8b;
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-weight: 700;
   font-size: 18px;
 `;
-
-const Info = styled.div`
+const NameInfo = styled.div`
   display: flex;
   flex-direction: column;
 `;
-
 const Name = styled.div`
-  font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 15px;
   color: #333;
 `;
-
 const Role = styled.div`
-  font-size: 11px;
+  font-size: 12px;
   color: #888;
-`;
-
-const StatusDot = styled(FaCircle)`
-  position: absolute;
-  top: 0;
-  right: 0;
-  font-size: 8px;
-  color: ${(props) => props.color};
-`;
-
-const CardBottom = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 8px;
-  border-top: 1px solid #f5f5f5;
-`;
-
-const SkillStars = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 2px;
+  margin-top: 2px;
 `;
 
 const StatusBadge = styled.span`
   font-size: 10px;
+  font-weight: 700;
   padding: 2px 6px;
   border-radius: 4px;
-  background-color: ${(props) => `${props.$color}20`};
-  color: ${(props) => props.$color};
-  font-weight: 600;
+  background: ${(props) =>
+    props.$status === "WORKING"
+      ? "#e8f5e9"
+      : props.$status === "BREAK"
+      ? "#fff3e0"
+      : "#eee"};
+  color: ${(props) =>
+    props.$status === "WORKING"
+      ? "#2e7d32"
+      : props.$status === "BREAK"
+      ? "#e67e22"
+      : "#888"};
 `;
 
-// Right: Lines
-const LineSection = styled.div`
-  flex: 2;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  padding: 20px;
-`;
-
-const FilterBtn = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: white;
-  border: 1px solid #ddd;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  &:hover {
-    background: #f5f5f5;
-  }
-`;
-
-const LineContainer = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-`;
-
-const LineBox = styled.div`
-  background: #f8f9fa;
-  border: 1px solid #eee;
-  border-radius: 8px;
+const CardBody = styled.div`
   padding: 15px;
-`;
-
-const LineHeader = styled.div`
+  flex: 1;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
+`;
+const InfoRow = styled.div`
+  display: flex;
   align-items: center;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
-`;
-
-const LineName = styled.div`
-  font-size: 15px;
-  font-weight: 700;
-  color: #1a4f8b;
-`;
-
-const HeadCount = styled.div`
+  gap: 8px;
   font-size: 13px;
   color: #555;
 `;
 
-const LineBody = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 15px;
+const CertiSection = styled.div`
+  margin-top: 10px;
 `;
-
-// Compact Card (In Line)
-const CompactWorkerCard = styled.div`
-  background: white;
-  padding: 10px;
-  border-radius: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-left: 3px solid
-    ${(props) => (props.$status === "WORKING" ? "#2ecc71" : "#f39c12")};
-`;
-
-const CompactAvatar = styled.div`
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #eee;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #666;
-  font-size: 14px;
-`;
-
-const CompactInfo = styled.div`
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-`;
-
-const CompactName = styled.div`
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
-`;
-
-const CompactMeta = styled.div`
+const CertiTitle = styled.div`
   font-size: 11px;
-  color: #888;
+  font-weight: 700;
+  color: #1a4f8b;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+`;
+const TagWrapper = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+`;
+const CertTag = styled.span`
+  background: #f0f4f8;
+  border: 1px solid #e1e4e8;
+  color: #666;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
 `;
 
-const StatusIndicator = styled.div`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background-color: ${(props) => props.$color};
+const CardFooter = styled.div`
+  padding: 10px 15px;
+  background: #f9f9f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 `;
-
-const EmptyState = styled.div`
-  color: #aaa;
-  font-size: 13px;
-  padding: 10px;
+const JoinDate = styled.div`
+  font-size: 11px;
+  color: #999;
 `;
-
-const EmptySlot = styled.div`
-  border: 2px dashed #ddd;
-  border-radius: 6px;
+const ActionArea = styled.div`
+  display: flex;
+  gap: 5px;
+`;
+const IconBtn = styled.button`
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 5px;
+  cursor: pointer;
+  color: #666;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #aaa;
-  font-size: 13px;
-  height: 50px;
-  cursor: pointer;
-  background-color: white;
-
   &:hover {
-    border-color: #1a4f8b;
+    background: #eee;
+  }
+  &.edit:hover {
     color: #1a4f8b;
-    background-color: #e3f2fd;
+  }
+  &.del:hover {
+    color: #e74c3c;
   }
 `;

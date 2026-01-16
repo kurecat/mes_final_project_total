@@ -27,6 +27,8 @@ import DefectPage from "./components/admin/quality/DefectPage";
 import TrackingPage from "./components/admin/quality/LotTrackingPage";
 import StandardPage from "./components/admin/quality/StandardPage";
 import WorkerPage from "./components/admin/production/WorkerPage";
+import SpcChartPage from "./components/admin/quality/SpcChartPage";
+import BarcodePage from "./components/admin/production/BarcodePage";
 
 const App = () => {
   return (
@@ -34,9 +36,9 @@ const App = () => {
       <GlobalStyle />
 
       <Routes>
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/" element={<LoginPage />} />
 
-        <Route path="/" element={<AdminMainPage />}>
+        <Route path="/admin" element={<AdminMainPage />}>
           <Route index element={<DashboardPage />} />
 
           <Route path="dashboard/kpi" element={<KpiPage />} />
@@ -46,10 +48,12 @@ const App = () => {
           <Route path="production/workorder" element={<WorkOrderPage />} />
           <Route path="production/performance" element={<PerformancePage />} />
           <Route path="production/worker" element={<WorkerPage />} />
+          <Route path="production/barcode" element={<BarcodePage />} />
 
           <Route path="quality/defect" element={<DefectPage />} />
           <Route path="quality/tracking" element={<TrackingPage />} />
           <Route path="quality/standard" element={<StandardPage />} />
+          <Route path="quality/spcchart" element={<SpcChartPage />} />
 
           <Route path="resource/inventory" element={<InventoryPage />} />
           <Route path="resource/machine" element={<MachinePage />} />

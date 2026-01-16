@@ -1,9 +1,21 @@
-// src/pages/dashboard/KPIPage.js
-import React, { useState } from "react";
+// src/pages/dashboard/KpiPage.js
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import axios from "axios";
 import {
-  ComposedChart,
+  FaChartPie,
+  FaCalendarAlt,
+  FaDownload,
+  FaSync,
+  FaPercentage,
+  FaStopwatch,
+  FaChartLine,
+  FaIndustry,
+} from "react-icons/fa";
+import {
+  LineChart,
   Line,
+  BarChart,
   Bar,
   XAxis,
   YAxis,
@@ -13,195 +25,322 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  ComposedChart,
 } from "recharts";
-import { FaSearch, FaCalendarAlt, FaDownload } from "react-icons/fa";
 
-// --- Mock Data (일별 추이) ---
-const OEE_TREND_DATA = [
-  { date: "01/01", oee: 82, availability: 90, performance: 95, quality: 96 },
-  { date: "01/02", oee: 85, availability: 92, performance: 94, quality: 98 },
-  { date: "01/03", oee: 78, availability: 80, performance: 96, quality: 99 }, // 설비 고장 발생일
-  { date: "01/04", oee: 88, availability: 95, performance: 95, quality: 97 },
-  { date: "01/05", oee: 90, availability: 96, performance: 96, quality: 98 },
-  { date: "01/06", oee: 89, availability: 94, performance: 97, quality: 97 },
-  { date: "01/07", oee: 92, availability: 98, performance: 98, quality: 96 },
-];
+// --- Fallback Mock Data ---
+const MOCK_KPI_DATA = {
+  summary: {
+    avgYield: 94.5,
+    yieldTarget: 96.0,
+    totalOutput: 15400, // Weekly Wafer
+    cycleTime: 45.2, // Days (Fab In -> Out)
+    avgOee: 88.2,
+  },
+  // 1. 주간 수율 트렌드 (Prime vs Final)
+  yieldTrend: [
+    { date: "W20", prime: 88.5, final: 93.2, target: 95 },
+    { date: "W21", prime: 89.1, final: 93.8, target: 95 },
+    { date: "W22", prime: 88.0, final: 92.5, target: 95 }, // 이슈 발생
+    { date: "W23", prime: 90.2, final: 94.5, target: 95 },
+    { date: "W24", prime: 91.5, final: 95.8, target: 95 },
+    { date: "W25", prime: 92.0, final: 96.2, target: 95 }, // 목표 달성
+  ],
+  // 2. EDS Bin Loss Pareto (불량 원인 분석)
+  binLoss: [
+    { type: "Single Bit", count: 1250, desc: "Repairable" },
+    { type: "Multi Bit", count: 850, desc: "Non-Repair" },
+    { type: "Open/Short", count: 620, desc: "Hard Fail" },
+    { type: "Func Fail", count: 450, desc: "Logic Error" },
+    { type: "Leakage", count: 300, desc: "Power Spec" },
+  ],
+  // 3. 설비 종합 효율 (OEE) - 공정별
+  equipmentOee: [
+    {
+      group: "Photo",
+      availability: 95,
+      performance: 92,
+      quality: 99,
+      oee: 86.5,
+    },
+    {
+      group: "Etch",
+      availability: 90,
+      performance: 88,
+      quality: 98,
+      oee: 77.6,
+    },
+    {
+      group: "Depo",
+      availability: 92,
+      performance: 95,
+      quality: 99,
+      oee: 86.5,
+    },
+    { group: "CMP", availability: 85, performance: 90, quality: 97, oee: 74.2 },
+  ],
+};
 
-const DEFECT_PARETO_DATA = [
-  { name: "치수 불량", count: 120, accumulated: 40 },
-  { name: "스크래치", count: 80, accumulated: 65 },
-  { name: "도장 불량", count: 50, accumulated: 80 }, // 누적 80% 지점
-  { name: "찍힘", count: 30, accumulated: 90 },
-  { name: "기타", count: 20, accumulated: 100 },
-];
+const KpiPage = () => {
+  const [kpiData, setKpiData] = useState(MOCK_KPI_DATA);
+  const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState("WEEKLY");
 
-const KPIPage = () => {
-  const [startDate, setStartDate] = useState("2024-05-01");
-  const [endDate, setEndDate] = useState("2024-05-07");
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API 연동 시: http://localhost:3001/kpi
+      // const res = await axios.get("http://localhost:3001/kpi");
+      // setKpiData(res.data);
+
+      setTimeout(() => {
+        setKpiData(MOCK_KPI_DATA);
+        setLoading(false);
+      }, 600);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   return (
     <Container>
-      {/* 1. 검색 및 필터 영역 */}
-      <FilterSection>
-        <PageTitle>생산 효율 분석 (OEE Analytics)</PageTitle>
+      {/* 1. 헤더 컨트롤 */}
+      <Header>
+        <TitleArea>
+          <PageTitle>
+            <FaChartPie /> KPI Analytics
+          </PageTitle>
+          <SubTitle>Yield, Productivity & Loss Analysis</SubTitle>
+        </TitleArea>
         <ControlGroup>
-          <DateInputGroup>
-            <FaCalendarAlt color="#666" />
-            <Input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <span>~</span>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-          </DateInputGroup>
-          <SearchButton>
-            <FaSearch /> 조회
-          </SearchButton>
-          <DownloadButton>
-            <FaDownload /> 엑셀 다운로드
-          </DownloadButton>
+          <ButtonGroup>
+            <PeriodBtn
+              $active={period === "DAILY"}
+              onClick={() => setPeriod("DAILY")}
+            >
+              Daily
+            </PeriodBtn>
+            <PeriodBtn
+              $active={period === "WEEKLY"}
+              onClick={() => setPeriod("WEEKLY")}
+            >
+              Weekly
+            </PeriodBtn>
+            <PeriodBtn
+              $active={period === "MONTHLY"}
+              onClick={() => setPeriod("MONTHLY")}
+            >
+              Monthly
+            </PeriodBtn>
+          </ButtonGroup>
+          <RefreshBtn onClick={fetchData}>
+            <FaSync className={loading ? "spin" : ""} />
+          </RefreshBtn>
+          <ExportBtn>
+            <FaDownload /> Report
+          </ExportBtn>
         </ControlGroup>
-      </FilterSection>
+      </Header>
 
-      {/* 2. OEE 종합 트렌드 (메인 차트) */}
-      <MainChartSection>
-        <SectionTitle>일별 OEE (종합 설비 효율) 추이</SectionTitle>
-        <ChartContainer>
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={OEE_TREND_DATA}>
+      {/* 2. KPI 요약 카드 */}
+      <SummaryGrid>
+        <SummaryCard>
+          <IconWrapper $color="#2ecc71">
+            <FaPercentage />
+          </IconWrapper>
+          <CardContent>
+            <Label>Final Yield (Avg)</Label>
+            <BigValue>{kpiData.summary.avgYield}%</BigValue>
+            <SubValue>Target: {kpiData.summary.yieldTarget}%</SubValue>
+          </CardContent>
+        </SummaryCard>
+
+        <SummaryCard>
+          <IconWrapper $color="#3498db">
+            <FaIndustry />
+          </IconWrapper>
+          <CardContent>
+            <Label>Total Output</Label>
+            <BigValue>{kpiData.summary.totalOutput.toLocaleString()}</BigValue>
+            <SubValue>Wafer / Week</SubValue>
+          </CardContent>
+        </SummaryCard>
+
+        <SummaryCard>
+          <IconWrapper $color="#e67e22">
+            <FaStopwatch />
+          </IconWrapper>
+          <CardContent>
+            <Label>Fab Cycle Time</Label>
+            <BigValue>{kpiData.summary.cycleTime}</BigValue>
+            <SubValue>Days (Avg)</SubValue>
+          </CardContent>
+        </SummaryCard>
+
+        <SummaryCard>
+          <IconWrapper $color="#9b59b6">
+            <FaChartLine />
+          </IconWrapper>
+          <CardContent>
+            <Label>Overall OEE</Label>
+            <BigValue>{kpiData.summary.avgOee}%</BigValue>
+            <SubValue>Equipment Efficiency</SubValue>
+          </CardContent>
+        </SummaryCard>
+      </SummaryGrid>
+
+      {/* 3. 차트 섹션 */}
+      <ChartGrid>
+        {/* A. 수율 트렌드 (Line Chart) */}
+        <ChartCard className="wide">
+          <CardHeader>
+            <CardTitle>Yield Trend (Prime vs Final)</CardTitle>
+          </CardHeader>
+          <ResponsiveContainer width="100%" height={300}>
+            <ComposedChart
+              data={kpiData.yieldTrend}
+              margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
+            >
               <CartesianGrid stroke="#f5f5f5" />
               <XAxis dataKey="date" />
-              <YAxis domain={[0, 100]} />
+              <YAxis domain={[80, 100]} />
               <Tooltip />
               <Legend />
-              <Bar
-                dataKey="availability"
-                name="가동률"
-                barSize={20}
-                fill="#8884d8"
+              <Area
+                type="monotone"
+                dataKey="prime"
+                name="Prime Yield"
+                fill="#dcedc8"
+                stroke="#8bc34a"
               />
-              <Bar
-                dataKey="performance"
-                name="성능 효율"
-                barSize={20}
-                fill="#413ea0"
+              <Line
+                type="monotone"
+                dataKey="final"
+                name="Final Yield (w/ Repair)"
+                stroke="#1a4f8b"
+                strokeWidth={3}
               />
-              <Bar
-                dataKey="quality"
-                name="양품률"
-                barSize={20}
-                fill="#82ca9d"
+              <Line
+                type="monotone"
+                dataKey="target"
+                name="Target"
+                stroke="#e74c3c"
+                strokeDasharray="5 5"
               />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* B. Bin Loss Pareto (Bar Chart) */}
+        <ChartCard>
+          <CardHeader>
+            <CardTitle>EDS Bin Loss Analysis</CardTitle>
+          </CardHeader>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={kpiData.binLoss}
+              layout="vertical"
+              margin={{ top: 0, right: 30, left: 40, bottom: 0 }}
+            >
+              <CartesianGrid stroke="#f5f5f5" horizontal={false} />
+              <XAxis type="number" />
+              <YAxis dataKey="type" type="category" />
+              <Tooltip />
+              <Bar
+                dataKey="count"
+                name="Defect Count"
+                fill="#ff7043"
+                radius={[0, 4, 4, 0]}
+                barSize={20}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* C. 설비 OEE 분석 (Multi Bar) */}
+        <ChartCard className="wide">
+          <CardHeader>
+            <CardTitle>Equipment OEE Breakdown</CardTitle>
+          </CardHeader>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart
+              data={kpiData.equipmentOee}
+              // ▼▼▼ 여기를 수정하세요 (bottom: 40 -> bottom: 60) ▼▼▼
+              margin={{ top: 20, right: 20, bottom: 60, left: 0 }}
+            >
+              <CartesianGrid stroke="#f5f5f5" vertical={false} />
+              <XAxis
+                dataKey="group"
+                tick={{ fontSize: 12, fill: "#666" }} // 폰트 스타일 추가 (선택사항)
+                dy={10} // 텍스트를 살짝 아래로 내리기 (선택사항)
+              />
+              <YAxis domain={[0, 100]} />
+              <Tooltip />
+              {/* 범례 위치 조정 (선택사항: 차트 아래 공간 활용) */}
+              <Legend verticalAlign="bottom" height={36} />
+
+              <Bar dataKey="availability" name="Availability" fill="#42a5f5" />
+              <Bar dataKey="performance" name="Performance" fill="#66bb6a" />
+              <Bar dataKey="quality" name="Quality" fill="#ffa726" />
               <Line
                 type="monotone"
                 dataKey="oee"
                 name="OEE Score"
-                stroke="#ff7300"
-                strokeWidth={3}
+                stroke="#333"
+                strokeWidth={2}
+                dot={{ r: 4 }}
               />
-            </ComposedChart>
+            </BarChart>
           </ResponsiveContainer>
-        </ChartContainer>
-      </MainChartSection>
-
-      {/* 3. 하단 상세 분석 (좌: 불량 분석, 우: 생산량 추이) */}
-      <BottomSection>
-        <SubChartBox>
-          <SectionTitle>불량 유형 분석 (Pareto Chart)</SectionTitle>
-          <ResponsiveContainer width="100%" height={250}>
-            <ComposedChart data={DEFECT_PARETO_DATA}>
-              <CartesianGrid stroke="#f5f5f5" />
-              <XAxis dataKey="name" />
-              <YAxis yAxisId="left" orientation="left" stroke="#8884d8" />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                domain={[0, 100]}
-                stroke="#ff7300"
-              />
-              <Tooltip />
-              <Legend />
-              <Bar
-                yAxisId="left"
-                dataKey="count"
-                name="발생 건수"
-                barSize={40}
-                fill="#413ea0"
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="accumulated"
-                name="누적 점유율(%)"
-                stroke="#ff7300"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </SubChartBox>
-
-        <SubChartBox>
-          <SectionTitle>주간 생산량 달성 추이</SectionTitle>
-          <ResponsiveContainer width="100%" height={250}>
-            <AreaChart data={OEE_TREND_DATA}>
-              <defs>
-                <linearGradient id="colorOee" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#82ca9d" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="date" />
-              <YAxis />
-              <CartesianGrid strokeDasharray="3 3" />
-              <Tooltip />
-              <Area
-                type="monotone"
-                dataKey="performance"
-                stroke="#82ca9d"
-                fillOpacity={1}
-                fill="url(#colorOee)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </SubChartBox>
-      </BottomSection>
+        </ChartCard>
+      </ChartGrid>
     </Container>
   );
 };
 
-export default KPIPage;
+export default KpiPage;
 
 // --- Styled Components ---
 
 const Container = styled.div`
   width: 100%;
   height: 100%;
+  padding: 20px;
+  background-color: #f5f6fa;
   display: flex;
   flex-direction: column;
   gap: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
 `;
 
-const FilterSection = styled.div`
-  height: 60px;
-  background-color: white;
-  border-radius: 8px;
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+const TitleArea = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+const PageTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  color: #333;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
+  gap: 10px;
 `;
-
-const PageTitle = styled.h2`
-  font-size: 20px;
-  font-weight: 700;
-  color: #333;
-  margin: 0;
+const SubTitle = styled.span`
+  font-size: 13px;
+  color: #888;
+  margin-top: 5px;
+  margin-left: 34px;
 `;
 
 const ControlGroup = styled.div`
@@ -209,96 +348,136 @@ const ControlGroup = styled.div`
   gap: 10px;
   align-items: center;
 `;
+const ButtonGroup = styled.div`
+  display: flex;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  overflow: hidden;
+  margin-right: 10px;
+`;
+const PeriodBtn = styled.button`
+  border: none;
+  background: ${(props) => (props.$active ? "#1a4f8b" : "white")};
+  color: ${(props) => (props.$active ? "white" : "#555")};
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  &:hover {
+    background: ${(props) => (props.$active ? "#133b6b" : "#f5f5f5")};
+  }
+`;
 
-const DateInputGroup = styled.div`
+const RefreshBtn = styled.button`
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: white;
+  color: #555;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &:hover {
+    background: #f5f5f5;
+  }
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+`;
+const ExportBtn = styled.button`
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: #2e7d32;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f5f7fa;
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
-
-  span {
-    color: #888;
+  &:hover {
+    background: #1b5e20;
   }
 `;
 
-const Input = styled.input`
-  border: none;
-  background: transparent;
-  color: #333;
-  font-family: inherit;
-  cursor: pointer;
-  outline: none;
+const SummaryGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
 `;
-
-const Button = styled.button`
+const SummaryCard = styled.div`
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  font-size: 14px;
-  transition: 0.2s;
-`;
-
-const SearchButton = styled(Button)`
-  background-color: #1a4f8b;
-  color: white;
-  &:hover {
-    background-color: #133b6b;
-  }
-`;
-
-const DownloadButton = styled(Button)`
-  background-color: #2e7d32;
-  color: white;
-  &:hover {
-    background-color: #1b5e20;
-  }
-`;
-
-const MainChartSection = styled.div`
-  flex: 1.5; /* 세로 비율 1.5 */
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* Flex overflow 방지 */
-`;
-
-const SectionTitle = styled.h3`
-  font-size: 16px;
-  color: #555;
-  margin: 0 0 15px 0;
-  font-weight: 700;
-`;
-
-const ChartContainer = styled.div`
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-`;
-
-const BottomSection = styled.div`
-  flex: 1; /* 세로 비율 1 */
-  display: flex;
   gap: 20px;
-  min-height: 0;
 `;
-
-const SubChartBox = styled.div`
-  flex: 1;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+const IconWrapper = styled.div`
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  background: ${(props) => `${props.$color}15`};
+  color: ${(props) => props.$color};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+`;
+const CardContent = styled.div`
   display: flex;
   flex-direction: column;
+`;
+const Label = styled.span`
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 5px;
+`;
+const BigValue = styled.span`
+  font-size: 28px;
+  font-weight: 800;
+  color: #333;
+  line-height: 1;
+  margin-bottom: 5px;
+`;
+const SubValue = styled.span`
+  font-size: 12px;
+  color: #666;
+`;
+
+const ChartGrid = styled.div`
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  .wide {
+    grid-column: span 2;
+  }
+`;
+const ChartCard = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+`;
+const CardHeader = styled.div`
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+`;
+const CardTitle = styled.h3`
+  margin: 0;
+  font-size: 16px;
+  color: #333;
+  font-weight: 700;
 `;

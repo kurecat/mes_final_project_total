@@ -1,114 +1,148 @@
 // src/pages/resource/MachinePage.js
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled, { keyframes, css } from "styled-components";
+import axios from "axios";
 import {
   FaSearch,
   FaFilter,
-  FaCogs,
   FaThermometerHalf,
   FaBolt,
   FaPlay,
   FaStop,
   FaExclamationTriangle,
   FaTools,
+  FaMicrochip,
+  FaSync,
 } from "react-icons/fa";
 
-// --- Mock Data (HBM 반도체 전공정/후공정 설비) ---
-const MACHINE_DATA = [
+// --- Fallback Mock Data ---
+const MOCK_MACHINES = [
   {
-    id: "EQ-TCB-01",
-    name: "TC Bonder #1 (Stacking)",
-    type: "Bonder",
-    status: "RUN", // RUN, IDLE, DOWN, PM
-    lotId: "HBM3-LOT-240520-A",
-    uph: 120,
-    temperature: 350, // bonding temp
-    pressure: "45N",
-    progress: 78, // 현재 Lot 진행률
+    id: "EQ-PHO-01",
+    name: "Photo Stepper #01 (ASML)",
+    type: "Photo",
+    status: "RUN",
+    lotId: "LOT-DDR5-240601-A",
+    uph: 140,
+    temperature: 23.5,
+    param: "Focus: 0.05um",
+    progress: 82,
   },
   {
-    id: "EQ-TCB-02",
-    name: "TC Bonder #2 (Stacking)",
-    type: "Bonder",
-    status: "DOWN",
-    errorCode: "ERR-204: Temp High",
-    lotId: "HBM3-LOT-240520-B",
-    uph: 0,
-    temperature: 420, // 과열
-    pressure: "0N",
+    id: "EQ-ETC-03",
+    name: "Poly Etcher #03 (Lam)",
+    type: "Etch",
+    status: "RUN",
+    lotId: "LOT-DDR5-240601-B",
+    uph: 55,
+    temperature: 65,
+    param: "Gas: 450sccm",
     progress: 45,
   },
   {
-    id: "EQ-TSV-01",
-    name: "TSV Etcher A",
-    type: "Etcher",
-    status: "RUN",
-    lotId: "TSV-W-0992",
-    uph: 45,
-    temperature: 60,
-    pressure: "2.1mTorr",
-    progress: 92,
+    id: "EQ-DEP-02",
+    name: "CVD Deposition #02",
+    type: "Deposition",
+    status: "DOWN",
+    errorCode: "ERR-503: Gas Flow Low",
+    lotId: "LOT-DDR5-240601-C",
+    uph: 0,
+    temperature: 450,
+    param: "Vac: 2.1Torr",
+    progress: 12,
   },
   {
-    id: "EQ-REF-01",
-    name: "Reflow Oven #1",
-    type: "Oven",
+    id: "EQ-EDS-01",
+    name: "EDS Tester #01 (Advantest)",
+    type: "Test",
+    status: "RUN",
+    lotId: "LOT-DDR5-TEST-09",
+    uph: 3,
+    temperature: 85,
+    param: "Yield: 98.2%",
+    progress: 98,
+  },
+  {
+    id: "EQ-IMP-05",
+    name: "Ion Implanter #05",
+    type: "Implant",
     status: "IDLE",
     lotId: "-",
     uph: 0,
-    temperature: 240, // standby temp
-    pressure: "-",
+    temperature: 24,
+    param: "Beam: 0mA",
     progress: 0,
   },
   {
-    id: "EQ-GRD-03",
-    name: "Wafer Grinder #3",
-    type: "Grinder",
-    status: "PM", // 예방 정비 중
+    id: "EQ-CMP-02",
+    name: "CMP Polisher #02",
+    type: "CMP",
+    status: "PM", // 유지보수
     lotId: "-",
     uph: 0,
-    temperature: 25,
-    pressure: "-",
+    temperature: 22,
+    param: "-",
     progress: 0,
-  },
-  {
-    id: "EQ-TCB-03",
-    name: "TC Bonder #3 (Stacking)",
-    type: "Bonder",
-    status: "RUN",
-    lotId: "HBM3-LOT-240520-C",
-    uph: 118,
-    temperature: 348,
-    pressure: "44N",
-    progress: 12,
   },
 ];
 
 const MachinePage = () => {
+  const [machines, setMachines] = useState(MOCK_MACHINES);
+  const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // 상태별 카운트 계산
-  const statusCounts = {
-    TOTAL: MACHINE_DATA.length,
-    RUN: MACHINE_DATA.filter((m) => m.status === "RUN").length,
-    DOWN: MACHINE_DATA.filter((m) => m.status === "DOWN").length,
-    IDLE: MACHINE_DATA.filter((m) => m.status === "IDLE").length,
+  // 데이터 가져오기
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // ★ 실제 API: http://localhost:3001/machines
+      // const res = await axios.get("http://localhost:3001/machines");
+      // setMachines(res.data);
+
+      setTimeout(() => {
+        setMachines(MOCK_MACHINES);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    fetchData();
+    // 10초마다 상태 갱신 (모니터링 효과)
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   // 필터링
-  const filteredData = MACHINE_DATA.filter(
-    (item) => filterStatus === "ALL" || item.status === filterStatus
-  );
+  const filteredData = machines.filter((item) => {
+    const matchStatus = filterStatus === "ALL" || item.status === filterStatus;
+    const matchSearch =
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.id.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  // 상태 카운트 계산
+  const statusCounts = {
+    TOTAL: machines.length,
+    RUN: machines.filter((m) => m.status === "RUN").length,
+    DOWN: machines.filter((m) => m.status === "DOWN").length,
+    IDLE: machines.filter((m) => m.status === "IDLE").length,
+  };
 
   return (
     <Container>
-      {/* 1. 상단 상태 요약 바 */}
+      {/* 1. 상단 요약 바 */}
       <SummaryBar>
         <SummaryItem
           onClick={() => setFilterStatus("ALL")}
           $active={filterStatus === "ALL"}
         >
-          <Label>Total Machines</Label>
+          <Label>Total Equipments</Label>
           <Value>{statusCounts.TOTAL}</Value>
         </SummaryItem>
         <SummaryItem
@@ -116,7 +150,7 @@ const MachinePage = () => {
           $active={filterStatus === "RUN"}
           $color="#2ecc71"
         >
-          <Label>Running</Label>
+          <Label>Running (Prod)</Label>
           <Value>{statusCounts.RUN}</Value>
         </SummaryItem>
         <SummaryItem
@@ -124,7 +158,7 @@ const MachinePage = () => {
           $active={filterStatus === "IDLE"}
           $color="#f1c40f"
         >
-          <Label>Idle / Wait</Label>
+          <Label>Idle / Standby</Label>
           <Value>{statusCounts.IDLE}</Value>
         </SummaryItem>
         <SummaryItem
@@ -132,22 +166,33 @@ const MachinePage = () => {
           $active={filterStatus === "DOWN"}
           $color="#e74c3c"
         >
-          <Label>Down / Error</Label>
+          <Label>Down / Trouble</Label>
           <Value>{statusCounts.DOWN}</Value>
         </SummaryItem>
       </SummaryBar>
 
       {/* 2. 컨트롤 영역 */}
       <ControlSection>
-        <Title>Equipment Monitoring</Title>
+        <Title>
+          Fab Equipment Monitoring
+          {loading && (
+            <LoadingSpinner>
+              <FaSync className="spin" />
+            </LoadingSpinner>
+          )}
+        </Title>
         <FilterGroup>
           <SearchBox>
             <FaSearch color="#999" />
-            <input placeholder="Search Machine ID..." />
+            <input
+              placeholder="Search EQ ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </SearchBox>
-          <FilterButton>
-            <FaFilter /> Filter
-          </FilterButton>
+          <RefreshBtn onClick={fetchData}>
+            <FaSync />
+          </RefreshBtn>
         </FilterGroup>
       </ControlSection>
 
@@ -155,10 +200,9 @@ const MachinePage = () => {
       <GridContainer>
         {filteredData.map((machine) => (
           <MachineCard key={machine.id} $status={machine.status}>
-            {/* 카드 헤더: 이름 및 상태 */}
             <CardHeader $status={machine.status}>
               <MachineName>
-                <FaCogs /> {machine.name}
+                <FaMicrochip /> {machine.name}
               </MachineName>
               <StatusBadge $status={machine.status}>
                 {machine.status === "RUN" && <FaPlay size={10} />}
@@ -171,17 +215,16 @@ const MachinePage = () => {
               </StatusBadge>
             </CardHeader>
 
-            {/* 카드 바디: 상세 정보 */}
             <CardBody>
               <InfoRow>
-                <InfoLabel>Lot ID</InfoLabel>
+                <InfoLabel>Current Lot</InfoLabel>
                 <InfoValue className="lot">{machine.lotId}</InfoValue>
               </InfoRow>
 
               <MetricGrid>
                 <MetricItem>
                   <FaBolt color="#f1c40f" />
-                  <span>{machine.uph} UPH</span>
+                  <span>{machine.uph} WPH</span>
                 </MetricItem>
                 <MetricItem>
                   <FaThermometerHalf color="#e74c3c" />
@@ -189,13 +232,19 @@ const MachinePage = () => {
                 </MetricItem>
               </MetricGrid>
 
-              {/* 에러 발생 시 에러 메시지 표시 */}
+              <ParamRow>
+                <ParamLabel>Main Param:</ParamLabel>
+                <ParamValue>{machine.param}</ParamValue>
+              </ParamRow>
+
               {machine.status === "DOWN" ? (
-                <ErrorBox>{machine.errorCode}</ErrorBox>
+                <ErrorBox>
+                  <FaExclamationTriangle /> {machine.errorCode}
+                </ErrorBox>
               ) : (
                 <ProgressWrapper>
                   <ProgressLabel>
-                    <span>Current Progress</span>
+                    <span>Process Progress</span>
                     <span>{machine.progress}%</span>
                   </ProgressLabel>
                   <ProgressBar>
@@ -209,7 +258,7 @@ const MachinePage = () => {
             </CardBody>
 
             <CardFooter>
-              <DetailButton>View Detail</DetailButton>
+              <DetailButton>View Detail / Log</DetailButton>
             </CardFooter>
           </MachineCard>
         ))}
@@ -233,14 +282,12 @@ const Container = styled.div`
   overflow-y: auto;
 `;
 
-// 1. Summary Bar
 const SummaryBar = styled.div`
   display: flex;
   gap: 15px;
   margin-bottom: 20px;
   flex-shrink: 0;
 `;
-
 const SummaryItem = styled.div`
   flex: 1;
   background: white;
@@ -252,25 +299,22 @@ const SummaryItem = styled.div`
   transition: all 0.2s;
   opacity: ${(props) => (props.$active ? 1 : 0.6)};
   transform: ${(props) => (props.$active ? "translateY(-2px)" : "none")};
-
   &:hover {
     opacity: 1;
+    transform: translateY(-2px);
   }
 `;
-
 const Label = styled.div`
   font-size: 12px;
   color: #888;
   margin-bottom: 5px;
 `;
-
 const Value = styled.div`
   font-size: 24px;
   font-weight: 800;
   color: #333;
 `;
 
-// 2. Control Section
 const ControlSection = styled.div`
   display: flex;
   justify-content: space-between;
@@ -278,18 +322,31 @@ const ControlSection = styled.div`
   margin-bottom: 20px;
   flex-shrink: 0;
 `;
-
 const Title = styled.h2`
   font-size: 20px;
   color: #333;
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+const LoadingSpinner = styled.span`
+  font-size: 16px;
+  color: #1a4f8b;
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    100% {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
 const FilterGroup = styled.div`
   display: flex;
   gap: 10px;
 `;
-
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -297,7 +354,6 @@ const SearchBox = styled.div`
   padding: 8px 15px;
   border-radius: 20px;
   border: 1px solid #ddd;
-
   input {
     border: none;
     outline: none;
@@ -305,23 +361,21 @@ const SearchBox = styled.div`
     font-size: 14px;
   }
 `;
-
-const FilterButton = styled.button`
+const RefreshBtn = styled.button`
   background: white;
   border: 1px solid #ddd;
-  padding: 8px 15px;
-  border-radius: 20px;
+  padding: 8px 12px;
+  border-radius: 50%;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
   color: #555;
   &:hover {
     background: #f9f9f9;
   }
 `;
 
-// 3. Grid & Cards
 const GridContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -329,11 +383,10 @@ const GridContainer = styled.div`
   padding-bottom: 20px;
 `;
 
-// 알람 발생 시 깜빡이는 애니메이션
 const blink = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
-  70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); border-color: #e74c3c; }
+  50% { box-shadow: 0 0 0 8px rgba(231, 76, 60, 0); border-color: #ff8a80; }
+  100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); border-color: #e74c3c; }
 `;
 
 const MachineCard = styled.div`
@@ -345,15 +398,11 @@ const MachineCard = styled.div`
   flex-direction: column;
   transition: transform 0.2s;
   border: 1px solid #eee;
-
-  /* DOWN 상태일 때 빨간 테두리 + 애니메이션 */
   ${(props) =>
     props.$status === "DOWN" &&
     css`
-      border-color: #e74c3c;
-      animation: ${blink} 2s infinite;
+      animation: ${blink} 1.5s infinite;
     `}
-
   &:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
@@ -384,17 +433,15 @@ const MachineName = styled.div`
   gap: 8px;
   font-size: 15px;
 `;
-
 const StatusBadge = styled.div`
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 20px;
   background: white;
-
   color: ${(props) =>
     props.$status === "RUN"
       ? "#2ecc71"
@@ -412,23 +459,19 @@ const CardBody = styled.div`
   flex-direction: column;
   gap: 15px;
 `;
-
 const InfoRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
 `;
-
 const InfoLabel = styled.span`
   font-size: 13px;
   color: #888;
 `;
-
 const InfoValue = styled.span`
   font-size: 14px;
   color: #333;
   font-weight: 600;
-
   &.lot {
     color: #1a4f8b;
     font-family: monospace;
@@ -443,7 +486,6 @@ const MetricGrid = styled.div`
   padding: 10px;
   border-radius: 8px;
 `;
-
 const MetricItem = styled.div`
   display: flex;
   align-items: center;
@@ -453,15 +495,33 @@ const MetricItem = styled.div`
   font-weight: 600;
 `;
 
+const ParamRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-top: -5px;
+`;
+const ParamLabel = styled.span`
+  color: #888;
+`;
+const ParamValue = styled.span`
+  color: #555;
+  font-weight: 600;
+`;
+
 const ErrorBox = styled.div`
   background-color: #ffebee;
   color: #c62828;
-  padding: 10px;
+  padding: 12px;
   border-radius: 6px;
   font-size: 13px;
   text-align: center;
   font-weight: 600;
   border: 1px solid #ef9a9a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 `;
 
 const ProgressWrapper = styled.div`
@@ -469,14 +529,12 @@ const ProgressWrapper = styled.div`
   flex-direction: column;
   gap: 5px;
 `;
-
 const ProgressLabel = styled.div`
   display: flex;
   justify-content: space-between;
   font-size: 12px;
   color: #666;
 `;
-
 const ProgressBar = styled.div`
   width: 100%;
   height: 6px;
@@ -484,7 +542,6 @@ const ProgressBar = styled.div`
   border-radius: 3px;
   overflow: hidden;
 `;
-
 const ProgressFill = styled.div`
   width: ${(props) => props.$percent}%;
   height: 100%;
@@ -498,7 +555,6 @@ const CardFooter = styled.div`
   border-top: 1px solid #eee;
   text-align: center;
 `;
-
 const DetailButton = styled.button`
   width: 100%;
   padding: 8px 0;
@@ -509,7 +565,6 @@ const DetailButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-
   &:hover {
     background: #1a4f8b;
     color: white;
