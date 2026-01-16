@@ -1,5 +1,9 @@
 package com.hm.mes_final_260106.controller;
 
+import com.hm.mes_final_260106.dto.MaterialInboundDto;
+import com.hm.mes_final_260106.dto.ProductionReportDto;
+import com.hm.mes_final_260106.dto.WorkOrderReqDto;
+import com.hm.mes_final_260106.dto.WorkOrderResDto;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.WorkOrder;
 import com.hm.mes_final_260106.service.ProductionService;
@@ -11,6 +15,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 import java.util.List;
+// 웹 대시 보드 및 설비를 연결
 
 // 웹 대시보드 및 설비(C#)를 연결하는 Controller
 @RestController
@@ -215,3 +220,4 @@ public ResponseEntity<String> deleteWorker(@PathVariable("id") Long id) {
 
 
 }
+*/
