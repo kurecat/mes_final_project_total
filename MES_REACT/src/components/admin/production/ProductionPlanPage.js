@@ -10,14 +10,22 @@ import {
   FaSearch,
   FaCheckDouble,
   FaSync,
-  FaArrowRight,
-  FaIndustry,
+  FaSave,
+  FaTimes,
 } from "react-icons/fa";
 
-// --- Fallback Mock Data ---
+// =============================
+// API Base
+// =============================
+const API_BASE = "http://localhost:8111/api/mes";
+
+// =============================
+// Dummy Fallback Data (안전하게 product 포함)
+// =============================
 const MOCK_PLANS = [
   {
     id: "PP-240601-01",
+    orderId: 1,
     date: "2024-06-01",
     product: "DDR5 1znm Wafer",
     line: "Fab-Line-A",
@@ -27,6 +35,7 @@ const MOCK_PLANS = [
   },
   {
     id: "PP-240602-02",
+    orderId: 2,
     date: "2024-06-02",
     product: "16Gb DDR5 SDRAM",
     line: "EDS-Line-01",
@@ -34,46 +43,57 @@ const MOCK_PLANS = [
     planQty: 50000,
     status: "RELEASED",
   },
-  {
-    id: "PP-240605-03",
-    date: "2024-06-05",
-    product: "DDR5 32GB UDIMM",
-    line: "Mod-Line-C",
-    type: "MOD",
-    planQty: 2000,
-    status: "PLANNED",
-  },
-  {
-    id: "PP-240606-04",
-    date: "2024-06-06",
-    product: "LPDDR5X Mobile",
-    line: "Fab-Line-B",
-    type: "FAB",
-    planQty: 800,
-    status: "PLANNED",
-  },
 ];
 
 const ProductionPlanPage = () => {
   const [plans, setPlans] = useState(MOCK_PLANS);
   const [loading, setLoading] = useState(true);
+
   const [filterLine, setFilterLine] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. 데이터 조회 (READ)
+  // =============================
+  // 수정 기능 상태
+  // =============================
+  const [editingPlanId, setEditingPlanId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    product: "",
+    planQty: "",
+    targetLine: "",
+  });
+
+  // =============================
+  // WorkOrder -> Plan 변환
+  // (백엔드 WorkOrderResDto 구조에 맞춰서 매핑)
+  // =============================
+  const mapWorkOrderToPlan = (wo) => {
+    return {
+      id: wo.workorderNumber || `WO-${wo.id}`, // 화면 표시용
+      orderId: wo.id, // ⭐ API 호출용 (필수)
+
+      date: wo.startDate ? wo.startDate.split("T")[0] : "",
+
+      product: wo.productId || "", // ⭐ productId 기반
+      line: wo.targetLine || "Fab-Line-A", // 아직 라인 테이블 없으면 더미
+      type: "FAB", // 아직 타입 없으면 더미
+      planQty: wo.targetQty ?? 0,
+      status: wo.status ?? "WAITING",
+    };
+  };
+
+  // =============================
+  // 1) 데이터 조회 (READ)
+  // =============================
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ★ 실제 API: http://localhost:3001/productionPlans
-      // const res = await axios.get("http://localhost:3001/productionPlans");
-      // setPlans(res.data);
-
-      setTimeout(() => {
-        setPlans(MOCK_PLANS);
-        setLoading(false);
-      }, 500);
+      const res = await axios.get(`${API_BASE}/order`);
+      const mapped = (res.data || []).map(mapWorkOrderToPlan);
+      setPlans(mapped);
     } catch (err) {
-      console.error(err);
+      console.error("작업지시 조회 실패:", err);
+      // 실패 시 MOCK 유지
+    } finally {
       setLoading(false);
     }
   };
@@ -82,53 +102,142 @@ const ProductionPlanPage = () => {
     fetchData();
   }, []);
 
-  // 2. 계획 확정 (UPDATE Status)
-  // PLANNED -> RELEASED (Work Order 생성 단계로 넘어감)
-  const handleRelease = async (id) => {
+  // =============================
+  // 2) 작업지시 생성 (CREATE)
+  // =============================
+  const handleAdd = async () => {
     try {
-      // await axios.patch(`http://localhost:3001/productionPlans/${id}`, { status: "RELEASED" });
-      // fetchData();
+      // 지금은 더미 입력값으로 생성
+      const payload = {
+        productId: "P-DUMMY-001",
+        targetQty: 500,
+        targetLine: "Fab-Line-A",
+      };
 
-      setPlans((prev) =>
-        prev.map((p) => (p.id === id ? { ...p, status: "RELEASED" } : p))
-      );
-      alert(`Plan [${id}] has been released to production.`);
+      await axios.post(`${API_BASE}/order`, payload);
+      alert("작업지시가 추가되었습니다.");
+      fetchData();
     } catch (err) {
-      console.error(err);
+      console.error("작업지시 생성 실패:", err);
+      alert("작업지시 추가 실패");
     }
   };
 
-  // 3. 계획 삭제 (DELETE)
-  const handleDelete = async (id) => {
+  // =============================
+  // 3) Release (WAITING -> RELEASED)
+  // =============================
+  const handleRelease = async (planId, orderId) => {
+    if (!orderId) {
+      alert("orderId가 없습니다. 데이터 매핑을 확인하세요.");
+      return;
+    }
+
+    try {
+      await axios.post(`${API_BASE}/order/${orderId}/release`);
+      alert(`Plan [${planId}] Release 완료`);
+      fetchData();
+    } catch (err) {
+      console.error("Release 실패:", err);
+      alert("Release 실패");
+    }
+  };
+
+  // =============================
+  // 4) 삭제 (DELETE)
+  // =============================
+  const handleDelete = async (planId, orderId) => {
+    if (!orderId) {
+      alert("orderId가 없습니다. 데이터 매핑을 확인하세요.");
+      return;
+    }
+
     if (!window.confirm("삭제하시겠습니까? (확정된 계획은 삭제 주의)")) return;
+
     try {
-      // await axios.delete(`http://localhost:3001/productionPlans/${id}`);
-      setPlans((prev) => prev.filter((p) => p.id !== id));
+      await axios.delete(`${API_BASE}/order/${orderId}`);
+      alert("삭제 완료");
+      fetchData();
     } catch (err) {
-      console.error(err);
+      console.error("삭제 실패:", err);
+      alert("삭제 실패");
     }
   };
 
-  // 4. 새 계획 추가 (CREATE - Mock)
-  const handleAdd = () => {
-    const newPlan = {
-      id: `PP-${Math.floor(Math.random() * 10000)}`,
-      date: new Date().toISOString().split("T")[0],
-      product: "New Product Plan",
-      line: "Fab-Line-A",
-      type: "FAB",
-      planQty: 500,
-      status: "PLANNED",
-    };
-    setPlans([newPlan, ...plans]);
+  // =============================
+  // 5) 수정모드 진입 (EDIT ICON)
+  // =============================
+  const handleEditStart = (plan) => {
+    setEditingPlanId(plan.id);
+    setEditForm({
+      product: plan.product ?? "",
+      planQty: plan.planQty ?? "",
+      targetLine: plan.line ?? "",
+    });
   };
 
-  // 필터링
+  // =============================
+  // 6) 수정 취소
+  // =============================
+  const handleEditCancel = () => {
+    setEditingPlanId(null);
+    setEditForm({
+      product: "",
+      planQty: "",
+      targetLine: "",
+    });
+  };
+
+  // =============================
+  // 7) 수정 저장 (PUT)
+  // =============================
+  const handleEditSave = async (planId, orderId) => {
+    if (!orderId) {
+      alert("orderId가 없습니다. 데이터 매핑을 확인하세요.");
+      return;
+    }
+
+    // 간단 유효성
+    if (!editForm.product.trim()) {
+      alert("ProductId를 입력하세요.");
+      return;
+    }
+
+    const qty = Number(editForm.planQty);
+    if (!qty || qty <= 0) {
+      alert("Plan Qty는 1 이상 숫자여야 합니다.");
+      return;
+    }
+
+    try {
+      const payload = {
+        productId: editForm.product.trim(),
+        targetQty: qty,
+        targetLine: editForm.targetLine.trim(),
+      };
+
+      await axios.put(`${API_BASE}/order/${orderId}`, payload);
+
+      alert(`Plan [${planId}] 수정 저장 완료`);
+      setEditingPlanId(null);
+      fetchData();
+    } catch (err) {
+      console.error("수정 저장 실패:", err);
+      alert("수정 저장 실패");
+    }
+  };
+
+  // =============================
+  // 필터링 (toLowerCase 에러 방지)
+  // =============================
   const filteredPlans = plans.filter((p) => {
     const matchLine = filterLine === "ALL" || p.type === filterLine;
-    const matchSearch =
-      p.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.id.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const product = (p.product ?? "").toLowerCase();
+    const id = (p.id ?? "").toLowerCase();
+    const keyword = (searchTerm ?? "").toLowerCase();
+
+    const matchSearch = product.includes(keyword) || id.includes(keyword);
+
     return matchLine && matchSearch;
   });
 
@@ -148,6 +257,7 @@ const ProductionPlanPage = () => {
           </PageTitle>
           <SubTitle>Fab / EDS / Module Daily Output Plan</SubTitle>
         </TitleArea>
+
         <ActionGroup>
           <AddButton onClick={handleAdd}>
             <FaPlus /> Create Plan
@@ -183,6 +293,7 @@ const ProductionPlanPage = () => {
             Module
           </FilterBtn>
         </FilterGroup>
+
         <SearchBox>
           <FaSearch color="#999" />
           <input
@@ -207,54 +318,139 @@ const ProductionPlanPage = () => {
               <th>Action</th>
             </tr>
           </thead>
+
           <tbody>
-            {filteredPlans.map((plan) => (
-              <tr key={plan.id}>
-                <td>
-                  <StatusBadge $status={plan.status}>{plan.status}</StatusBadge>
-                </td>
-                <td style={{ fontWeight: "bold", color: "#1a4f8b" }}>
-                  {plan.id}
-                </td>
-                <td>{plan.date}</td>
-                <td style={{ fontSize: 13 }}>
-                  <LineTag $type={plan.type}>{plan.line}</LineTag>
-                </td>
-                <td style={{ fontWeight: "600" }}>{plan.product}</td>
-                <td>
-                  {plan.planQty.toLocaleString()}
-                  <Unit>
-                    {plan.type === "FAB"
-                      ? "wfrs"
-                      : plan.type === "EDS"
-                      ? "chips"
-                      : "ea"}
-                  </Unit>
-                </td>
-                <td>
-                  <ActionButtons>
-                    {plan.status === "PLANNED" && (
-                      <IconBtn
-                        className="confirm"
-                        onClick={() => handleRelease(plan.id)}
-                        title="Release Plan"
-                      >
-                        <FaCheckDouble /> Release
-                      </IconBtn>
+            {filteredPlans.map((plan) => {
+              const isEditing = editingPlanId === plan.id;
+
+              return (
+                <tr key={plan.id}>
+                  <td>
+                    <StatusBadge $status={plan.status}>
+                      {plan.status}
+                    </StatusBadge>
+                  </td>
+
+                  <td style={{ fontWeight: "bold", color: "#1a4f8b" }}>
+                    {plan.id}
+                  </td>
+
+                  <td>{plan.date}</td>
+
+                  <td style={{ fontSize: 13 }}>
+                    {isEditing ? (
+                      <EditInput
+                        value={editForm.targetLine}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            targetLine: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      plan.line
                     )}
-                    <IconBtn className="edit">
-                      <FaEdit />
-                    </IconBtn>
-                    <IconBtn
-                      className="del"
-                      onClick={() => handleDelete(plan.id)}
-                    >
-                      <FaTrash />
-                    </IconBtn>
-                  </ActionButtons>
-                </td>
-              </tr>
-            ))}
+                  </td>
+
+                  {/* Product */}
+                  <td style={{ fontWeight: "600" }}>
+                    {isEditing ? (
+                      <EditInput
+                        value={editForm.product}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            product: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      plan.product
+                    )}
+                  </td>
+
+                  {/* Qty */}
+                  <td>
+                    {isEditing ? (
+                      <EditInput
+                        type="number"
+                        value={editForm.planQty}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            planQty: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      <>
+                        {Number(plan.planQty).toLocaleString()}
+                        <Unit>ea</Unit>
+                      </>
+                    )}
+                  </td>
+
+                  {/* Action */}
+                  <td>
+                    <ActionButtons>
+                      {/* Release 버튼 */}
+                      {plan.status === "WAITING" && !isEditing && (
+                        <IconBtn
+                          className="confirm"
+                          onClick={() => handleRelease(plan.id, plan.orderId)}
+                          title="Release Plan"
+                        >
+                          <FaCheckDouble /> Release
+                        </IconBtn>
+                      )}
+
+                      {/* Edit / Save / Cancel */}
+                      {!isEditing ? (
+                        <IconBtn
+                          className="edit"
+                          onClick={() => handleEditStart(plan)}
+                          title="Edit"
+                        >
+                          <FaEdit />
+                        </IconBtn>
+                      ) : (
+                        <>
+                          <IconBtn
+                            className="save"
+                            onClick={() =>
+                              handleEditSave(plan.id, plan.orderId)
+                            }
+                            title="Save"
+                          >
+                            <FaSave /> Save
+                          </IconBtn>
+
+                          <IconBtn
+                            className="cancel"
+                            onClick={handleEditCancel}
+                            title="Cancel"
+                          >
+                            <FaTimes /> Cancel
+                          </IconBtn>
+                        </>
+                      )}
+
+                      {/* Delete */}
+                      {!isEditing && (
+                        <IconBtn
+                          className="del"
+                          onClick={() => handleDelete(plan.id, plan.orderId)}
+                          title="Delete"
+                        >
+                          <FaTrash />
+                        </IconBtn>
+                      )}
+                    </ActionButtons>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
       </TableContainer>
@@ -264,8 +460,9 @@ const ProductionPlanPage = () => {
 
 export default ProductionPlanPage;
 
-// --- Styled Components ---
-
+// =============================
+// Styled Components
+// =============================
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -282,10 +479,12 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
 `;
+
 const TitleArea = styled.div`
   display: flex;
   flex-direction: column;
 `;
+
 const PageTitle = styled.h2`
   margin: 0;
   font-size: 24px;
@@ -293,16 +492,19 @@ const PageTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: 10px;
+
   .spin {
     animation: spin 1s linear infinite;
     color: #aaa;
   }
+
   @keyframes spin {
     100% {
       transform: rotate(360deg);
     }
   }
 `;
+
 const SubTitle = styled.span`
   font-size: 13px;
   color: #888;
@@ -314,6 +516,7 @@ const ActionGroup = styled.div`
   display: flex;
   gap: 10px;
 `;
+
 const AddButton = styled.button`
   background: #1a4f8b;
   color: white;
@@ -325,6 +528,7 @@ const AddButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
+
   &:hover {
     background: #133b6b;
   }
@@ -339,10 +543,12 @@ const ControlBar = styled.div`
   border-radius: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
+
 const FilterGroup = styled.div`
   display: flex;
   gap: 8px;
 `;
+
 const FilterBtn = styled.button`
   padding: 6px 12px;
   border-radius: 20px;
@@ -352,10 +558,12 @@ const FilterBtn = styled.button`
   border: 1px solid ${(props) => (props.$active ? "#1a4f8b" : "#eee")};
   background: ${(props) => (props.$active ? "#1a4f8b" : "#f9f9f9")};
   color: ${(props) => (props.$active ? "white" : "#666")};
+
   &:hover {
     background: ${(props) => (props.$active ? "#133b6b" : "#eee")};
   }
 `;
+
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -363,6 +571,7 @@ const SearchBox = styled.div`
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid #ddd;
+
   input {
     border: none;
     background: transparent;
@@ -386,6 +595,7 @@ const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+
   thead {
     th {
       text-align: left;
@@ -396,14 +606,17 @@ const Table = styled.table`
       font-weight: 700;
     }
   }
+
   tbody {
     tr {
       border-bottom: 1px solid #f0f0f0;
       transition: background 0.2s;
+
       &:hover {
         background: #f8fbff;
       }
     }
+
     td {
       padding: 12px;
       color: #333;
@@ -422,37 +635,17 @@ const StatusBadge = styled.span`
       ? "#e8f5e9"
       : props.$status === "RELEASED"
       ? "#e3f2fd"
+      : props.$status === "IN_PROGRESS"
+      ? "#ede7f6"
       : "#fff3e0"};
   color: ${(props) =>
     props.$status === "COMPLETED"
       ? "#2e7d32"
       : props.$status === "RELEASED"
       ? "#1976d2"
+      : props.$status === "IN_PROGRESS"
+      ? "#6a1b9a"
       : "#e67e22"};
-`;
-
-const LineTag = styled.span`
-  background: #f5f5f5;
-  color: #666;
-  padding: 3px 6px;
-  border-radius: 4px;
-  border: 1px solid #eee;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  &::before {
-    content: "";
-    display: block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: ${(props) =>
-      props.$type === "FAB"
-        ? "#9b59b6"
-        : props.$type === "EDS"
-        ? "#e67e22"
-        : "#3498db"};
-  }
 `;
 
 const Unit = styled.span`
@@ -464,7 +657,9 @@ const Unit = styled.span`
 const ActionButtons = styled.div`
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 `;
+
 const IconBtn = styled.button`
   background: transparent;
   border: 1px solid #ddd;
@@ -477,22 +672,59 @@ const IconBtn = styled.button`
   align-items: center;
   gap: 4px;
   font-size: 12px;
+
   &:hover {
     background: #f5f5f5;
   }
+
   &.confirm {
     color: #2ecc71;
     border-color: #2ecc71;
+
     &:hover {
       background: #e8f5e9;
     }
   }
+
   &.edit:hover {
     color: #1a4f8b;
     border-color: #1a4f8b;
   }
+
   &.del:hover {
     color: #e74c3c;
     border-color: #e74c3c;
+  }
+
+  &.save {
+    color: #2e7d32;
+    border-color: #2e7d32;
+
+    &:hover {
+      background: #e8f5e9;
+    }
+  }
+
+  &.cancel {
+    color: #555;
+    border-color: #999;
+
+    &:hover {
+      background: #f5f5f5;
+    }
+  }
+`;
+
+const EditInput = styled.input`
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+  font-size: 13px;
+  background: #fff;
+
+  &:focus {
+    border-color: #1a4f8b;
   }
 `;

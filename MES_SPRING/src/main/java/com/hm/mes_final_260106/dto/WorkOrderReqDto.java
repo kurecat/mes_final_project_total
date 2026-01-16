@@ -6,6 +6,7 @@ import lombok.Data;
 
 @Data
 public class WorkOrderReqDto {
-    private String productCode;
+    private String productId;
     private int targetQty;
+    private String targetLine;
 }

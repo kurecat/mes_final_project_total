@@ -13,54 +13,110 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-// 웹 대시 보드 및 설비를 연결
 
+// 웹 대시보드 및 설비(C#)를 연결하는 Controller
 @RestController
 @RequestMapping("/api/mes")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:3000")
 @Slf4j
 public class MesController {
+
     private final ProductionService productionService;
 
-    // Dashboard : 자재 입고 API, 자재가 입고 됨을 알려줌, 생산 이전 상태
-    @PostMapping("material/inbound")
+    // =========================
+    // Dashboard : 자재 입고
+    // =========================
+    @PostMapping("/material/inbound")
     public ResponseEntity<Material> inboundMaterial(@RequestBody MaterialInboundDto dto) {
         log.info("자재 입고 : {}", dto);
-        return ResponseEntity.ok(productionService.inboundMaterial(dto.getCode(), dto.getName(), dto.getAmount()));
+        return ResponseEntity.ok(
+                productionService.inboundMaterial(dto.getCode(), dto.getName(), dto.getAmount())
+        );
     }
 
-    // Dashboard : 자재 재고 조회 API
+    // =========================
+    // Dashboard : 자재 재고 조회
+    // =========================
     @GetMapping("/material/stock")
     public ResponseEntity<List<Material>> getMaterialStock() {
         return ResponseEntity.ok(productionService.getMaterialStock());
     }
 
-    // 작업 지시 생성 API : 계획 입력( React ) -> DB에 레코드 추가 -> 반환( DTO ) -> 대시보드에 현재상태가 WAIT로 표시 되면서 작업이 등록 됨.
+    // =========================
+    // 작업지시 생성
+    // =========================
     @PostMapping("/order")
     public ResponseEntity<WorkOrderResDto> createOrder(@RequestBody WorkOrderReqDto dto) {
-        WorkOrder order = productionService.createWorkOrder(dto.getProductCode(), dto.getTargetQty());
+        WorkOrder order = productionService.createWorkOrder(dto.getProductId(), dto.getTargetQty(),dto.getTargetLine());
         return ResponseEntity.ok(WorkOrderResDto.fromEntity(order));
     }
 
-    // 작업 지시 목록 조회 API
+    // =========================
+    // 작업지시 목록 조회
+    // =========================
     @GetMapping("/order")
     public ResponseEntity<List<WorkOrderResDto>> getAllOrders() {
-        return ResponseEntity.ok(productionService.getAllWorkOrders().stream().map(WorkOrderResDto::fromEntity).toList());
+        return ResponseEntity.ok(
+                productionService.getAllWorkOrders()
+                        .stream()
+                        .map(WorkOrderResDto::fromEntity)
+                        .toList()
+        );
     }
 
-    // Machine : 설비 작업 할당
-    @GetMapping("machine/poll")
+    // =========================
+    // 작업지시 Release (WAITING -> RELEASED)
+    // =========================
+    @PostMapping("/order/{id}/release")
+    public ResponseEntity<WorkOrderResDto> releaseOrder(@PathVariable Long id) {
+        WorkOrder order = productionService.releaseWorkOrder(id);
+        return ResponseEntity.ok(WorkOrderResDto.fromEntity(order));
+    }
+
+    // =========================
+    // 작업지시 삭제
+    // =========================
+    @DeleteMapping("/order/{id}")
+    public ResponseEntity<String> deleteOrder(@PathVariable Long id) {
+        productionService.deleteWorkOrder(id);
+        return ResponseEntity.ok("삭제 완료");
+    }
+
+    // =========================
+    // 작업지시 수정
+    // =========================
+    @PutMapping("/order/{id}")
+    public ResponseEntity<WorkOrderResDto> updateOrder(
+            @PathVariable Long id,
+            @RequestBody WorkOrderReqDto dto
+    ) {
+        WorkOrder updated = productionService.updateWorkOrder(id, dto.getProductId(), dto.getTargetQty(),dto.getTargetLine());
+        return ResponseEntity.ok(WorkOrderResDto.fromEntity(updated));
+    }
+
+    // =========================
+    // Machine : 설비 작업 할당 (C# Polling)
+    // =========================
+    @GetMapping("/machine/poll")
     public ResponseEntity<WorkOrderResDto> pollWork(@RequestParam String machineId) {
         WorkOrder work = productionService.assignWorkToMachine(machineId);
-        return (work != null) ? ResponseEntity.ok(WorkOrderResDto.fromEntity(work)) : ResponseEntity.noContent().build();
+        return (work != null)
+                ? ResponseEntity.ok(WorkOrderResDto.fromEntity(work))
+                : ResponseEntity.noContent().build();
     }
 
+    // =========================
     // Machine : 생산 결과 보고
+    // =========================
     @PostMapping("/machine/report")
     public ResponseEntity<String> reportProduction(@RequestBody ProductionReportDto dto) {
-        productionService.reportProduction(dto.getOrderId(), dto.getMachineId(), dto.getResult(), dto.getDefectCode());
+        productionService.reportProduction(
+                dto.getOrderId(),
+                dto.getMachineId(),
+                dto.getResult(),
+                dto.getDefectCode()
+        );
         return ResponseEntity.ok("ACK");
     }
-
 }

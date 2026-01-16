@@ -9,22 +9,31 @@ import java.time.LocalDateTime;
 
 @Data @Builder
 public class WorkOrderResDto {
-    private Long id; // 작업 지시의 고유 식별번호
-    private String productCode; // 생산 대상 제품 코드
-    private int targetQty; // 목표 생산 수량
-    private int currentQty; // 현재 생산 수량
-    private String status; // 작업 진행 상태
-    private LocalDateTime orderDate; // 작업 지시 생성 지점
+    private Long id;
+    private String workorderNumber;   // workorder_number
+    private String productId;
+    private int targetQty;
+    private int currentQty;
+    private String status;
+    private String targetLine;
+    private String assignedMachineId;
+
+    private LocalDateTime startDate; // start_date
+    private LocalDateTime endDate;   // end_date
 
     // Entity -> DTO 변환
     public static WorkOrderResDto fromEntity(WorkOrder workOrder) {
         return WorkOrderResDto.builder()
                 .id(workOrder.getId())
-                .productCode(workOrder.getProductCode())
+                .workorderNumber(workOrder.getWorkorder_number())
+                .productId(workOrder.getProductId())
                 .targetQty(workOrder.getTargetQty())
                 .currentQty(workOrder.getCurrentQty())
                 .status(workOrder.getStatus())
-                .orderDate(workOrder.getCreatedAt())
+                .targetLine(workOrder.getTargetLine())
+                .assignedMachineId(workOrder.getAssignedMachineId())
+                .startDate(workOrder.getStart_date())
+                .endDate(workOrder.getEnd_date())
                 .build();
     }
 }

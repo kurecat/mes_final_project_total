@@ -11,130 +11,225 @@ import com.hm.mes_final_260106.repository.ProductionLogRepository;
 import com.hm.mes_final_260106.repository.WorkOrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.jdbc.Work;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.sound.sampled.TargetDataLine;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-@Service @RequiredArgsConstructor @Slf4j
+@Service
+@RequiredArgsConstructor
+@Slf4j
 public class ProductionService {
+
     private final ProductionLogRepository logRepo;
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
 
-    // 자재 입고
-    @Transactional // 원자성 부여
-    public Material inboundMaterial (String code, String name, int amount) {
-        Material material = matRepo.findByCode(code) // 자재 번호가 없으면 새로운 자재를 생성
-                .orElse(Material.
-                        builder().
-                        code(code).
-                        name(name).
-                        currentStock(0). // 수량이 0
-                        build());
+    // =========================
+    // 1) 자재 입고
+    // =========================
+    @Transactional
+    public Material inboundMaterial(String code, String name, int amount) {
 
-        // 자재 수량을 업데이트
-        material.setCurrentStock(material.getCurrentStock() + amount); // 수량 업데이트
-        return matRepo.save(material); // Insert or Update와 동일
+        Material material = matRepo.findByCode(code)
+                .orElse(Material.builder()
+                        .code(code)
+                        .name(name)
+                        .currentStock(0)
+                        .build());
+
+        material.setCurrentStock(material.getCurrentStock() + amount);
+        return matRepo.save(material);
     }
 
-
-    // 작업 지시 생성 : 작업 지시가 생성된 DB에 기록을 위한 부분이고, 설비나 대시보드에 표현하는 정보는 아님.
+    // =========================
+    // 2) 작업 지시 생성
+    // =========================
     @Transactional
-    public WorkOrder createWorkOrder(String productCode, int targetQty) {
+    public WorkOrder createWorkOrder(String productId, int targetQty, String targetLine) {
+
         WorkOrder order = WorkOrder.builder()
-                .productCode(productCode)
+                .workorder_number(generateWorkOrderNumber())
+                .productId(productId)
                 .targetQty(targetQty)
                 .currentQty(0)
                 .status("WAITING")
+                .targetLine(targetLine)
                 .build();
+
         return orderRepo.save(order);
     }
 
-    // 설비 작업 할당 (C# 폴링 대응)
+    // =========================
+    // 3) 작업지시 Release (WAITING -> RELEASED)
+    // =========================
     @Transactional
-    public WorkOrder assignWorkToMachine(String machineId) {
-        // 해당 설비가 이미 하고 있는 일이 있는지 확인
-        return orderRepo.findByStatusAndAssignedMachineId("IN_PROGRESS", machineId)
-                .orElseGet(() -> {
-                    // 없다면 'WAITING' 상태인 가장 오래된 지시를 하나 가져옴
-                    WorkOrder waiting = orderRepo.findFirstByStatusOrderByIdAsc("WAITING").orElse(null);
-                    if (waiting != null) {
-                        waiting.setStatus("IN_PROGRESS");
-                        waiting.setAssignedMachineId(machineId);
-                        // save()를 명시하지 않아도 변경 감지로 인해 업데이트됨
-                    }
-                    return waiting;
-                });
+    public WorkOrder releaseWorkOrder(Long orderId) {
+
+        WorkOrder order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+
+        if ("COMPLETED".equals(order.getStatus())) {
+            throw new RuntimeException("완료된 작업은 Release 할 수 없습니다.");
+        }
+
+        if ("WAITING".equals(order.getStatus())) {
+            order.setStatus("RELEASED");
+        }
+
+        return orderRepo.save(order);
     }
 
-    // 생산 실적 보고 ( MES의 핵심 : 실적 기록 + 자재 차감 + 수량증가 ) : 설비 -> Backend
+    // =========================
+    // 4) 작업지시 삭제
+    // =========================
+    @Transactional
+    public void deleteWorkOrder(Long orderId) {
+
+        WorkOrder order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+
+        if ("IN_PROGRESS".equals(order.getStatus()) || "COMPLETED".equals(order.getStatus())) {
+            throw new RuntimeException("진행중/완료된 작업은 삭제할 수 없습니다.");
+        }
+
+        orderRepo.delete(order);
+    }
+
+    // =========================
+    // 5) 작업지시 수정
+    // =========================
+    @Transactional
+    public WorkOrder updateWorkOrder(Long id, String productId, int targetQty,String targetLine) {
+
+        WorkOrder order = orderRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + id));
+
+        if ("IN_PROGRESS".equals(order.getStatus()) || "COMPLETED".equals(order.getStatus())) {
+            throw new RuntimeException("진행중/완료된 작업은 수정할 수 없습니다.");
+        }
+
+        order.setProductId(productId);
+        order.setTargetQty(targetQty);
+        order.setTargetLine(targetLine);
+
+        return orderRepo.save(order);
+    }
+
+    // =========================
+    // 6) 설비 작업 할당 (C# 폴링)
+    // RELEASED -> IN_PROGRESS
+    // =========================
+    @Transactional
+    public WorkOrder assignWorkToMachine(String machineId) {
+
+        // 이미 이 설비에 진행중 작업이 있으면 그 작업 반환
+        WorkOrder current = orderRepo.findByStatusAndAssignedMachineId("IN_PROGRESS", machineId).orElse(null);
+        if (current != null) return current;
+
+        // RELEASED 상태인 가장 오래된 작업지시를 할당
+        WorkOrder waiting = orderRepo.findFirstByStatusOrderByIdAsc("RELEASED").orElse(null);
+        if (waiting == null) return null;
+
+        waiting.setStatus("IN_PROGRESS");
+        waiting.setAssignedMachineId(machineId);
+
+        return orderRepo.save(waiting);
+    }
+
+    // =========================
+    // 7) 생산 실적 보고
+    // (로그 저장 + BOM 차감 + 수량 증가 + 완료 처리)
+    // =========================
     @Transactional
     public void reportProduction(Long orderId, String machineId, String result, String defectCode) {
-        // 지시 정보 확인
-        WorkOrder order = orderRepo.findById(orderId).
-                orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+
+        WorkOrder order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
 
         if ("COMPLETED".equals(order.getStatus())) return;
 
-        // 생산 이력( ProductionLog ) 저장 : 5M1E 데이터 수집
-        String serialNo = generateSerial(order.getProductCode());
+        // 생산 이력 저장
+        String serialNo = generateSerial(order.getProductId());
+
         logRepo.save(ProductionLog.builder()
-                        .workOrderNo("WO-" + order.getId())
-                        .productCode(order.getProductCode())
-                        .machineId(machineId)
-                        .serialNo(serialNo)
-                        .result(result)
-                        .defectCode("NG".equals(result) ? defectCode : null)
-                        .producedAt(LocalDateTime.now())
+                .workOrderNo(order.getWorkorder_number())   // 작업지시번호
+                .productCode(order.getProductId())          // productId를 productCode 자리에 기록 (현재 엔티티 구조 유지)
+                .machineId(machineId)
+                .serialNo(serialNo)
+                .result(result)
+                .defectCode("NG".equals(result) ? defectCode : null)
+                .producedAt(LocalDateTime.now())
                 .build());
 
-        // 자재 차감 ( Backflushing ) - 양품일 때만 자재를 차감
+        // 자재 차감 (양품일 때만)
         if ("OK".equals(result)) {
-            List<Bom> boms = bomRepo.findAllByProductCode(order.getProductCode());
+            List<Bom> boms = bomRepo.findAllByProductCode(order.getProductId());
+
             for (Bom bom : boms) {
                 Material mat = bom.getMaterial();
                 int required = bom.getRequiredQty();
                 int current = mat.getCurrentStock();
 
-                // [핵심 추가] 차감 전 재고 확인
                 if (current < required) {
-                    // 자재가 부족하면 예외를 던져 전체 프로세스를 롤백시킵니다.
-                    // 메시지에 부족한 자재명을 담아 설비나 UI에 알릴 수 있습니다.
                     throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:" + mat.getName());
                 }
 
-                // 재고가 충분할 때만 차감 실행
                 mat.setCurrentStock(current - required);
                 log.info("[Backflushing] 자재: {}, 차감후 재고: {}", mat.getName(), mat.getCurrentStock());
             }
         } else {
-            log.info("생산 불량 !!!!, 자재 차감 하지 않음");
+            log.info("생산 불량(NG) -> 자재 차감 하지 않음");
         }
 
-        // 수량 업데이트 및 완료 처리
-        order.setCurrentQty(order.getCurrentQty() + 1); // 생산 수량 업데이트
-        if (order.getCurrentQty() >= order.getTargetQty()) order.setStatus("COMPLETED");
+        // 수량 증가
+        order.setCurrentQty(order.getCurrentQty() + 1);
 
-        log.info("[생산 보고] {} - 수량: {}/{}", order.getProductCode(), order.getCurrentQty(), order.getTargetQty());
+        // 완료 처리
+        if (order.getCurrentQty() >= order.getTargetQty()) {
+            order.setStatus("COMPLETED");
+            order.setEnd_date(LocalDateTime.now()); // 생산 마감 시점 기록
+        }
+
+        log.info("[생산 보고] 제품:{} 상태:{} 수량:{}/{}",
+                order.getProductId(), order.getStatus(), order.getCurrentQty(), order.getTargetQty());
+
+        orderRepo.save(order);
     }
 
-    // 시리얼 번호 생성 유틸리티
-    private String generateSerial(String productCode) {
-        return productCode + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-    }
-
-    // 작업 지시 전체 목록 조회
+    // =========================
+    // 8) 작업 지시 전체 목록 조회
+    // =========================
     public List<WorkOrder> getAllWorkOrders() {
         return orderRepo.findAllByOrderByIdDesc();
     }
 
-    // 전체 자재 재고량
+    // =========================
+    // 9) 전체 자재 재고량
+    // =========================
     public List<Material> getMaterialStock() {
         return matRepo.findAll();
+    }
+
+    // =========================
+    // util) 작업지시 번호 생성
+    // =========================
+    private String generateWorkOrderNumber() {
+        // 예: WO-20260116-1234
+        String date = LocalDate.now().toString().replace("-", "");
+        int random = (int) (Math.random() * 9000) + 1000;
+        return "WO-" + date + "-" + random;
+    }
+
+    // =========================
+    // util) 시리얼 번호 생성
+    // =========================
+    private String generateSerial(String productId) {
+        return productId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 }
