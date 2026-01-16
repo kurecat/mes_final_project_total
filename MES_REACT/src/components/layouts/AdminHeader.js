@@ -40,7 +40,7 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const handleLogout = () => {
     // 여기에 실제 로그아웃 로직 (토큰 삭제 등) 추가 가능
     // alert("Logged out successfully.");
-    navigate("/login"); // 로그인 페이지 경로에 맞게 수정하세요
+    navigate("/"); // 로그인 페이지 경로에 맞게 수정하세요
   };
 
   return (
