@@ -4,6 +4,7 @@ package com.hm.mes_final_260106.entity;
 // ERP의 생산 계획을 현장에서 실행 가능한 명령으로 바꾼 결과물
 
 
+import com.hm.mes_final_260106.constant.WorkOrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -14,17 +15,28 @@ public class WorkOrder {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String productCode; // 생산할 제품
     private int targetQty;      // 목표 수량
     private int currentQty;     // 현재 생산량
-    private String status;      // WAITING, IN_PROGRESS, COMPLETED
+
+    //private String status;      // WAITING, IN_PROGRESS, COMPLETED(기존)
+    @Enumerated(EnumType.STRING)  //챗지피티 코드(3줄)
+    @Column(nullable = false)
+    private WorkOrderStatus status;
 
     private String assignedMachineId;  //[추가] 설비 할당 정보 (MES 핵심)
 
     private LocalDateTime createdAt;  // 생산 시점
+//    private LocalDateTime assignedAt;
+//    private LocalDateTime startedAt;
+//    private LocalDateTime finishedAt;
 
     @PrePersist
     public void prePersist() {
         createdAt = LocalDateTime.now();
+        if (status == null) {
+            status = WorkOrderStatus.WAIT;
+        }   // 생성 시 기본 상태
     }
 }
