@@ -1,3 +1,4 @@
+// src/pages/production/WorkOrderPage.js
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import axios from "axios";
@@ -107,12 +108,21 @@ const WorkOrderPage = () => {
 
   const updateStatus = async (id, newStatus) => {
     try {
+      // ⭐ (추가) id가 undefined로 들어오는지 방어 + 디버깅
+      if (!id) {
+        console.error("[updateStatus] id가 없습니다:", id); // ⭐
+        alert("작업지시 ID가 없습니다. (order.id 확인 필요)"); // ⭐
+        return; // ⭐
+      }
+
       const updates = { status: newStatus };
+
       if (newStatus === "RUNNING") {
         updates.startTime = new Date().toLocaleTimeString("en-US", {
           hour12: false,
         });
       }
+
       if (newStatus === "DONE") {
         updates.endTime = new Date().toLocaleTimeString("en-US", {
           hour12: false,
@@ -141,9 +151,14 @@ const WorkOrderPage = () => {
 
   const filteredOrders = orders.filter((o) => {
     const matchType = lineFilter === "ALL" || o.type === lineFilter;
-    const matchSearch =
-      o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.product.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // ⭐ (추가) 안전 처리 (혹시라도 null 방지)
+    const id = (o.id ?? "").toLowerCase(); // ⭐
+    const product = (o.product ?? "").toLowerCase(); // ⭐
+    const keyword = (searchTerm ?? "").toLowerCase(); // ⭐
+
+    const matchSearch = id.includes(keyword) || product.includes(keyword);
+
     return matchType && matchSearch;
   });
 
@@ -288,14 +303,14 @@ const WorkOrderPage = () => {
                   {order.status === "RUNNING" ? (
                     <ActionButton
                       $type="pause"
-                      onClick={() => updateStatus(order.id, "PAUSED")}
+                      onClick={() => updateStatus(order.id, "PAUSED")} // ⭐ order.OrderId -> order.id 수정
                     >
                       <FaPause /> Pause
                     </ActionButton>
                   ) : (
                     <ActionButton
                       $type="resume"
-                      onClick={() => updateStatus(order.id, "RUNNING")}
+                      onClick={() => updateStatus(order.id, "RUNNING")} // ⭐ order.OrderId -> order.id 수정
                     >
                       <FaPlay /> Resume
                     </ActionButton>
@@ -303,7 +318,7 @@ const WorkOrderPage = () => {
 
                   <ActionButton
                     $type="finish"
-                    onClick={() => updateStatus(order.id, "DONE")}
+                    onClick={() => updateStatus(order.id, "DONE")} // ⭐ order.OrderId -> order.id 수정
                   >
                     <FaCheck /> Finish
                   </ActionButton>

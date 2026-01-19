@@ -13,9 +13,13 @@ import {
   FaBriefcase,
   FaClock,
   FaSync,
+  FaSave,
+  FaTimes,
 } from "react-icons/fa";
 
-// --- Fallback Mock Data ---
+// =============================
+// Dummy Worker Data
+// =============================
 const MOCK_WORKERS = [
   {
     id: "24001",
@@ -34,49 +38,63 @@ const MOCK_WORKERS = [
     dept: "Etch",
     shift: "Swing",
     status: "OFF",
-    certifications: ["Lam Etcher"],
-    joinDate: "2021-06-15",
+    certifications: ["Dry Etcher", "PM Level-1"],
+    joinDate: "2021-07-15",
   },
   {
     id: "24003",
-    name: "Park Dong-hoon",
-    role: "Manager",
-    dept: "Fab-Common",
-    shift: "Day",
-    status: "WORKING",
-    certifications: ["Safety Lv.1", "Process Mgmt"],
-    joinDate: "2018-01-10",
-  },
-  {
-    id: "24004",
-    name: "Choi Yu-jin",
-    role: "Engineer",
-    dept: "EDS",
+    name: "Park Joon-ho",
+    role: "Technician",
+    dept: "CMP",
     shift: "Night",
-    status: "BREAK",
-    certifications: ["Advantest Tester", "Probe Card"],
-    joinDate: "2022-11-20",
+    status: "WORKING",
+    certifications: ["CMP Tool", "Chemical Handling"],
+    joinDate: "2019-11-20",
   },
 ];
+
+// =============================
+// (추후 백엔드 붙일 때 사용)
+// =============================
+// const API_BASE = "http://localhost:8111/api/mes";
 
 const WorkerPage = () => {
   const [workers, setWorkers] = useState(MOCK_WORKERS);
   const [loading, setLoading] = useState(true);
-  const [filterRole, setFilterRole] = useState("ALL");
-  const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. 데이터 조회 (READ)
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterDept, setFilterDept] = useState("ALL");
+  const [filterShift, setFilterShift] = useState("ALL");
+
+  // =============================
+  // 수정 상태
+  // =============================
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    id: "",
+    name: "",
+    role: "",
+    dept: "",
+    shift: "",
+    status: "",
+    certifications: "",
+    joinDate: "",
+  });
+
+  // =============================
+  // 데이터 조회 (Mock)
+  // =============================
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ★ 실제 API: http://localhost:3001/workers
-      // const res = await axios.get("http://localhost:3001/workers");
+      // 추후 API 연결:
+      // const res = await axios.get(`${API_BASE}/workers`);
       // setWorkers(res.data);
 
       setTimeout(() => {
         setWorkers(MOCK_WORKERS);
         setLoading(false);
-      }, 500);
+      }, 400);
     } catch (err) {
       console.error(err);
       setLoading(false);
@@ -87,49 +105,121 @@ const WorkerPage = () => {
     fetchData();
   }, []);
 
-  // 2. 삭제 (DELETE)
-  const handleDelete = async (id) => {
-    if (!window.confirm("해당 작업자를 삭제하시겠습니까?")) return;
-    try {
-      // await axios.delete(`http://localhost:3001/workers/${id}`);
-      setWorkers((prev) => prev.filter((w) => w.id !== id));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // 3. 추가 (CREATE - Mock)
-  const handleAdd = () => {
+  // =============================
+  // 추가 (Mock)
+  // =============================
+  const handleAddWorker = () => {
     const newWorker = {
-      id: `2400${Math.floor(Math.random() * 9)}`,
+      id: String(Math.floor(Math.random() * 90000) + 10000),
       name: "New Worker",
       role: "Operator",
-      dept: "TBD",
+      dept: "Fab",
       shift: "Day",
       status: "OFF",
-      certifications: ["Basic Safety"],
+      certifications: ["New Cert"],
       joinDate: new Date().toISOString().split("T")[0],
     };
-    setWorkers([newWorker, ...workers]);
+
+    setWorkers((prev) => [newWorker, ...prev]);
+    alert("작업자가 추가되었습니다. (Mock)");
   };
 
-  // 필터링
-  const filteredList = workers.filter((w) => {
-    const matchRole = filterRole === "ALL" || w.role === filterRole;
-    const matchSearch =
-      w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      w.dept.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchRole && matchSearch;
-  });
+  // =============================
+  // 삭제 (Mock)
+  // =============================
+  const handleDeleteWorker = (id) => {
+    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+    setWorkers((prev) => prev.filter((w) => w.id !== id));
+  };
 
-  // KPI 계산
-  const total = workers.length;
-  const onDuty = workers.filter((w) => w.status === "WORKING").length;
-  const engineers = workers.filter((w) => w.role === "Engineer").length;
+  // =============================
+  // 수정 시작
+  // =============================
+  const handleEditStart = (worker) => {
+    setEditingId(worker.id);
+    setEditForm({
+      id: worker.id ?? "",
+      name: worker.name ?? "",
+      role: worker.role ?? "",
+      dept: worker.dept ?? "",
+      shift: worker.shift ?? "",
+      status: worker.status ?? "",
+      certifications: (worker.certifications ?? []).join(", "),
+      joinDate: worker.joinDate ?? "",
+    });
+  };
+
+  // =============================
+  // 수정 취소
+  // =============================
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditForm({
+      id: "",
+      name: "",
+      role: "",
+      dept: "",
+      shift: "",
+      status: "",
+      certifications: "",
+      joinDate: "",
+    });
+  };
+
+  // =============================
+  // 수정 저장 (Mock)
+  // =============================
+  const handleEditSave = () => {
+    if (!editForm.name.trim()) {
+      alert("이름을 입력하세요.");
+      return;
+    }
+
+    setWorkers((prev) =>
+      prev.map((w) =>
+        w.id === editingId
+          ? {
+              ...w,
+              name: editForm.name.trim(),
+              role: editForm.role.trim(),
+              dept: editForm.dept.trim(),
+              shift: editForm.shift.trim(),
+              status: editForm.status.trim(),
+              joinDate: editForm.joinDate,
+              certifications: editForm.certifications
+                .split(",")
+                .map((c) => c.trim())
+                .filter(Boolean),
+            }
+          : w
+      )
+    );
+
+    alert("수정이 저장되었습니다. (Mock)");
+    setEditingId(null);
+  };
+
+  // =============================
+  // 필터링 + 검색
+  // =============================
+  const filteredWorkers = workers.filter((w) => {
+    const matchDept = filterDept === "ALL" || w.dept === filterDept;
+    const matchShift = filterShift === "ALL" || w.shift === filterShift;
+
+    const keyword = (searchTerm ?? "").toLowerCase();
+    const id = (w.id ?? "").toLowerCase();
+    const name = (w.name ?? "").toLowerCase();
+    const role = (w.role ?? "").toLowerCase();
+
+    const matchSearch =
+      id.includes(keyword) || name.includes(keyword) || role.includes(keyword);
+
+    return matchDept && matchShift && matchSearch;
+  });
 
   return (
     <Container>
-      {/* 헤더 */}
+      {/* Header */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -141,146 +231,260 @@ const WorkerPage = () => {
               />
             )}
           </PageTitle>
-          <SubTitle>Fab Operators & Engineers Certification Status</SubTitle>
+          <SubTitle>Fab / EDS / Module Worker & Skill Registry</SubTitle>
         </TitleArea>
+
         <ActionGroup>
-          <AddButton onClick={handleAdd}>
-            <FaPlus /> Register Worker
+          <AddButton onClick={handleAddWorker}>
+            <FaPlus /> Add Worker
           </AddButton>
         </ActionGroup>
       </Header>
 
-      {/* KPI 카드 */}
-      <StatsGrid>
-        <StatCard>
-          <IconBox $color="#1a4f8b">
-            <FaUserTie />
-          </IconBox>
-          <StatInfo>
-            <Label>Total Personnel</Label>
-            <Value>{total}</Value>
-          </StatInfo>
-        </StatCard>
-        <StatCard>
-          <IconBox $color="#2ecc71">
-            <FaBriefcase />
-          </IconBox>
-          <StatInfo>
-            <Label>On-Duty (Working)</Label>
-            <Value>{onDuty}</Value>
-          </StatInfo>
-        </StatCard>
-        <StatCard>
-          <IconBox $color="#e67e22">
-            <FaCertificate />
-          </IconBox>
-          <StatInfo>
-            <Label>Certified Engineers</Label>
-            <Value>{engineers}</Value>
-          </StatInfo>
-        </StatCard>
-      </StatsGrid>
-
-      {/* 컨트롤 바 */}
+      {/* Controls */}
       <ControlBar>
         <FilterGroup>
-          <FilterBtn
-            $active={filterRole === "ALL"}
-            onClick={() => setFilterRole("ALL")}
+          <Select
+            value={filterDept}
+            onChange={(e) => setFilterDept(e.target.value)}
           >
-            All
-          </FilterBtn>
-          <FilterBtn
-            $active={filterRole === "Engineer"}
-            onClick={() => setFilterRole("Engineer")}
+            <option value="ALL">All Depts</option>
+            <option value="Fab">Fab</option>
+            <option value="Photo">Photo</option>
+            <option value="Etch">Etch</option>
+            <option value="CMP">CMP</option>
+          </Select>
+
+          <Select
+            value={filterShift}
+            onChange={(e) => setFilterShift(e.target.value)}
           >
-            Engineers
-          </FilterBtn>
-          <FilterBtn
-            $active={filterRole === "Operator"}
-            onClick={() => setFilterRole("Operator")}
-          >
-            Operators
-          </FilterBtn>
-          <FilterBtn
-            $active={filterRole === "Manager"}
-            onClick={() => setFilterRole("Manager")}
-          >
-            Managers
-          </FilterBtn>
+            <option value="ALL">All Shifts</option>
+            <option value="Day">Day</option>
+            <option value="Swing">Swing</option>
+            <option value="Night">Night</option>
+          </Select>
         </FilterGroup>
+
         <SearchBox>
           <FaSearch color="#999" />
           <input
-            placeholder="Search Name or Dept..."
+            placeholder="Search ID / Name / Role..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </SearchBox>
       </ControlBar>
 
-      {/* 작업자 카드 그리드 */}
-      <GridContainer>
-        {filteredList.map((worker) => (
-          <WorkerCard key={worker.id} $status={worker.status}>
-            <CardHeader>
-              <ProfileSection>
-                <Avatar>{worker.name.charAt(0)}</Avatar>
-                <NameInfo>
-                  <Name>{worker.name}</Name>
-                  <Role>
-                    {worker.role} | {worker.dept}
-                  </Role>
-                </NameInfo>
-              </ProfileSection>
-              <StatusBadge $status={worker.status}>{worker.status}</StatusBadge>
-            </CardHeader>
+      {/* Table */}
+      <TableContainer>
+        <Table>
+          <thead>
+            <tr>
+              <th>Worker ID</th>
+              <th>Name</th>
+              <th>Role</th>
+              <th>Dept</th>
+              <th>Shift</th>
+              <th>Status</th>
+              <th>Certifications</th>
+              <th>Join Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
 
-            <CardBody>
-              <InfoRow>
-                <FaIdBadge color="#aaa" /> <span>ID: {worker.id}</span>
-              </InfoRow>
-              <InfoRow>
-                <FaClock color="#aaa" /> <span>Shift: {worker.shift}</span>
-              </InfoRow>
+          <tbody>
+            {filteredWorkers.map((w) => {
+              const isEditing = editingId === w.id;
 
-              <CertiSection>
-                <CertiTitle>
-                  <FaCertificate size={10} /> Certifications (Skill)
-                </CertiTitle>
-                <TagWrapper>
-                  {worker.certifications.map((cert, idx) => (
-                    <CertTag key={idx}>{cert}</CertTag>
-                  ))}
-                </TagWrapper>
-              </CertiSection>
-            </CardBody>
+              return (
+                <tr key={w.id}>
+                  <td style={{ fontWeight: 700, color: "#1a4f8b" }}>
+                    <FaIdBadge style={{ marginRight: 6 }} />
+                    {w.id}
+                  </td>
 
-            <CardFooter>
-              <JoinDate>Joined: {worker.joinDate}</JoinDate>
-              <ActionArea>
-                <IconBtn className="edit">
-                  <FaEdit />
-                </IconBtn>
-                <IconBtn
-                  className="del"
-                  onClick={() => handleDelete(worker.id)}
-                >
-                  <FaTrash />
-                </IconBtn>
-              </ActionArea>
-            </CardFooter>
-          </WorkerCard>
-        ))}
-      </GridContainer>
+                  <td>
+                    {isEditing ? (
+                      <EditInput
+                        value={editForm.name}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            name: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      w.name
+                    )}
+                  </td>
+
+                  <td>
+                    {isEditing ? (
+                      <EditInput
+                        value={editForm.role}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            role: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      <>
+                        <FaBriefcase style={{ marginRight: 6 }} />
+                        {w.role}
+                      </>
+                    )}
+                  </td>
+
+                  <td>
+                    {isEditing ? (
+                      <EditInput
+                        value={editForm.dept}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            dept: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      w.dept
+                    )}
+                  </td>
+
+                  <td>
+                    {isEditing ? (
+                      <EditInput
+                        value={editForm.shift}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            shift: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      <>
+                        <FaClock style={{ marginRight: 6 }} />
+                        {w.shift}
+                      </>
+                    )}
+                  </td>
+
+                  <td>
+                    {isEditing ? (
+                      <EditSelect
+                        value={editForm.status}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            status: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="WORKING">WORKING</option>
+                        <option value="OFF">OFF</option>
+                        <option value="TRAINING">TRAINING</option>
+                      </EditSelect>
+                    ) : (
+                      <StatusBadge $status={w.status}>{w.status}</StatusBadge>
+                    )}
+                  </td>
+
+                  <td style={{ fontSize: 12 }}>
+                    {isEditing ? (
+                      <EditInput
+                        value={editForm.certifications}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            certifications: e.target.value,
+                          }))
+                        }
+                        placeholder="ex) ASML Scanner, Track System"
+                      />
+                    ) : (
+                      <>
+                        <FaCertificate style={{ marginRight: 6 }} />
+                        {(w.certifications ?? []).join(", ")}
+                      </>
+                    )}
+                  </td>
+
+                  <td>
+                    {isEditing ? (
+                      <EditInput
+                        type="date"
+                        value={editForm.joinDate}
+                        onChange={(e) =>
+                          setEditForm((prev) => ({
+                            ...prev,
+                            joinDate: e.target.value,
+                          }))
+                        }
+                      />
+                    ) : (
+                      w.joinDate
+                    )}
+                  </td>
+
+                  <td>
+                    <ActionButtons>
+                      {!isEditing ? (
+                        <>
+                          <IconBtn
+                            className="edit"
+                            onClick={() => handleEditStart(w)}
+                            title="Edit"
+                          >
+                            <FaEdit />
+                          </IconBtn>
+                          <IconBtn
+                            className="del"
+                            onClick={() => handleDeleteWorker(w.id)}
+                            title="Delete"
+                          >
+                            <FaTrash />
+                          </IconBtn>
+                        </>
+                      ) : (
+                        <>
+                          <IconBtn
+                            className="save"
+                            onClick={handleEditSave}
+                            title="Save"
+                          >
+                            <FaSave />
+                          </IconBtn>
+                          <IconBtn
+                            className="cancel"
+                            onClick={handleEditCancel}
+                            title="Cancel"
+                          >
+                            <FaTimes />
+                          </IconBtn>
+                        </>
+                      )}
+                    </ActionButtons>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </Table>
+      </TableContainer>
     </Container>
   );
 };
 
 export default WorkerPage;
 
-// --- Styled Components ---
-
+// =============================
+// Styled Components
+// =============================
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -297,10 +501,12 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
 `;
+
 const TitleArea = styled.div`
   display: flex;
   flex-direction: column;
 `;
+
 const PageTitle = styled.h2`
   margin: 0;
   font-size: 24px;
@@ -308,27 +514,31 @@ const PageTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: 10px;
+
   .spin {
     animation: spin 1s linear infinite;
     color: #aaa;
   }
+
   @keyframes spin {
     100% {
       transform: rotate(360deg);
     }
   }
 `;
+
 const SubTitle = styled.span`
   font-size: 13px;
   color: #888;
   margin-top: 5px;
-  margin-left: 34px;
+  margin-left: 32px;
 `;
 
 const ActionGroup = styled.div`
   display: flex;
   gap: 10px;
 `;
+
 const AddButton = styled.button`
   background: #1a4f8b;
   color: white;
@@ -340,49 +550,10 @@ const AddButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
+
   &:hover {
     background: #133b6b;
   }
-`;
-
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-`;
-const StatCard = styled.div`
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  gap: 15px;
-`;
-const IconBox = styled.div`
-  width: 50px;
-  height: 50px;
-  border-radius: 12px;
-  background-color: ${(props) => `${props.$color}15`};
-  color: ${(props) => props.$color};
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-`;
-const StatInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-const Label = styled.span`
-  font-size: 13px;
-  color: #888;
-  margin-bottom: 5px;
-`;
-const Value = styled.span`
-  font-size: 24px;
-  font-weight: 800;
-  color: #333;
 `;
 
 const ControlBar = styled.div`
@@ -394,23 +565,22 @@ const ControlBar = styled.div`
   border-radius: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
+
 const FilterGroup = styled.div`
   display: flex;
-  gap: 8px;
+  gap: 10px;
 `;
-const FilterBtn = styled.button`
-  padding: 6px 12px;
-  border-radius: 20px;
+
+const Select = styled.select`
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  outline: none;
   font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid ${(props) => (props.$active ? "#1a4f8b" : "#eee")};
-  background: ${(props) => (props.$active ? "#1a4f8b" : "#f9f9f9")};
-  color: ${(props) => (props.$active ? "white" : "#666")};
-  &:hover {
-    background: ${(props) => (props.$active ? "#133b6b" : "#eee")};
-  }
+  color: #555;
+  background: #fff;
 `;
+
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -418,175 +588,145 @@ const SearchBox = styled.div`
   padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid #ddd;
+
   input {
     border: none;
     background: transparent;
     outline: none;
     margin-left: 8px;
-    width: 200px;
+    width: 220px;
     font-size: 14px;
   }
 `;
 
-const GridContainer = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  padding-bottom: 20px;
-  overflow-y: auto;
-`;
-
-const WorkerCard = styled.div`
+const TableContainer = styled.div`
+  flex: 1;
   background: white;
   border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border-top: 4px solid
-    ${(props) =>
-      props.$status === "WORKING"
-        ? "#2ecc71"
-        : props.$status === "BREAK"
-        ? "#f39c12"
-        : "#ccc"};
-  transition: transform 0.2s;
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
-  }
+  padding: 20px;
+  overflow-y: auto;
 `;
 
-const CardHeader = styled.div`
-  padding: 15px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  border-bottom: 1px solid #f0f0f0;
-`;
-const ProfileSection = styled.div`
-  display: flex;
-  gap: 12px;
-`;
-const Avatar = styled.div`
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #1a4f8b;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 18px;
-`;
-const NameInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-const Name = styled.div`
-  font-weight: 700;
-  font-size: 15px;
-  color: #333;
-`;
-const Role = styled.div`
-  font-size: 12px;
-  color: #888;
-  margin-top: 2px;
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  thead {
+    th {
+      text-align: left;
+      padding: 12px;
+      background: #f9f9f9;
+      color: #666;
+      border-bottom: 2px solid #eee;
+      font-weight: 700;
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.2s;
+
+      &:hover {
+        background: #f8fbff;
+      }
+    }
+
+    td {
+      padding: 12px;
+      color: #333;
+      vertical-align: middle;
+    }
+  }
 `;
 
 const StatusBadge = styled.span`
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 6px;
+  padding: 4px 8px;
   border-radius: 4px;
-  background: ${(props) =>
+  font-size: 11px;
+  font-weight: 700;
+  background-color: ${(props) =>
     props.$status === "WORKING"
       ? "#e8f5e9"
-      : props.$status === "BREAK"
-      ? "#fff3e0"
-      : "#eee"};
+      : props.$status === "TRAINING"
+      ? "#e3f2fd"
+      : "#fff3e0"};
   color: ${(props) =>
     props.$status === "WORKING"
       ? "#2e7d32"
-      : props.$status === "BREAK"
-      ? "#e67e22"
-      : "#888"};
+      : props.$status === "TRAINING"
+      ? "#1976d2"
+      : "#e67e22"};
 `;
 
-const CardBody = styled.div`
-  padding: 15px;
-  flex: 1;
+const ActionButtons = styled.div`
   display: flex;
-  flex-direction: column;
   gap: 8px;
 `;
-const InfoRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #555;
-`;
 
-const CertiSection = styled.div`
-  margin-top: 10px;
-`;
-const CertiTitle = styled.div`
-  font-size: 11px;
-  font-weight: 700;
-  color: #1a4f8b;
-  margin-bottom: 5px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-`;
-const TagWrapper = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-`;
-const CertTag = styled.span`
-  background: #f0f4f8;
-  border: 1px solid #e1e4e8;
-  color: #666;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 4px;
-`;
-
-const CardFooter = styled.div`
-  padding: 10px 15px;
-  background: #f9f9f9;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-`;
-const JoinDate = styled.div`
-  font-size: 11px;
-  color: #999;
-`;
-const ActionArea = styled.div`
-  display: flex;
-  gap: 5px;
-`;
 const IconBtn = styled.button`
-  background: white;
+  background: transparent;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 5px;
+  border-radius: 6px;
+  padding: 6px;
   cursor: pointer;
   color: #666;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
+
   &:hover {
-    background: #eee;
+    background: #f5f5f5;
   }
+
   &.edit:hover {
     color: #1a4f8b;
+    border-color: #1a4f8b;
   }
+
   &.del:hover {
     color: #e74c3c;
+    border-color: #e74c3c;
+  }
+
+  &.save:hover {
+    color: #2e7d32;
+    border-color: #2e7d32;
+  }
+
+  &.cancel:hover {
+    color: #555;
+    border-color: #999;
+  }
+`;
+
+const EditInput = styled.input`
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+  font-size: 13px;
+  background: #fff;
+
+  &:focus {
+    border-color: #1a4f8b;
+  }
+`;
+
+const EditSelect = styled.select`
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+  font-size: 13px;
+  background: #fff;
+
+  &:focus {
+    border-color: #1a4f8b;
   }
 `;

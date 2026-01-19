@@ -73,12 +73,69 @@ const ProductionPlanPage = () => {
 
       date: wo.startDate ? wo.startDate.split("T")[0] : "",
 
-      product: wo.productId || "", // ⭐ productId 기반
-      line: wo.targetLine || "Fab-Line-A", // 아직 라인 테이블 없으면 더미
-      type: "FAB", // 아직 타입 없으면 더미
+      product: wo.productId || "",
+      line: wo.targetLine || "Fab-Line-A",
+      type: "FAB",
       planQty: wo.targetQty ?? 0,
       status: wo.status ?? "WAITING",
     };
+  };
+
+  // =============================
+  // ⭐ (추가) Plan -> WorkOrderPage(localStorage) 데이터로 변환
+  // WorkOrderPage MOCK_ORDERS 구조에 맞춰야 Ready/Planned에서 정상 표시됨
+  // =============================
+  const mapPlanToLocalWorkOrder = (plan) => {
+    return {
+      id: plan.id,
+      product: plan.product || "",
+      line: plan.line || "Fab-Line-A",
+      type: plan.type || "FAB",
+      status: "READY",
+      planQty: Number(plan.planQty) || 0,
+      actualQty: 0,
+      unit: "ea",
+      startTime: "",
+      endTime: "",
+      progress: 0,
+      priority: "NORMAL",
+
+      // ⭐ (추가) PlanPage 상태 동기화용 rawStatus 저장
+      rawStatus: "RELEASED", // ⭐
+    };
+  };
+
+  // =============================
+  // ⭐ (추가) localStorage workOrders에 1건 추가 (중복 방지)
+  // =============================
+  const addToLocalWorkOrders = (plan) => {
+    try {
+      const raw = localStorage.getItem("workOrders");
+      const parsed = raw ? JSON.parse(raw) : [];
+
+      const next = Array.isArray(parsed) ? parsed : [];
+
+      const exists = next.some((wo) => wo.id === plan.id);
+      if (exists) return;
+
+      const newWorkOrder = mapPlanToLocalWorkOrder(plan);
+
+      const merged = [newWorkOrder, ...next];
+      localStorage.setItem("workOrders", JSON.stringify(merged));
+    } catch (e) {
+      console.error("localStorage workOrders 저장 실패:", e);
+    }
+  };
+
+  // =============================
+  // ⭐ (추가) WorkOrderPage 상태(localStorage) -> PlanPage 상태 변환
+  // =============================
+  const mapLocalStatusToPlanStatus = (uiStatus) => {
+    if (uiStatus === "READY") return "RELEASED"; // ⭐
+    if (uiStatus === "RUNNING") return "IN_PROGRESS"; // ⭐
+    if (uiStatus === "PAUSED") return "IN_PROGRESS"; // ⭐
+    if (uiStatus === "DONE") return "COMPLETED"; // ⭐
+    return null;
   };
 
   // =============================
@@ -89,7 +146,47 @@ const ProductionPlanPage = () => {
     try {
       const res = await axios.get(`${API_BASE}/order`);
       const mapped = (res.data || []).map(mapWorkOrderToPlan);
-      setPlans(mapped);
+
+      // =============================
+      // ⭐ (핵심) WorkOrderPage(localStorage)의 최신 진행상태를 Plan에 반영
+      // =============================
+      let localWorkOrders = [];
+      try {
+        const raw = localStorage.getItem("workOrders");
+        localWorkOrders = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(localWorkOrders)) localWorkOrders = [];
+      } catch (e) {
+        localWorkOrders = [];
+      }
+
+      const merged = mapped.map((plan) => {
+        const match = localWorkOrders.find((wo) => wo.id === plan.id);
+
+        if (!match) return plan;
+
+        // 1) rawStatus가 있으면 우선 적용 (RELEASED/IN_PROGRESS/COMPLETED)
+        if (match.rawStatus) {
+          return {
+            ...plan,
+            status: match.rawStatus, // ⭐
+          };
+        }
+
+        // 2) rawStatus가 없고 status만 있으면 변환해서 적용
+        if (match.status) {
+          const converted = mapLocalStatusToPlanStatus(match.status);
+          if (converted) {
+            return {
+              ...plan,
+              status: converted, // ⭐
+            };
+          }
+        }
+
+        return plan;
+      });
+
+      setPlans(merged);
     } catch (err) {
       console.error("작업지시 조회 실패:", err);
       // 실패 시 MOCK 유지
@@ -100,6 +197,15 @@ const ProductionPlanPage = () => {
 
   useEffect(() => {
     fetchData();
+
+    // =============================
+    // ⭐ (추가) WorkOrderPage에서 상태 바뀌면 Plan도 자동 반영되도록 폴링
+    // =============================
+    const timer = setInterval(() => {
+      fetchData();
+    }, 1000); // ⭐ 1초마다 최신화
+
+    return () => clearInterval(timer); // ⭐
   }, []);
 
   // =============================
@@ -107,7 +213,6 @@ const ProductionPlanPage = () => {
   // =============================
   const handleAdd = async () => {
     try {
-      // 지금은 더미 입력값으로 생성
       const payload = {
         productId: "P-DUMMY-001",
         targetQty: 500,
@@ -135,6 +240,16 @@ const ProductionPlanPage = () => {
     try {
       await axios.post(`${API_BASE}/order/${orderId}/release`);
       alert(`Plan [${planId}] Release 완료`);
+
+      const releasedPlan = plans.find((p) => p.id === planId);
+      if (releasedPlan) {
+        addToLocalWorkOrders(releasedPlan);
+      }
+
+      setPlans((prev) =>
+        prev.map((p) => (p.id === planId ? { ...p, status: "RELEASED" } : p))
+      );
+
       fetchData();
     } catch (err) {
       console.error("Release 실패:", err);
@@ -196,7 +311,6 @@ const ProductionPlanPage = () => {
       return;
     }
 
-    // 간단 유효성
     if (!editForm.product.trim()) {
       alert("ProductId를 입력하세요.");
       return;
@@ -418,9 +532,7 @@ const ProductionPlanPage = () => {
                         <>
                           <IconBtn
                             className="save"
-                            onClick={() =>
-                              handleEditSave(plan.id, plan.orderId)
-                            }
+                            onClick={() => handleEditSave(plan.id, plan.orderId)}
                             title="Save"
                           >
                             <FaSave /> Save
