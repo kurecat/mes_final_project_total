@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -194,22 +195,26 @@ public class MachineSimulator
                 {
                     int index = 0;
                     int size = BitConverter.ToInt16(payload, 0);
+                    List<FinalInspectionDto> finalInspectionDtoList = new List<FinalInspectionDto>();
                     try
                     {
                         while (size > 0)
                         {
                             Console.WriteLine($"사이즈 : {size}");
-                            await _tcpService.ReadPacketAsync(1);   // 타입용바이트
 
-                            _finalInspectionDtos = new FinalInspectionDto[size];
+                            PrintByteLog(await _tcpService.ReadPacketAsync(1));   // 타입용바이트
 
                             payload = await _tcpService.ReadPacketAsync(size);
                             if (payload == null || payload.Length < size) continue;
 
-                            _finalInspectionDtos[index++] = FinalInspectionDto.FromBytes(payload);
+                            PrintByteLog(payload);
+
+                            finalInspectionDtoList.Add(FinalInspectionDto.FromBytes(payload));
 
                             size = BitConverter.ToInt16(await _tcpService.ReadPacketAsync(2));
+
                         }
+                        _finalInspectionDtos = finalInspectionDtoList.ToArray();
                         await HandleProductionResult();
 
                     }

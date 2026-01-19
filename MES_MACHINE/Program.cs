@@ -17,6 +17,7 @@ namespace L1_MachineSim
 
     public enum DtoType : byte
     {
+        Processing = 0x30,
         Dicing = 0x31,
         DicingInspection = 0x32,
         DieBonding = 0x33,
@@ -25,8 +26,7 @@ namespace L1_MachineSim
         WireBondingInspection = 0x36,
         Molding = 0x37,
         MoldingInspection = 0x38,
-        FinalInspectionLog = 0x39,
-        ProcessLog = 0x40
+        FinalInspectionLog = 0x39
     }
 
     class Program
@@ -282,6 +282,9 @@ namespace L1_MachineSim
                             using (MemoryStream itemMs = new MemoryStream())
                             using (BinaryWriter itemWriter = new BinaryWriter(itemMs))
                             {
+
+                                string serialNumber = Guid.NewGuid().ToString();
+
                                 // 문자열 필드들 랜덤
                                 string[] electricalOptions = { "Normal", "Abnormal" };
                                 string[] reliabilityOptions = { "Pass", "Fail" };
@@ -293,6 +296,7 @@ namespace L1_MachineSim
                                 string visual = visualOptions[rand.Next(visualOptions.Length)];
                                 string finalPass = finalPassOptions[rand.Next(finalPassOptions.Length)];
 
+                                WritePacketString(itemWriter, serialNumber);
                                 WritePacketString(itemWriter, electrical);
                                 WritePacketString(itemWriter, reliability);
                                 WritePacketString(itemWriter, visual);
@@ -313,23 +317,28 @@ namespace L1_MachineSim
 
                         dicWear = 12.0; // Reset wear
                     }
-
-                    // 3. 패킷 조립 및 전송 (공통 로직)
-                    byte[] bodyBytes = bodyMs.ToArray();
-
-                    if (isArray)
-                    {
-                        SendDtoArrayPacket(stream, procType, bodyBytes);
-                    }
                     else
                     {
-                        SendDtoPacket(stream, procType, bodyBytes);
+                        procType = DtoType.Processing;
                     }
 
-                    if (!string.IsNullOrEmpty(logMessage))
-                        Console.WriteLine(logMessage);
+                    if (procType != DtoType.Processing)
+                    {
+                        // 3. 패킷 조립 및 전송 (공통 로직)
+                        byte[] bodyBytes = bodyMs.ToArray();
 
-                    Thread.Sleep(500);
+                        if (isArray)
+                        {
+                            SendDtoArrayPacket(stream, procType, bodyBytes);
+                        }
+                        else
+                        {
+                            SendDtoPacket(stream, procType, bodyBytes);
+                        }
+
+                        if (!string.IsNullOrEmpty(logMessage))
+                            Console.WriteLine(logMessage);
+                    }
 
                     // 4. 온도 패킷 전송
                     double avgTemp = (dbTemp + wbTemp + molTemp) / 3.0;
@@ -368,6 +377,8 @@ namespace L1_MachineSim
 
             byte[] finalPacket = packet.ToArray();
             stream.Write(finalPacket, 0, finalPacket.Length);
+
+            PrintByteLog(finalPacket);
         }
 
         static void SendDtoPacket(NetworkStream stream, DtoType procType, byte[] body)
