@@ -31,4 +31,6 @@ public class AuthController {
         log.info("login dto {}", dto);
         return ResponseEntity.ok(authService.login(dto));
     }
+
+    // 안녕
 }

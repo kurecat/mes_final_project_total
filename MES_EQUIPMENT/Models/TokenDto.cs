@@ -1,3 +1,4 @@
+// 백엔드에서 제외
 public class TokenDto
 {
     public string GrantType { get; set; } = string.Empty;

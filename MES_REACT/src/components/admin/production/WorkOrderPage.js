@@ -1,4 +1,3 @@
-// src/pages/production/WorkOrderPage.js
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import axios from "axios";
@@ -14,6 +13,7 @@ import {
   FaExclamationCircle,
   FaMicrochip,
   FaSync,
+  FaTrash, // ★ 1. 삭제 아이콘 추가
 } from "react-icons/fa";
 
 // --- Fallback Mock Data ---
@@ -74,37 +74,39 @@ const MOCK_ORDERS = [
 ];
 
 const WorkOrderPage = () => {
-  const [orders, setOrders] = useState(MOCK_ORDERS);
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState(() => {
+    const savedOrders = localStorage.getItem("workOrders");
+    const parsedSavedOrders = savedOrders ? JSON.parse(savedOrders) : [];
+
+    if (parsedSavedOrders.length > 0) {
+      return parsedSavedOrders;
+    } else {
+      localStorage.setItem("workOrders", JSON.stringify(MOCK_ORDERS));
+      return MOCK_ORDERS;
+    }
+  });
+
+  const [loading, setLoading] = useState(false);
   const [lineFilter, setLineFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. 데이터 조회 (READ)
+  useEffect(() => {
+    localStorage.setItem("workOrders", JSON.stringify(orders));
+  }, [orders]);
+
   const fetchData = async () => {
     setLoading(true);
-    try {
-      // ★ 실제 API: http://localhost:3001/workOrders
-      // const res = await axios.get("http://localhost:3001/workOrders");
-      // setOrders(res.data);
-
-      setTimeout(() => {
-        setOrders(MOCK_ORDERS);
-        setLoading(false);
-      }, 500);
-    } catch (err) {
-      console.error(err);
+    setTimeout(() => {
       setLoading(false);
-    }
+    }, 300);
   };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // 2. 상태 변경 (UPDATE - PATCH)
   const updateStatus = async (id, newStatus) => {
     try {
-      // 업데이트할 내용 계산
       const updates = { status: newStatus };
       if (newStatus === "RUNNING") {
         updates.startTime = new Date().toLocaleTimeString("en-US", {
@@ -116,16 +118,10 @@ const WorkOrderPage = () => {
           hour12: false,
         });
         updates.progress = 100;
-        // 완료 시 실제 수량을 계획 수량으로 맞춤 (데모용)
         const targetOrder = orders.find((o) => o.id === id);
         if (targetOrder) updates.actualQty = targetOrder.planQty;
       }
 
-      // ★ 실제 API PATCH
-      // await axios.patch(`http://localhost:3001/workOrders/${id}`, updates);
-      // fetchData(); // 재조회
-
-      // Mock 동작
       setOrders((prev) =>
         prev.map((order) =>
           order.id === id ? { ...order, ...updates } : order
@@ -136,7 +132,13 @@ const WorkOrderPage = () => {
     }
   };
 
-  // 필터링
+  // ★ 2. 삭제 핸들러 추가
+  const handleDelete = (id) => {
+    if (window.confirm("정말 이 작업 지시를 삭제하시겠습니까?")) {
+      setOrders((prev) => prev.filter((order) => order.id !== id));
+    }
+  };
+
   const filteredOrders = orders.filter((o) => {
     const matchType = lineFilter === "ALL" || o.type === lineFilter;
     const matchSearch =
@@ -153,7 +155,6 @@ const WorkOrderPage = () => {
 
   return (
     <Container>
-      {/* 1. 헤더 */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -191,7 +192,6 @@ const WorkOrderPage = () => {
         </ControlGroup>
       </Header>
 
-      {/* 2. 칸반 보드 */}
       <BoardContainer>
         {/* Column 1: Ready */}
         <Column>
@@ -215,6 +215,8 @@ const WorkOrderPage = () => {
                 <MetaInfo>
                   Target: {order.planQty.toLocaleString()} {order.unit}
                 </MetaInfo>
+
+                {/* ★ 3. Ready 카드 액션 버튼 영역 수정 */}
                 <ActionFooter>
                   <ActionButton
                     $type="start"
@@ -222,6 +224,16 @@ const WorkOrderPage = () => {
                   >
                     <FaPlay /> Start
                   </ActionButton>
+
+                  {/* 삭제 버튼 추가 */}
+                  <ActionButton
+                    $type="delete"
+                    onClick={() => handleDelete(order.id)}
+                    title="Delete Order"
+                  >
+                    <FaTrash />
+                  </ActionButton>
+
                   <PrintButton title="Print Lot Card">
                     <FaPrint />
                   </PrintButton>
@@ -597,6 +609,8 @@ const ActionFooter = styled.div`
   border-top: 1px solid #f0f0f0;
   gap: 10px;
 `;
+
+// ★ 4. 스타일 수정: $type='delete' 추가
 const ActionButton = styled.button`
   flex: 1;
   padding: 8px;
@@ -617,6 +631,8 @@ const ActionButton = styled.button`
       ? "#f39c12"
       : props.$type === "finish"
       ? "#3498db"
+      : props.$type === "delete" // 삭제 버튼 색상 (빨강)
+      ? "#e74c3c"
       : "#ccc"};
   &:hover {
     opacity: 0.9;
