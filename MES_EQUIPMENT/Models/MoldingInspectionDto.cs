@@ -1,7 +1,5 @@
 public class MoldingInspectionDto
 {
-    public int Id { get; set; }                          // PK
-    public int MoldingId { get; set; }                   // FK: Molding 공정 참조
     public int SampleSize { get; set; }                  // 샘플링 수량
     public string? InspectionCriteria { get; set; }      // 검사 기준
     public double ThicknessPassRatio { get; set; }       // 두께 합격률
@@ -15,8 +13,6 @@ public class MoldingInspectionDto
         int offset = 0;
         MoldingInspectionDto dto = new MoldingInspectionDto();
 
-        dto.Id = BitConverter.ToInt32(payload, offset); offset += 4;
-        dto.MoldingId = BitConverter.ToInt32(payload, offset); offset += 4;
         dto.SampleSize = BitConverter.ToInt32(payload, offset); offset += 4;
 
         int strLen = BitConverter.ToInt16(payload, offset); offset += 2;

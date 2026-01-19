@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -14,7 +15,7 @@ public enum DtoType : byte
     WireBondingInspection = 0x36,
     Molding = 0x37,
     MoldingInspection = 0x38,
-    FinalInspectionLog = 0x39,
+    FinalInspection = 0x39,
     ProcessLog = 0x40
 }
 public class MachineSimulator
@@ -23,7 +24,6 @@ public class MachineSimulator
     private readonly TcpClientService _tcpService;  // 장비와 연결하기 위해 주입 받음
     private WorkOrderDto? _currentWorkOrder;
 
-    private ProcessLogDto? _processLogDto;
     private DicingDto? _dicingDto;
     private DicingInspectionDto? _dicingInspectionDto;
     private DieBondingDto? _dieBondingDto;
@@ -32,7 +32,8 @@ public class MachineSimulator
     private WireBondingInspectionDto? _wireBondingInspectionDto;
     private MoldingDto? _moldingDto;
     private MoldingInspectionDto? _moldingInspectionDto;
-    private FinalInspectionLogDto[]? _finalInspectionLogDtos;
+
+    private FinalInspectionDto[]? _finalInspectionDtos;
 
     public MachineSimulator(ApiService apiService, TcpClientService tcpService)
     {
@@ -180,11 +181,6 @@ public class MachineSimulator
                                 Console.WriteLine($"MoldingInspection: {_moldingInspectionDto?.OverallPassRatio}");
                                 break;
 
-                            case DtoType.ProcessLog:
-                                _processLogDto = ProcessLogDto.FromBytes(payload);
-                                Console.WriteLine($"ProcessLog: {_processLogDto?.ProcessLogId}");
-                                break;
-
                             default:
                                 Console.WriteLine($"Unknown dtoType: 0x{dtoType:X2}");
                                 break;
@@ -199,22 +195,26 @@ public class MachineSimulator
                 {
                     int index = 0;
                     int size = BitConverter.ToInt16(payload, 0);
+                    List<FinalInspectionDto> finalInspectionDtoList = new List<FinalInspectionDto>();
                     try
                     {
                         while (size > 0)
                         {
                             Console.WriteLine($"사이즈 : {size}");
-                            await _tcpService.ReadPacketAsync(1);   // 타입용바이트
 
-                            _finalInspectionLogDtos = new FinalInspectionLogDto[size];
+                            PrintByteLog(await _tcpService.ReadPacketAsync(1));   // 타입용바이트
 
                             payload = await _tcpService.ReadPacketAsync(size);
                             if (payload == null || payload.Length < size) continue;
 
-                            _finalInspectionLogDtos[index++] = FinalInspectionLogDto.FromBytes(payload);
+                            PrintByteLog(payload);
+
+                            finalInspectionDtoList.Add(FinalInspectionDto.FromBytes(payload));
 
                             size = BitConverter.ToInt16(await _tcpService.ReadPacketAsync(2));
+
                         }
+                        _finalInspectionDtos = finalInspectionDtoList.ToArray();
                         await HandleProductionResult();
 
                     }
@@ -265,17 +265,16 @@ public class MachineSimulator
 
         var report = new ProductionReportDto
         {
-            OrderId = _currentWorkOrder.Id,
-            ProcessLogDto = _processLogDto,
+            WorkOrderId = _currentWorkOrder.Id,
             DicingDto = _dicingDto,
             DieBondingDto = _dieBondingDto,
             WireBondingDto = _wireBondingDto,
             MoldingDto = _moldingDto,
-            FinalInspectionLogDtos = _finalInspectionLogDtos
+            FinalInspectionDtos = _finalInspectionDtos
         };
 
         string status = await _apiService.ReportProductionAsync(report);
-        Console.WriteLine($"생산 보고 : {report.OrderId}");
+        Console.WriteLine($"생산 보고 : {report.WorkOrderId}");
     }
 
     private async Task SendWorkOrderToDevice(WorkOrderDto order)

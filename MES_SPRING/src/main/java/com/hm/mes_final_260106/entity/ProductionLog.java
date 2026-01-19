@@ -13,15 +13,25 @@ public class ProductionLog {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String workOrderNo; // 작업지시 번호
-    private String productCode; // 제품 코드, 제품 테이블로 생성된 객체를 ManyTooOne 연결하는게 더 좋은 방식
-    private String machineId;   // 설비 ID
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "work_order_id", nullable = false)
+    private WorkOrder workOrder;
 
-    @Column(unique = true)
-    private String serialNo;    // ★ 추적성(Traceability) 핵심: 제품 고유 ID
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lot_id")
+    private Lot lot;
 
-    private String result;      // OK or NG
-    private String defectCode;  // 불량인 경우 사유 표시 (예: ERR-001)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id")
+    private Member member;
 
-    private LocalDateTime producedAt; // 생산 시간
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "equipment_id")
+    private Equipment equipment;
+
+    @Column(name = "start_time")
+    private LocalDateTime startTime;
+
+    @Column(name = "end_time")
+    private LocalDateTime endTime;
 }

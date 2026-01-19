@@ -7,7 +7,7 @@ import lombok.*;
 @Builder
 public class DicingDto {
     private Long id;  // pk
-    private Long processLogId;  // pk: ProcessLog 참조 (숫자만)
+    private Long productionLogId;  // pk: ProductionLog 참조 (숫자만)
     private int spindleSpeed;  // 스핀들 회전 속도
     private double feedRate;   // 이송 속도 (mm/s)
     private double bladeWear;  // 블레이드 마모율 (%)

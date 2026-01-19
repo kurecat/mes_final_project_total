@@ -5,7 +5,12 @@ import com.hm.mes_final_260106.entity.Bom;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.ProductionLog;
 import com.hm.mes_final_260106.entity.WorkOrder;
+import com.hm.mes_final_260106.dto.FinalInspectionDto;
+import com.hm.mes_final_260106.dto.ProductionReportDto;
+import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
+import com.hm.mes_final_260106.repository.*;
+import com.hm.mes_final_260106.mapper.Mapper;
 import com.hm.mes_final_260106.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,8 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.sound.sampled.TargetDataLine;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,8 +34,18 @@ public class ProductionService {
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
-    private final ProductionResultRepository productionResultRepository;
 
+    private final DicingRepository dicingRepo;
+    private final DicingInspectionRepository dicingInspectionRepo;
+    private final DieBondingRepository dieBondingRepo;
+    private final DieBondingInspectionRepository dieBondingInspectionRepo;
+    private final WireBondingRepository wireBondingRepo;
+    private final WireBondingInspectionRepository wireBondingInspectionRepo;
+    private final MoldingRepository moldingRepo;
+    private final MoldingInspectionRepository moldingInspectionRepo;
+    private final FinalInspectionLogRepository finalInspectionLogRepo;
+
+    private final Mapper mapper;
 
     // =========================
     // 1) 자재 입고
@@ -237,30 +254,60 @@ public class ProductionService {
     // (로그 저장 + BOM 차감 + 수량 증가 + 완료 처리)
     // =========================
     @Transactional
-    public void reportProduction(Long orderId, String machineId, String result, String defectCode) {
+    public void reportProduction(ProductionReportDto dto) {
 
-        WorkOrder order = orderRepo.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+        Long orderId = dto.getWorkOrderId();
 
-        if ("COMPLETED".equals(order.getStatus())) return;
+        // 지시 정보 확인
+        WorkOrder order = orderRepo.findById(orderId).
+                orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
 
-        // 생산 이력 저장
-        String serialNo = generateSerial(order.getProductId());
+        ProductionLog productionLog = mapper.toEntity(dto);
 
-        logRepo.save(ProductionLog.builder()
-                .workOrderNo(order.getWorkorder_number())   // 작업지시번호
-                .productCode(order.getProductId())          // productId를 productCode 자리에 기록 (현재 엔티티 구조 유지)
-                .machineId(machineId)
-                .serialNo(serialNo)
-                .result(result)
-                .defectCode("NG".equals(result) ? defectCode : null)
-                .producedAt(LocalDateTime.now())
-                .build());
+        Dicing dicing = mapper.toEntity(dto.getDicingDto());
+        dicing.setProductionLog(productionLog);
 
-        // 자재 차감 (양품일 때만)
-        if ("OK".equals(result)) {
-            List<Bom> boms = bomRepo.findAllByProductCode(order.getProductId());
+        DicingInspection dicingInspection = mapper.toEntity(dto.getDicingInspectionDto());
+        dicingInspection.setDicing(dicing);
 
+        DieBonding dieBonding = mapper.toEntity(dto.getDieBondingDto());
+        dieBonding.setProductionLog(productionLog);
+
+        DieBondingInspection dieBondingInspection = mapper.toEntity(dto.getDieBondingInspectionDto());
+        dieBondingInspection.setDieBonding(dieBonding);
+
+        WireBonding wireBonding = mapper.toEntity(dto.getWireBondingDto());
+        wireBonding.setProductionLog(productionLog);
+
+        WireBondingInspection wireBondingInspection = mapper.toEntity(dto.getWireBondingInspectionDto());
+        wireBondingInspection.setWireBonding(wireBonding);
+
+        Molding molding = mapper.toEntity(dto.getMoldingDto());
+        molding.setProductionLog(productionLog);
+
+        MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
+        moldingInspection.setMolding(molding);
+
+        List<FinalInspection> finalInspections = new ArrayList<>();
+        for (FinalInspectionDto inspDto : dto.getFinalInspectionDtos()) {
+            FinalInspection finalInspection = mapper.toEntity(inspDto);
+            finalInspection.setProductionLog(productionLog);
+            finalInspections.add(finalInspection);
+        }
+
+        productionLog = logRepo.save(productionLog);
+        dicing = dicingRepo.save(dicing);
+        dicingInspection = dicingInspectionRepo.save(dicingInspection);
+        dieBonding = dieBondingRepo.save(dieBonding);
+        dieBondingInspection = dieBondingInspectionRepo.save(dieBondingInspection);
+        wireBonding = wireBondingRepo.save(wireBonding);
+        wireBondingInspection = wireBondingInspectionRepo.save(wireBondingInspection);
+        molding = moldingRepo.save(molding);
+        moldingInspection = moldingInspectionRepo.save(moldingInspection);
+        finalInspections = finalInspectionLogRepo.saveAll(finalInspections);
+
+        if (true) {
+            List<Bom> boms = bomRepo.findAllByProductId(order.getProductId());
             for (Bom bom : boms) {
                 Material mat = bom.getMaterial();
                 int required = bom.getRequiredQty();

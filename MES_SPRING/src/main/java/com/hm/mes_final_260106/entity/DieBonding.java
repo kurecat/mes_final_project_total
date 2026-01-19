@@ -16,8 +16,8 @@ public class DieBonding {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "process_log_id", nullable = false)
-    private ProcessLog processLog;
+    @JoinColumn(name = "production_log_id", nullable = false)
+    private ProductionLog productionLog;
 
     @Column(name = "pick_up_force", length = 50)
     private String pickUpForce;

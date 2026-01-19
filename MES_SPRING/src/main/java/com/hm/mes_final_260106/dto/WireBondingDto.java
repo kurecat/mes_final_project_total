@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class WireBondingDto {
 
     private Long id;                // PK: 공정 ID
-    private Long processLogId;      // FK: ProcessLog 참조
+    private Long productionLogId;  // pk: ProductionLog 참조 (숫자만)
 
     private double bondingTemp;     // 본딩 온도 (℃)
     private double bondingForce;    // 본딩 압력 (gf)

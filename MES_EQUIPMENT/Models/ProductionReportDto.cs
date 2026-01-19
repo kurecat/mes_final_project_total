@@ -5,7 +5,13 @@
 
 public class ProductionReportDto
 {
-    public long OrderId { get; set; }
+    public long WorkOrderId { get; set; }
+    public long LotId { get; set; }
+    public long MemberId { get; set; }
+    public long EquipmentId { get; set; }
+    public DateTime StartTime { get; set; }
+    public DateTime EndTime { get; set; }
+    public string? DefectCode { get; set; }
 
     public DicingDto? DicingDto { get; set; }
     public DicingInspectionDto? DicingInspectionDto { get; set; }
@@ -15,9 +21,8 @@ public class ProductionReportDto
     public WireBondingInspectionDto? WireBondingInspectionDto { get; set; }
     public MoldingDto? MoldingDto { get; set; }
     public MoldingInspectionDto? MoldingInspectionDto { get; set; }
-    public FinalInspectionLogDto[]? FinalInspectionLogDtos { get; set; }
-    public ProcessLogDto? ProcessLogDto { get; set; }
+    public FinalInspectionDto[]? FinalInspectionDtos { get; set; }
 
-    public string? DefectCode { get; set; }
+
 }
 
