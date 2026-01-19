@@ -11,6 +11,7 @@ public class ProductionReportDto
     public long EquipmentId { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
+    public string? DefectCode { get; set; }
 
     public DicingDto? DicingDto { get; set; }
     public DicingInspectionDto? DicingInspectionDto { get; set; }
@@ -21,7 +22,6 @@ public class ProductionReportDto
     public MoldingDto? MoldingDto { get; set; }
     public MoldingInspectionDto? MoldingInspectionDto { get; set; }
     public FinalInspectionDto[]? FinalInspectionDtos { get; set; }
-    public string? DefectCode { get; set; }
 
 
 }
