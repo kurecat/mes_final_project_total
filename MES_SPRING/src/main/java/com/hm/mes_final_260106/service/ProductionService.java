@@ -1,14 +1,12 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.dto.PerformanceSummaryResDto;
 import com.hm.mes_final_260106.entity.Bom;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.ProductionLog;
 import com.hm.mes_final_260106.entity.WorkOrder;
 import com.hm.mes_final_260106.exception.CustomException;
-import com.hm.mes_final_260106.repository.BomRepository;
-import com.hm.mes_final_260106.repository.MaterialRepository;
-import com.hm.mes_final_260106.repository.ProductionLogRepository;
-import com.hm.mes_final_260106.repository.WorkOrderRepository;
+import com.hm.mes_final_260106.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +27,8 @@ public class ProductionService {
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
+    private final ProductionResultRepository productionResultRepository;
+
 
     // =========================
     // 1) 자재 입고
@@ -322,4 +322,21 @@ public class ProductionService {
     private String generateSerial(String productId) {
         return productId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
+
+    @Transactional(readOnly = true)
+    public PerformanceSummaryResDto getPerformanceSummary(LocalDate date, String line) {
+
+        // ✅ 수정: Repository에서 DTO를 바로 받으므로 캐스팅/배열처리 하면 안됨
+        PerformanceSummaryResDto dto = productionResultRepository.getSummary(date, line);
+
+        // ✅ 추가: 혹시 null 방어 (데이터 없을 때)
+        if (dto == null) {
+            return new PerformanceSummaryResDto(0L, 0L, 0L, 0.0);
+        }
+
+        return dto;
+    }
+
+
+
 }

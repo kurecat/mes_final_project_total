@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.format.annotation.DateTimeFormat;
 
+import java.time.LocalDate;
 import java.util.List;
 
 // 웹 대시보드 및 설비(C#)를 연결하는 Controller
@@ -149,4 +151,21 @@ public class MesController {
         );
         return ResponseEntity.ok("ACK");
     }
+    // 당일생산수량 합계
+    @GetMapping("/performance/summary")
+    public ResponseEntity<PerformanceSummaryResDto> getPerformanceSummary(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date,
+            @RequestParam(defaultValue = "ALL") String line
+    ) {
+        return ResponseEntity.ok(
+                productionService.getPerformanceSummary(date, line)
+        );
+    }
+
+
+
+
+
 }
