@@ -141,12 +141,7 @@ public class MesController {
     // =========================
     @PostMapping("/machine/report")
     public ResponseEntity<String> reportProduction(@RequestBody ProductionReportDto dto) {
-        productionService.reportProduction(
-                dto.getOrderId(),
-                dto.getMachineId(),
-                dto.getResult(),
-                dto.getDefectCode()
-        );
+        productionService.reportProduction(dto);
         return ResponseEntity.ok("ACK");
     }
 }
