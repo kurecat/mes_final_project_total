@@ -77,16 +77,16 @@ public class ProductionService {
     public void reportProduction(ProductionReportDto dto) {
 
         Long orderId = dto.getOrderId();
-        Dicing dicing = mapper.toEntity(dto.getDicingDto());
-        DicingInspection dicingInspection = mapper.toEntity(dto.getDicingInspectionDto());
-        DieBonding dieBonding = mapper.toEntity(dto.getDieBondingDto());
-        DieBondingInspection dieBondingInspection = mapper.toEntity(dto.getDieBondingInspectionDto());
-        WireBonding wireBonding = mapper.toEntity(dto.getWireBondingDto());
-        WireBondingInspection wireBondingInspection = mapper.toEntity(dto.getWireBondingInspectionDto());
-        Molding molding = mapper.toEntity(dto.getMoldingDto());
-        MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
-        ProcessLog processLog = mapper.toEntity(dto.getProcessLogDto());
-        FinalInspectionLog finalInspectionLog = mapper.toEntity(dto.getFinalInspectionLogDto());
+//        Dicing dicing = mapper.toEntity(dto.getDicingDto());
+//        DicingInspection dicingInspection = mapper.toEntity(dto.getDicingInspectionDto());
+//        DieBonding dieBonding = mapper.toEntity(dto.getDieBondingDto());
+//        DieBondingInspection dieBondingInspection = mapper.toEntity(dto.getDieBondingInspectionDto());
+//        WireBonding wireBonding = mapper.toEntity(dto.getWireBondingDto());
+//        WireBondingInspection wireBondingInspection = mapper.toEntity(dto.getWireBondingInspectionDto());
+//        Molding molding = mapper.toEntity(dto.getMoldingDto());
+//        MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
+//        ProcessLog processLog = mapper.toEntity(dto.getProcessLogDto());
+//        FinalInspectionLog finalInspectionLog = mapper.toEntity(dto.getFinalInspectionLogDto());
 
         // 지시 정보 확인
         WorkOrder order = orderRepo.findById(orderId).
@@ -109,7 +109,7 @@ public class ProductionService {
 
 
         // 자재 차감 ( Backflushing ) - 양품일 때만 자재를 차감
-        if ("OK".equals(result)) {
+        if ("OK".equals(dto.getResult())) {
             List<Bom> boms = bomRepo.findAllByProductCode(order.getProductCode());
             for (Bom bom : boms) {
                 Material mat = bom.getMaterial();
