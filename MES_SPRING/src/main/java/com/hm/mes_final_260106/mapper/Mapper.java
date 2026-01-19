@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.mapper;
 
+import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.*;
 import org.springframework.stereotype.Component;
 

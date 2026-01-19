@@ -4,10 +4,7 @@ import com.hm.mes_final_260106.dto.ProductionReportDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.mapper.*;
-import com.hm.mes_final_260106.repository.BomRepository;
-import com.hm.mes_final_260106.repository.MaterialRepository;
-import com.hm.mes_final_260106.repository.ProductionLogRepository;
-import com.hm.mes_final_260106.repository.WorkOrderRepository;
+import com.hm.mes_final_260106.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.jdbc.Work;
@@ -15,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -24,6 +22,18 @@ public class ProductionService {
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
+
+    private final DicingRepository dicingRepo;
+    private final DicingInspectionRepository dicingInspectionRepo;
+    private final DieBondingRepository dieBondingRepo;
+    private final DieBondingInspectionRepository dieBondingInspectionRepo;
+    private final WireBondingRepository wireBondingRepo;
+    private final WireBondingInspectionRepository wireBondingInspectionRepo;
+    private final MoldingRepository moldingRepo;
+    private final MoldingInspectionRepository moldingInspectionRepo;
+    private final FinalInspectionLogRepository finalInspectionLogRepo;
+    private final ProcessLogRepository processLogRepo;
+
     private final Mapper mapper;
 
     // 자재 입고
@@ -77,16 +87,18 @@ public class ProductionService {
     public void reportProduction(ProductionReportDto dto) {
 
         Long orderId = dto.getOrderId();
-//        Dicing dicing = mapper.toEntity(dto.getDicingDto());
-//        DicingInspection dicingInspection = mapper.toEntity(dto.getDicingInspectionDto());
-//        DieBonding dieBonding = mapper.toEntity(dto.getDieBondingDto());
-//        DieBondingInspection dieBondingInspection = mapper.toEntity(dto.getDieBondingInspectionDto());
-//        WireBonding wireBonding = mapper.toEntity(dto.getWireBondingDto());
-//        WireBondingInspection wireBondingInspection = mapper.toEntity(dto.getWireBondingInspectionDto());
-//        Molding molding = mapper.toEntity(dto.getMoldingDto());
-//        MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
-//        ProcessLog processLog = mapper.toEntity(dto.getProcessLogDto());
-//        FinalInspectionLog finalInspectionLog = mapper.toEntity(dto.getFinalInspectionLogDto());
+        Dicing dicing = mapper.toEntity(dto.getDicingDto());
+        DicingInspection dicingInspection = mapper.toEntity(dto.getDicingInspectionDto());
+        DieBonding dieBonding = mapper.toEntity(dto.getDieBondingDto());
+        DieBondingInspection dieBondingInspection = mapper.toEntity(dto.getDieBondingInspectionDto());
+        WireBonding wireBonding = mapper.toEntity(dto.getWireBondingDto());
+        WireBondingInspection wireBondingInspection = mapper.toEntity(dto.getWireBondingInspectionDto());
+        Molding molding = mapper.toEntity(dto.getMoldingDto());
+        MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
+        ProcessLog processLog = mapper.toEntity(dto.getProcessLogDto());
+        List<FinalInspectionLog> finalInspectionLogs = new ArrayList<>();
+        dto.getFinalInspectionLogDto().forEach(logDto ->
+                finalInspectionLogs.add(mapper.toEntity(logDto)));
 
         // 지시 정보 확인
         WorkOrder order = orderRepo.findById(orderId).
@@ -106,10 +118,20 @@ public class ProductionService {
 //                        .producedAt(LocalDateTime.now())
 //                .build());
 
-
+        dicingRepo.save(dicing);
+        dicingInspectionRepo.save(dicingInspection);
+        dieBondingRepo.save(dieBonding);
+        dieBondingInspectionRepo.save(dieBondingInspection);
+        wireBondingRepo.save(wireBonding);
+        wireBondingInspectionRepo.save(wireBondingInspection);
+        moldingRepo.save(molding);
+        moldingInspectionRepo.save(moldingInspection);
+        processLogRepo.save(processLog);
+        finalInspectionLogRepo.saveAll(finalInspectionLogs);
 
         // 자재 차감 ( Backflushing ) - 양품일 때만 자재를 차감
-        if ("OK".equals(dto.getResult())) {
+//        if ("OK".equals(dto.getResult())) {
+        if (true) {
             List<Bom> boms = bomRepo.findAllByProductCode(order.getProductCode());
             for (Bom bom : boms) {
                 Material mat = bom.getMaterial();
