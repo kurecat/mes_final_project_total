@@ -16,8 +16,8 @@ public class WireBonding {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "process_log_id", nullable = false)
-    private ProcessLog processLog;
+    @JoinColumn(name = "production_log_id", nullable = false)
+    private ProductionLog productionLog;
 
     @Column(name = "bonding_temp", length = 50)
     private String bondingTemp;

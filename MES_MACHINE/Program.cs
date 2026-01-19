@@ -87,23 +87,19 @@ namespace L1_MachineSim
 
                     // === 공정 데이터 생성 (메서드 분리 권장하지만, 여기선 BinaryWriter 예시를 위해 인라인 처리) ===
 
-                    if (step < 3) // Dicing
+                    if (step == 2) // Dicing
                     {
                         procType = DtoType.Dicing;
                         dicWear = Math.Round(dicWear + 0.05, 2);
                         double flow = Math.Round(2.5 + (rand.NextDouble() * 0.2 - 0.1), 2);
 
                         // ✅ DTO 구조에 맞게 데이터 작성
-                        int id = 0; // PK는 백엔드에서 처리
-                        int processLogId = 0; // 예시: 현재 공정 로그 ID
                         int spindleSpeed = (int)(30000 + rand.Next(-300, 300)); // rpm
                         double feedRate = Math.Round(5.0 + (rand.NextDouble() * 0.4 - 0.2), 2); // mm/s
                         double bladeWear = dicWear; // %
                         double coolantFlow = flow;  // L/min
 
                         // 패킷에 쓰기
-                        writer.Write(id);
-                        writer.Write(processLogId);
                         writer.Write(spindleSpeed);
                         writer.Write(feedRate);
                         writer.Write(bladeWear);
@@ -117,8 +113,6 @@ namespace L1_MachineSim
                         double passRate = 97.0;
 
                         // ✅ DTO 구조에 맞게 데이터 작성
-                        int id = 0;              // PK 항상 0
-                        int dicId = 0;           // FK도 0
                         int sampleSize = 50;
                         string inspectionCriteria = currentLotId + "-DIC";
                         double thicknessPassRatio = 96.0;
@@ -126,8 +120,6 @@ namespace L1_MachineSim
                         double overallPassRatio = passRate;
 
                         // 패킷에 쓰기
-                        writer.Write(id);
-                        writer.Write(dicId);
                         writer.Write(sampleSize);
 
                         // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
@@ -140,19 +132,17 @@ namespace L1_MachineSim
 
                         logMessage = $"[Dicing] >> 검사 완료 (합격률: {overallPassRatio}%)";
                     }
-                    else if (step < 7) // DieBonding
+                    else if (step == 6) // DieBonding
                     {
                         procType = DtoType.DieBonding;
 
                         // ✅ DTO 구조에 맞는 값 준비
-                        int id = 0; // PK는 항상 0
                         double pickUpForce = Math.Round(1.5 + (rand.NextDouble() * 0.2 - 0.1), 2); // 픽업 힘
                         double placementAccuracy = Math.Round(0.05 + (rand.NextDouble() * 0.01 - 0.005), 3); // 배치 정확도
                         double epoxyDispenseVolume = Math.Round(0.8 + (rand.NextDouble() * 0.1 - 0.05), 2); // 에폭시 도포량
                         double curingTemp = Math.Round(150.0 + (rand.NextDouble() * 5 - 2.5), 1); // 경화 온도
 
                         // ✅ 패킷에 쓰기
-                        writer.Write(id);
                         writer.Write(pickUpForce);
                         writer.Write(placementAccuracy);
                         writer.Write(epoxyDispenseVolume);
@@ -168,14 +158,10 @@ namespace L1_MachineSim
                         double overallPass = 93.0;
 
                         // ✅ DTO 구조에 맞는 값 준비
-                        int id = 0;                // PK 항상 0
-                        int dieBondingId = 0;       // FK도 0
                         int sampleSize = 40;        // 샘플링 수량
                         string inspectionCriteria = currentLotId + "-DIE"; // 검사 기준 문자열
 
                         // ✅ 패킷에 쓰기
-                        writer.Write(id);
-                        writer.Write(dieBondingId);
                         writer.Write(sampleSize);
 
                         // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
@@ -189,12 +175,11 @@ namespace L1_MachineSim
 
                         logMessage = $"[DieBonding] >> 검사 완료 (합격률: {overallPass}%)";
                     }
-                    else if (step < 11) // WireBonding
+                    else if (step == 10) // WireBonding
                     {
                         procType = DtoType.WireBonding;
 
                         // ✅ DTO 구조에 맞는 값 준비
-                        int id = 0; // PK 항상 0
                         double bondingTemp = Math.Round(250.0 + (rand.NextDouble() * 10 - 5), 1);   // 본딩 온도 (℃)
                         double bondingForce = Math.Round(0.5 + (rand.NextDouble() * 0.1 - 0.05), 3); // 본딩 힘 (N)
                         double ultrasonicPower = Math.Round(2.0 + (rand.NextDouble() * 0.2 - 0.1), 2); // 초음파 출력 (W)
@@ -203,7 +188,6 @@ namespace L1_MachineSim
                         double ballDiameter = Math.Round(0.025 + (rand.NextDouble() * 0.005 - 0.0025), 4); // 볼 직경 (mm)
 
                         // ✅ 패킷에 쓰기
-                        writer.Write(id);
                         writer.Write(bondingTemp);
                         writer.Write(bondingForce);
                         writer.Write(ultrasonicPower);
@@ -218,8 +202,6 @@ namespace L1_MachineSim
                         procType = DtoType.WireBondingInspection;
 
                         // ✅ DTO 구조에 맞는 값 준비
-                        int id = 0;                  // PK 항상 0
-                        int wireBondingId = 0;       // FK도 0
                         int sampleSize = 30;         // 샘플링 수량
                         string inspectionCriteria = currentLotId + "-WB"; // 검사 기준 문자열
 
@@ -229,8 +211,6 @@ namespace L1_MachineSim
                         double overallPassRatio = 97.0;
 
                         // ✅ 패킷에 쓰기
-                        writer.Write(id);
-                        writer.Write(wireBondingId);
                         writer.Write(sampleSize);
 
                         // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
@@ -245,19 +225,17 @@ namespace L1_MachineSim
 
                         logMessage = $"[WireBonding] >> 검사 완료 (합격률: {overallPassRatio}%)";
                     }
-                    else if (step < 15) // Molding
+                    else if (step == 14) // Molding
                     {
                         procType = DtoType.Molding;
 
                         // ✅ DTO 구조에 맞는 값 준비
-                        int id = 0; // PK 항상 0
                         double moldTemp = Math.Round(175.0 + (rand.NextDouble() * 5 - 2.5), 1);       // 금형 온도 (℃)
                         double injectionPressure = Math.Round(80.0 + (rand.NextDouble() * 10 - 5), 1); // 사출 압력 (bar)
                         double cureTime = Math.Round(30.0 + (rand.NextDouble() * 2 - 1), 1);           // 경화 시간 (s)
                         double clampForce = Math.Round(90.0 + (rand.NextDouble() * 5 - 2.5), 1);       // 클램프 힘 (kN)
 
                         // ✅ 패킷에 쓰기
-                        writer.Write(id);
                         writer.Write(moldTemp);
                         writer.Write(injectionPressure);
                         writer.Write(cureTime);
@@ -270,8 +248,6 @@ namespace L1_MachineSim
                         procType = DtoType.MoldingInspection;
 
                         // ✅ DTO 구조에 맞는 값 준비
-                        int id = 0;                  // PK 항상 0
-                        int moldingId = 0;           // FK도 0
                         int sampleSize = 30;         // 샘플링 수량
                         string inspectionCriteria = currentLotId + "-MOL"; // 검사 기준 문자열
 
@@ -281,8 +257,6 @@ namespace L1_MachineSim
                         double overallPassRatio = 96.0;
 
                         // ✅ 패킷에 쓰기
-                        writer.Write(id);
-                        writer.Write(moldingId);
                         writer.Write(sampleSize);
 
                         // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
@@ -308,13 +282,6 @@ namespace L1_MachineSim
                             using (MemoryStream itemMs = new MemoryStream())
                             using (BinaryWriter itemWriter = new BinaryWriter(itemMs))
                             {
-                                // 숫자 필드들 랜덤
-                                itemWriter.Write(0); // Id
-                                itemWriter.Write(0); // WorkOrderId
-                                itemWriter.Write(0); // ItemId
-                                itemWriter.Write(0); // MemberId
-                                itemWriter.Write(0); // EquipmentId
-
                                 // 문자열 필드들 랜덤
                                 string[] electricalOptions = { "Normal", "Abnormal" };
                                 string[] reliabilityOptions = { "Pass", "Fail" };
@@ -343,35 +310,9 @@ namespace L1_MachineSim
                         byte[] packetBytes = bodyMs.ToArray();
                         Console.WriteLine($"총 패킷 길이: {packetBytes.Length} 바이트, 아이템 수: {arrayLength}");
                         logMessage = "[★FINAL] 최종검사 배열 Data 전송 완료";
-                    }
-                    else
-                    {
-                        procType = DtoType.ProcessLog;
 
-                        // ✅ DTO 구조에 맞는 값 준비
-                        int processLogId = 0;
-                        int workOrderId = 0;
-                        int lotId = 0;
-                        int memberId = 0;
-                        int equipmentId = 0;
-
-                        DateTime startTime = DateTime.Now;
-                        DateTime endTime = startTime.AddMinutes(5);
-
-                        // ✅ 패킷에 쓰기
-                        writer.Write(processLogId);
-                        writer.Write(workOrderId);
-                        writer.Write(lotId);
-                        writer.Write(memberId);
-                        writer.Write(equipmentId);
-                        writer.Write(startTime.ToBinary());
-                        writer.Write(endTime.ToBinary());
-
-                        logMessage = "[ProcessLog] 공정 로그 데이터 전송 완료";
                         dicWear = 12.0; // Reset wear
-
                     }
-
 
                     // 3. 패킷 조립 및 전송 (공통 로직)
                     byte[] bodyBytes = bodyMs.ToArray();

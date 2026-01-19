@@ -1,7 +1,5 @@
 public class MoldingDto
 {
-    public int Id { get; set; }                       // PK
-    public int ProcessLogId { get; set; }             // FK: ProcessLog 참조 (숫자만)
     public double MoldTemp { get; set; }              // 금형 온도
     public double InjectionPressure { get; set; }     // 사출 압력
     public double CureTime { get; set; }              // 경화 시간
@@ -13,8 +11,6 @@ public class MoldingDto
         int offset = 0;
         MoldingDto dto = new MoldingDto();
 
-        dto.Id = BitConverter.ToInt32(payload, offset); offset += 4;
-        dto.ProcessLogId = BitConverter.ToInt32(payload, offset); offset += 4;
         dto.MoldTemp = BitConverter.ToDouble(payload, offset); offset += 8;
         dto.InjectionPressure = BitConverter.ToDouble(payload, offset); offset += 8;
         dto.CureTime = BitConverter.ToDouble(payload, offset); offset += 8;

@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -16,13 +17,13 @@ import java.util.List;
 public class ProductionReportDto {
 
     // --- 기존 필드 유지 ---
-    private Long orderId;      // 작업 지시 ID
-    private String machineId;  // 설비 ID (기존 필드 유지 - 어떤 설비에서 왔는지 식별)
-    private String result;     // OK or NG (기존 필드 유지 - 전체 결과)
-    private String defectCode; // 불량 코드
-
-    // --- 추가 요청 필드 ---
-    private String serialNo;   // [NEW] 제품 일련번호 (Serial Number)
+    private Long workOrderId;           // 작업 지시 ID
+    private Long lotId;                 // lot ID
+    private Long memberId;              // 작업자 ID
+    private Long equipmentId;           // 설비 ID
+    private LocalDateTime startTime;    // 작업 시작 시간
+    private LocalDateTime endTime;      // 작업 시작 시간
+    private String defectCode;          // 불량 코드
 
     // --- 상세 공정 데이터 (Nested DTOs) ---
     // 각 공정 단계별 데이터가 있을 경우에만 채워서 보냄 (Nullable)
@@ -40,7 +41,5 @@ public class ProductionReportDto {
     private MoldingInspectionDto moldingInspectionDto;
 
     // 배열([]) 대신 List<> 사용 권장
-    private List<FinalInspectionLogDto> finalInspectionLogDto;
-
-    private ProcessLogDto processLogDto;
+    private List<FinalInspectionDto> finalInspectionDtos;
 }

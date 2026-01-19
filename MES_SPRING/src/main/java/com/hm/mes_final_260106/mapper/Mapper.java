@@ -2,9 +2,11 @@ package com.hm.mes_final_260106.mapper;
 
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.*;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@AllArgsConstructor
 public class Mapper {
 
     private final DicingMapper dicingMapper;
@@ -15,32 +17,8 @@ public class Mapper {
     private final WireBondingInspectionMapper wireBondingInspectionMapper;
     private final MoldingMapper moldingMapper;
     private final MoldingInspectionMapper moldingInspectionMapper;
-    private final ProcessLogMapper processLogMapper;
     private final FinalInspectionLogMapper finalInspectionLogMapper;
-
-    public Mapper(
-            DicingMapper dicingMapper,
-            DicingInspectionMapper dicingInspectionMapper,
-            DieBondingMapper dieBondingMapper,
-            DieBondingInspectionMapper dieBondingInspectionMapper,
-            WireBondingMapper wireBondingMapper,
-            WireBondingInspectionMapper wireBondingInspectionMapper,
-            MoldingMapper moldingMapper,
-            MoldingInspectionMapper moldingInspectionMapper,
-            ProcessLogMapper processLogMapper,
-            FinalInspectionLogMapper finalInspectionLogMapper
-    ) {
-        this.dicingMapper = dicingMapper;
-        this.dicingInspectionMapper = dicingInspectionMapper;
-        this.dieBondingMapper = dieBondingMapper;
-        this.dieBondingInspectionMapper = dieBondingInspectionMapper;
-        this.wireBondingMapper = wireBondingMapper;
-        this.wireBondingInspectionMapper = wireBondingInspectionMapper;
-        this.moldingMapper = moldingMapper;
-        this.moldingInspectionMapper = moldingInspectionMapper;
-        this.processLogMapper = processLogMapper;
-        this.finalInspectionLogMapper = finalInspectionLogMapper;
-    }
+    private final ProductionLogMapper productionLogMapper;
 
     public Dicing toEntity(DicingDto dto) {
         return dicingMapper.toEntity(dto);
@@ -74,11 +52,9 @@ public class Mapper {
         return moldingInspectionMapper.toEntity(dto);
     }
 
-    public ProcessLog toEntity(ProcessLogDto dto) {
-        return processLogMapper.toEntity(dto);
-    }
-
-    public FinalInspectionLog toEntity(FinalInspectionLogDto dto) {
+    public FinalInspection toEntity(FinalInspectionDto dto) {
         return finalInspectionLogMapper.toEntity(dto);
     }
+
+    public ProductionLog toEntity(ProductionReportDto dto) {return productionLogMapper.toEntity(dto);}
 }

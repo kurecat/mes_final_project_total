@@ -8,7 +8,7 @@ import lombok.Setter;
 @Setter@Getter@AllArgsConstructor@NoArgsConstructor
 public class DieBondingDto {
     private Long id;          // PK
-    private Long processLogId;    // FK: ProcessLog 참조 (숫자만)
+    private Long productionLogId;  // pk: ProductionLog 참조 (숫자만)
     private double pickUpForce;  // 픽업 힘
     private double placementAccuracy;   // 배치 정확도
     private double epoxyDispenseVolume; // 에폭시 도포량
