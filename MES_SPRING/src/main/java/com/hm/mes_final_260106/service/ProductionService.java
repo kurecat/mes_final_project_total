@@ -305,7 +305,7 @@ public class ProductionService {
         finalInspections = finalInspectionLogRepo.saveAll(finalInspections);
 
         if (true) {
-            List<Bom> boms = bomRepo.findAllByProductid(order.getProductId());
+            List<Bom> boms = bomRepo.findAllByProductId(order.getProductId());
             for (Bom bom : boms) {
                 Material mat = bom.getMaterial();
                 int required = bom.getRequiredQty();
