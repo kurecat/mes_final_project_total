@@ -11,14 +11,26 @@ package com.hm.mes_final_260106.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-@Entity @Setter @Getter @NoArgsConstructor @AllArgsConstructor @Builder
+@Entity
+@Table(name = "bom")
+@Getter @Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Bom {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String productCode;
 
-    @ManyToOne
-    private Material material;  // 필요한 자재
-    private int requiredQty;    // 소요량
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "material_id", nullable = false)
+    private Material material;
+
+    @Column(name = "required_qty", nullable = false)
+    private Integer requiredQty;
 }

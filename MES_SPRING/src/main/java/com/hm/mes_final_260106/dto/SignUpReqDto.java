@@ -10,7 +10,7 @@ public class SignUpReqDto {
     private String email;
     private String password;
     private String name;
-    private Authority authority;
+    private String authority;
 
     public Member toEntity(PasswordEncoder encoder) {
         return Member.builder()
