@@ -1,9 +1,11 @@
+// [수정 이유] RefreshToken을 DB에 저장하는 로직 추가
+// generateTokenDto() 호출 시 자동으로 DB 저장/갱신
+
 package com.hm.mes_final_260106.security;
-// JWT 토큰 생성
-// client에서 전달한 JWT 검증
-// 토큰에서 사용자 정보 추출
 
 import com.hm.mes_final_260106.dto.TokenDto;
+import com.hm.mes_final_260106.entity.RefreshToken;
+import com.hm.mes_final_260106.repository.RefreshTokenRepository;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -15,6 +17,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
+
 import java.security.Key;
 import java.util.Arrays;
 import java.util.Collection;
@@ -29,13 +32,17 @@ public class TokenProvider {
     private static final long REFRESH_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 24 * 7; // 7일
 
     private final Key key;
+    private final RefreshTokenRepository refreshTokenRepository;
 
-    public TokenProvider(@Value("${jwt.secret}") String secretKey) {
+    public TokenProvider(
+            @Value("${jwt.secret}") String secretKey,
+            RefreshTokenRepository refreshTokenRepository) {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         this.key = Keys.hmacShaKeyFor(keyBytes);
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
-    // 로그인 성공 시 토큰 생성
+    // 로그인 성공 시 토큰 생성 + DB 저장
     public TokenDto generateTokenDto(Authentication authentication) {
         String authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
@@ -43,55 +50,65 @@ public class TokenProvider {
 
         long now = (new Date()).getTime();
         Date accessTokenExpiresIn = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);
-        Date refreshTokenExpiresIn = new Date(now + REFRESH_TOKEN_EXPIRE_TIME);
 
         String accessToken = Jwts.builder()
-                .setSubject(authentication.getName()) // memberId(Long) 저장
+                .setSubject(authentication.getName()) // memberId 저장
                 .claim(AUTHORITIES_KEY, authorities)
                 .setExpiration(accessTokenExpiresIn)
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
 
         String refreshToken = Jwts.builder()
-                .setExpiration(refreshTokenExpiresIn)
+                .setExpiration(new Date(now + REFRESH_TOKEN_EXPIRE_TIME))
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
+
+        //  RefreshToken DB 저장/갱신
+        Long memberId = Long.parseLong(authentication.getName());
+        saveRefreshToken(memberId, refreshToken);
 
         return TokenDto.builder()
                 .grantType("Bearer")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .accessTokenExpiresIn(accessTokenExpiresIn.getTime())
-                .refreshTokenExpiresIn(refreshTokenExpiresIn.getTime())
                 .build();
     }
+
+    //  RefreshToken DB 저장/갱신
+    private void saveRefreshToken(Long memberId, String refreshToken) {
+        RefreshToken entity = refreshTokenRepository.findByMemberId(memberId)
+                .orElse(RefreshToken.builder()
+                        .memberId(memberId)
+                        .token(refreshToken)
+                        .build());
+
+        entity.updateToken(refreshToken);
+        refreshTokenRepository.save(entity);
+        log.info("RefreshToken saved for memberId: {}", memberId);
+    }
+
     public Authentication getAuthentication(String accessToken) {
-        // 토큰 복호화
         Claims claims = parseClaims(accessToken);
 
-        // 토큰 복호화에 실패하면
         if (claims.get(AUTHORITIES_KEY) == null) {
             throw new RuntimeException("권한 정보가 없는 토큰입니다.");
         }
 
-        // 토큰에 담긴 권한 정보들을 가져옴
         Collection<? extends GrantedAuthority> authorities =
                 Arrays.stream(claims.get(AUTHORITIES_KEY).toString().split(","))
                         .map(SimpleGrantedAuthority::new)
                         .collect(Collectors.toList());
 
-        // 권한 정보들을 이용해 유저 객체를 만들어서 반환
         User principal = new User(claims.getSubject(), "", authorities);
-
-        // 유저 객체, 토큰, 권한 정보들을 이용해 인증 객체를 생성해서 반환
         return new UsernamePasswordAuthenticationToken(principal, accessToken, authorities);
     }
-    // 토큰의 유효성 검증
+
     public boolean validateToken(String token) {
         try {
-            io.jsonwebtoken.Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
-        } catch (SecurityException | io.jsonwebtoken.MalformedJwtException e) {
+        } catch (SecurityException | MalformedJwtException e) {
             log.info("잘못된 JWT 서명입니다.");
         } catch (ExpiredJwtException e) {
             log.info("만료된 JWT 토큰입니다.");
@@ -102,12 +119,18 @@ public class TokenProvider {
         }
         return false;
     }
-    // 토큰 복호화
+
     private Claims parseClaims(String accessToken) {
         try {
-            return io.jsonwebtoken.Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(accessToken).getBody();
+            return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(accessToken).getBody();
         } catch (ExpiredJwtException e) {
             return e.getClaims();
         }
+    }
+
+    // AccessToken에서 memberId 추출 (만료된 토큰도 파싱 가능)
+    public Long getMemberIdFromToken(String accessToken) {
+        Claims claims = parseClaims(accessToken);
+        return Long.parseLong(claims.getSubject());
     }
 }

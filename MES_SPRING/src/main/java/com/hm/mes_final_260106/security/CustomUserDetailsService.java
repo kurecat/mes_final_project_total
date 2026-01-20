@@ -35,8 +35,8 @@ public class CustomUserDetailsService implements UserDetailsService {
         // 3. UserDetails 객체를 생성하여 반환
         //    첫 번째 인자인 Username 자리에 사번/이메일 대신 PK(id)를 넣으면 SecurityUtil에서 쓰기 편함
         return new User(
-                String.valueOf(member.getId()),
-                member.getPassword(), // 엔티티 필드명이 password라면 getPassword()로 수정
+                String.valueOf(member.getId()), // ★ 이메일 말고 다시 숫자 ID(PK)로!
+                member.getPassword(),
                 Collections.singleton(grantedAuthority)
         );
     }

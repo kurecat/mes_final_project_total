@@ -1269,7 +1269,7 @@
       "status": "DRAFT",
       "owner": "Jung. Y.H (QA)",
       "updatedAt": "2024-01-20",
-      "description": "New defect classification standard for DDR5 products. Currently under review.",
+      "description": "New defect classification standard for DDR5 product. Currently under review.",
       "revisions": [
         {
           "rev": "0.9",
@@ -1700,7 +1700,7 @@
       "avatar": null
     }
   ],
-  "products": [
+  "product": [
     {
       "id": 1,
       "name": "DDR5 Memory Module 16GB",

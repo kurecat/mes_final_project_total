@@ -11,7 +11,7 @@ import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.repository.*;
 import com.hm.mes_final_260106.mapper.Mapper;
-import com.hm.mes_final_260106.repository.*;
+import com.hm.mes_final_260106.repository.ProductionResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -44,6 +44,7 @@ public class ProductionService {
     private final MoldingRepository moldingRepo;
     private final MoldingInspectionRepository moldingInspectionRepo;
     private final FinalInspectionLogRepository finalInspectionLogRepo;
+    private final ProductionResultRepository productionResultRepository;
 
     private final Mapper mapper;
 
