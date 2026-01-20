@@ -7,16 +7,20 @@ using System.Threading.Tasks;
 
 public enum DtoType : byte
 {
-    Dicing = 0x31,
-    DicingInspection = 0x32,
-    DieBonding = 0x33,
-    DieBondingInspection = 0x34,
-    WireBonding = 0x35,
-    WireBondingInspection = 0x36,
-    Molding = 0x37,
-    MoldingInspection = 0x38,
-    FinalInspection = 0x39,
-    ProcessLog = 0x40
+    Sleep = 0x30,
+    Processing = 0x31,
+
+    Dicing = 0x32,
+    DicingInspection = 0x33,
+    DieBonding = 0x34,
+    DieBondingInspection = 0x35,
+    WireBonding = 0x36,
+    WireBondingInspection = 0x37,
+    Molding = 0x38,
+    MoldingInspection = 0x39,
+
+    Item = 0x3A,
+    FinalInspection = 0x3B,
 }
 public class MachineSimulator
 {
@@ -32,7 +36,7 @@ public class MachineSimulator
     private WireBondingInspectionDto? _wireBondingInspectionDto;
     private MoldingDto? _moldingDto;
     private MoldingInspectionDto? _moldingInspectionDto;
-
+    private ItemDto[]? _itemDtos;
     private FinalInspectionDto[]? _finalInspectionDtos;
 
     public MachineSimulator(ApiService apiService, TcpClientService tcpService)
@@ -135,8 +139,6 @@ public class MachineSimulator
                     payload = await _tcpService.ReadPacketAsync(size);
                     if (payload == null || payload.Length < size) continue;
 
-                    PrintByteLog(payload);
-
                     try
                     {
                         switch (dtoType)
@@ -195,31 +197,35 @@ public class MachineSimulator
                 {
                     int index = 0;
                     int size = BitConverter.ToInt16(payload, 0);
+                    List<ItemDto> itemDtoList = new List<ItemDto>();
                     List<FinalInspectionDto> finalInspectionDtoList = new List<FinalInspectionDto>();
                     try
                     {
                         while (size > 0)
                         {
-                            Console.WriteLine($"사이즈 : {size}");
-
-                            PrintByteLog(await _tcpService.ReadPacketAsync(1));   // 타입용바이트
+                            // 타입용바이트
+                            DtoType dtoType = (DtoType)(await _tcpService.ReadPacketAsync(1))[0];
 
                             payload = await _tcpService.ReadPacketAsync(size);
                             if (payload == null || payload.Length < size) continue;
 
-                            PrintByteLog(payload);
-
-                            finalInspectionDtoList.Add(FinalInspectionDto.FromBytes(payload));
+                            if (dtoType == DtoType.Item)
+                                itemDtoList.Add(ItemDto.FromBytes(payload));
+                            else if (dtoType == DtoType.FinalInspection)
+                                finalInspectionDtoList.Add(FinalInspectionDto.FromBytes(payload));
 
                             size = BitConverter.ToInt16(await _tcpService.ReadPacketAsync(2));
-
                         }
+                        _itemDtos = itemDtoList.ToArray();
                         _finalInspectionDtos = finalInspectionDtoList.ToArray();
+                        Console.WriteLine($"Item: {_itemDtos?.Length}");
+                        Console.WriteLine($"FinalInspection: {_finalInspectionDtos?.Length}");
                         await HandleProductionResult();
 
                     }
                     catch (Exception ex)
                     {
+                        Console.WriteLine($"[Deserialize Error] Item DTO 변환 실패 (index={index}): {ex.Message}");
                         Console.WriteLine($"[Deserialize Error] FinalInspection DTO 변환 실패 (index={index}): {ex.Message}");
                     }
                 }
@@ -235,12 +241,12 @@ public class MachineSimulator
     {
         var status = new MachineStatusDto
         {
-            MachineId = AppConfig.MachineId,
+            EquipmentId = AppConfig.EquipmentId,
             Temperature = temp
         };
 
         // 비동기로 전송 (백그라운드 처리)
-        _ = Task.Run(() => _apiService.ReportMachineStatusAsync(status));
+        //_ = Task.Run(() => _apiService.ReportMachineStatusAsync(status));
 
         if (temp >= 80)
         {
@@ -267,9 +273,14 @@ public class MachineSimulator
         {
             WorkOrderId = _currentWorkOrder.Id,
             DicingDto = _dicingDto,
+            DicingInspectionDto = _dicingInspectionDto,
             DieBondingDto = _dieBondingDto,
+            DieBondingInspectionDto = _dieBondingInspectionDto,
             WireBondingDto = _wireBondingDto,
+            WireBondingInspectionDto = _wireBondingInspectionDto,
             MoldingDto = _moldingDto,
+            MoldingInspectionDto = _moldingInspectionDto,
+            ItemDtos = _itemDtos,
             FinalInspectionDtos = _finalInspectionDtos
         };
 
@@ -281,7 +292,7 @@ public class MachineSimulator
     {
         if (!_tcpService.IsConnected) return;
         byte[] packet = new byte[7];
-        packet[0] = 0x02;  // STX
+        packet[0] = 0x01;  // STX
         packet[1] = 0x20;  // 생산 작업 지시
         Array.Copy(BitConverter.GetBytes(order.TargetQty), 0, packet, 2, 4);
         packet[6] = 0x03;
