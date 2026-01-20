@@ -139,6 +139,14 @@ public class MesController {
     }
 
     // =========================
+    // Machine : 실시간 상태 보고
+    // =========================
+    @GetMapping("/machine/status")
+    public ResponseEntity<String> checkMachineStatus(@RequestParam MachineStatusDto dto) {
+        return ResponseEntity.ok("ACK");
+    }
+
+    // =========================
     // Machine : 생산 결과 보고
     // =========================
     @PostMapping("/machine/report")
@@ -170,6 +178,37 @@ public class MesController {
                 productionService.getHourlyPerformance(date, line)
         );
     }
+    // 우측 테이블: 작업지시별 실적 리스트
+    @GetMapping("/performance/list")
+    public ResponseEntity<List<WorkOrderPerformanceResDto>> getWorkOrderPerformanceList(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date,
+            @RequestParam(defaultValue = "ALL") String line
+    ) {
+        return ResponseEntity.ok(
+                productionService.getWorkOrderPerformanceList(date, line)
+        );
+    }
+// 작업자 등록
+@PostMapping("/worker/register")
+public ResponseEntity<WorkerResDto> registerWorker(@RequestBody WorkerCreateReqDto dto) {
+    return ResponseEntity.ok(productionService.registerWorker(dto));
+}
+// 작업자 수정
+@PatchMapping("/worker/{id}")
+public ResponseEntity<WorkerResDto> updateWorker(
+        @PathVariable("id") Long id,
+        @RequestBody WorkerUpdateReqDto dto
+) {
+    return ResponseEntity.ok(productionService.updateWorker(id, dto));
+}
+// 작업자 삭제
+@DeleteMapping("/worker/{id}")
+public ResponseEntity<String> deleteWorker(@PathVariable("id") Long id) {
+    productionService.deleteWorker(id);
+    return ResponseEntity.ok("삭제 완료");
+}
 
 
 
