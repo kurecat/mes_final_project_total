@@ -26,7 +26,7 @@ public class MachineSimulator
 {
     private readonly ApiService _apiService;  // Backend Server 통신을 위해 주입 받음
     private readonly TcpClientService _tcpService;  // 장비와 연결하기 위해 주입 받음
-    private WorkOrderDto? _currentWorkOrder;
+    private WorkOrderDto? _currentWorkOrder = null;
 
     private DicingDto? _dicingDto;
     private DicingInspectionDto? _dicingInspectionDto;
@@ -70,19 +70,18 @@ public class MachineSimulator
                 continue;
             }
 
-            if (workOrder != null)
+            if (_currentWorkOrder == null && workOrder != null)
             {
                 _currentWorkOrder = workOrder;
-                Console.WriteLine($"작업 수주 : {workOrder.ProductCode} / 목표:{workOrder.TargetQty}");
+                Console.WriteLine($"작업 수주 : {workOrder.CurrentQty} / 목표:{workOrder.TargetQty}");
                 await SendWorkOrderToDevice(workOrder);
 
-                await Task.Delay(AppConfig.PollingIntervalMs);
             }
-            else
+            else if (_currentWorkOrder == null && workOrder == null)
             {
-                Console.WriteLine("[-] 현재 할당된 작업이 없습니다.");
-                await Task.Delay(AppConfig.PollingIntervalMs); // ✅ 무한 초고속 폴링 방지
+                Console.WriteLine("[-] 대기중인 작업이 없습니다.");
             }
+            await Task.Delay(AppConfig.PollingIntervalMs); // ✅ 무한 초고속 폴링 방지
         }
     }
 
@@ -285,11 +284,21 @@ public class MachineSimulator
         };
 
         string status = await _apiService.ReportProductionAsync(report);
-        Console.WriteLine($"생산 보고 : {report.WorkOrderId}");
+        Console.WriteLine($"작업지시번호 : {report.WorkOrderId} 생산 보고");
+
+        _currentWorkOrder = null;
     }
 
     private async Task SendWorkOrderToDevice(WorkOrderDto order)
     {
+        if (order.ProductId == null)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"[WORN] 작업지시서 오류, 작업취소");
+            Console.ResetColor();
+            return;
+        }
+
         if (!_tcpService.IsConnected) return;
         byte[] packet = new byte[7];
         packet[0] = 0x01;  // STX
@@ -299,7 +308,7 @@ public class MachineSimulator
         await _tcpService.SendAsync(packet);
 
         Console.ForegroundColor = ConsoleColor.Yellow;
-        Console.WriteLine($"[CMD] 설비에 작업 지시 전달 → 목표 수량: {order.TargetQty}");
+        Console.WriteLine($"[CMD] 설비에 작업 지시 전달 → 남은 수량: {order.TargetQty - order.CurrentQty}");
         Console.ResetColor();
     }
 

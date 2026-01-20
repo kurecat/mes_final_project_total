@@ -3,7 +3,7 @@ public class WorkOrderDto
 {
     public long Id { get; set; }
 
-    public string? ProductCode { get; set; }
+    public string? ProductId { get; set; }
 
     public int TargetQty { get; set; }
 

@@ -53,7 +53,7 @@ public class Mapper {
         return moldingInspectionMapper.toEntity(dto);
     }
 
-    public Item toEntity(ItemDto dto) { return  itemMapper.toEntity(dto); }
+    public Item toEntity(ItemDto dto) { return itemMapper.toEntity(dto); }
 
     public FinalInspection toEntity(FinalInspectionDto dto) {
         return finalInspectionMapper.toEntity(dto);
