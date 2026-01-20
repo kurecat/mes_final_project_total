@@ -35,6 +35,7 @@ public class ProductionService {
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
+    private final ProductRepository productRepo;
 
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
@@ -258,7 +259,8 @@ public class ProductionService {
     // =========================
     @Transactional
     public void reportProduction(ProductionReportDto dto) {
-
+        log.info("reportProduction 실행 : {}", dto.getWorkOrderId());
+        log.info("{}", dto);
         Long orderId = dto.getWorkOrderId();
 
         // 지시 정보 확인
@@ -266,6 +268,7 @@ public class ProductionService {
                 orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
 
         ProductionLog productionLog = mapper.toEntity(dto);
+        productionLog.setWorkOrder(order);
 
         Dicing dicing = mapper.toEntity(dto.getDicingDto());
         dicing.setProductionLog(productionLog);
@@ -292,11 +295,19 @@ public class ProductionService {
         moldingInspection.setMolding(molding);
 
         List<FinalInspection> finalInspections = new ArrayList<>();
+        List<Item> items = new ArrayList<>();
+
         for (FinalInspectionDto inspDto : dto.getFinalInspectionDtos()) {
             FinalInspection finalInspection = mapper.toEntity(inspDto);
             finalInspection.setProductionLog(productionLog);
             finalInspections.add(finalInspection);
+            Item item = new Item();
+            item.setWorkOrder(order);
+            item.setProduct(productRepo.findByCode(order.getProductId())
+                    .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다. ID: " + orderId)));
+            item.setSerialNumber(finalInspection.get);
         }
+
 
         productionLog = logRepo.save(productionLog);
         dicing = dicingRepo.save(dicing);

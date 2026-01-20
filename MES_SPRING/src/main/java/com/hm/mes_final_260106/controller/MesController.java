@@ -139,6 +139,14 @@ public class MesController {
     }
 
     // =========================
+    // Machine : 실시간 상태 보고
+    // =========================
+    @GetMapping("/machine/status")
+    public ResponseEntity<String> checkMachineStatus(@RequestParam MachineStatusDto dto) {
+        return ResponseEntity.ok("ACK");
+    }
+
+    // =========================
     // Machine : 생산 결과 보고
     // =========================
     @PostMapping("/machine/report")
