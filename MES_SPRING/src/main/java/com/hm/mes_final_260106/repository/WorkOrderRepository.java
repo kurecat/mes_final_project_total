@@ -2,6 +2,8 @@ package com.hm.mes_final_260106.repository;
 
 import com.hm.mes_final_260106.entity.WorkOrder;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -14,5 +16,11 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
     // 특정 설비에 할당된 진행 중인 작업 찾기
     Optional<WorkOrder> findByStatusAndAssignedMachineId(String status, String assignedMachineId);
 
-
+    @Query("""
+    SELECT wo
+    FROM WorkOrder wo
+    WHERE (:line = 'ALL' OR wo.targetLine = :line)
+    ORDER BY wo.id DESC
+""")
+    List<WorkOrder> findByLineForPerformance(@Param("line") String line);
 }

@@ -1,13 +1,10 @@
 package com.hm.mes_final_260106.service;
 
-import com.hm.mes_final_260106.dto.HourlyPerformanceResDto;
-import com.hm.mes_final_260106.dto.PerformanceSummaryResDto;
+import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Bom;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.ProductionLog;
 import com.hm.mes_final_260106.entity.WorkOrder;
-import com.hm.mes_final_260106.dto.FinalInspectionDto;
-import com.hm.mes_final_260106.dto.ProductionReportDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.repository.*;
@@ -15,6 +12,7 @@ import com.hm.mes_final_260106.mapper.Mapper;
 import com.hm.mes_final_260106.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +33,10 @@ public class ProductionService {
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
+    private final MemberRepository memberRepo;
+    private final WorkerRepository workerRepo;
+    private final PasswordEncoder passwordEncoder;
+
     private final ProductRepository productRepo;
 
     private final DicingRepository dicingRepo;
@@ -168,7 +170,7 @@ public class ProductionService {
     // 5) 작업지시 수정
     // =========================
     @Transactional
-    public WorkOrder updateWorkOrder(Long id, String productId, int targetQty,String targetLine) {
+    public WorkOrder updateWorkOrder(Long id, String productId, int targetQty, String targetLine) {
 
         WorkOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + id));
@@ -264,8 +266,11 @@ public class ProductionService {
         Long orderId = dto.getWorkOrderId();
 
         // 지시 정보 확인
-        WorkOrder order = orderRepo.findById(orderId).
-                orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+        WorkOrder order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+
+        Product product = productRepo.findByCode(order.getProductId())
+                .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다. ID: " + order.getProductId()));
 
         ProductionLog productionLog = mapper.toEntity(dto);
         productionLog.setWorkOrder(order);
@@ -297,17 +302,16 @@ public class ProductionService {
         List<FinalInspection> finalInspections = new ArrayList<>();
         List<Item> items = new ArrayList<>();
 
-        for (FinalInspectionDto inspDto : dto.getFinalInspectionDtos()) {
-            FinalInspection finalInspection = mapper.toEntity(inspDto);
+        for (int i = 0; i < dto.getItemDtos().size(); i++) {
+            Item item = mapper.toEntity(dto.getItemDtos().get(i));
+            item.setWorkOrder(order);
+            item.setProduct(product);
+            items.add(item);
+
+            FinalInspection finalInspection = mapper.toEntity(dto.getFinalInspectionDtos().get(i));
             finalInspection.setProductionLog(productionLog);
             finalInspections.add(finalInspection);
-            Item item = new Item();
-            item.setWorkOrder(order);
-            item.setProduct(productRepo.findByCode(order.getProductId())
-                    .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다. ID: " + orderId)));
-            item.setSerialNumber(finalInspection.get);
         }
-
 
         productionLog = logRepo.save(productionLog);
         dicing = dicingRepo.save(dicing);
@@ -383,7 +387,8 @@ public class ProductionService {
     private String generateSerial(String productId) {
         return productId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
-// 생산실적현황 서비스
+
+    // 생산실적현황 서비스
     @Transactional(readOnly = true)
     public PerformanceSummaryResDto getPerformanceSummary(LocalDate date, String line) {
 
@@ -397,6 +402,7 @@ public class ProductionService {
 
         return dto;
     }
+
     @Transactional(readOnly = true)
     public List<HourlyPerformanceResDto> getHourlyPerformance(LocalDate date, String line) {
         // 1. Repository에서 Native Query 실행 (Object[] 리스트 반환)
@@ -413,7 +419,108 @@ public class ProductionService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<WorkOrderPerformanceResDto> getWorkOrderPerformanceList(LocalDate date, String line) {
+
+        // 1) 라인 기준 WorkOrder 조회
+        List<WorkOrder> orders = orderRepo.findByLineForPerformance(line);
+
+        // 2) DTO 변환
+        return orders.stream().map(wo -> {
+
+            long plan = (long) wo.getTargetQty();
+            long actual = (long) wo.getCurrentQty();
+            long loss = Math.max(plan - actual, 0L);
+            double rate = (plan == 0L) ? 0.0 : (actual * 100.0 / plan);
+            String status = "IN_PROGRESS".equals(wo.getStatus()) ? "RUNNING" : wo.getStatus();
+
+            return new WorkOrderPerformanceResDto(
+                    wo.getWorkorder_number(),   // woId
+                    wo.getProductId(),          // product (지금은 productId 그대로 출력)
+                    wo.getTargetLine(),         // line
+                    "wfrs",                     // unit (고정, 필요시 제품단위로 바꿀 수 있음)
+                    plan,
+                    actual,
+                    loss,
+                    rate,
+                    status
+            );
+        }).toList();
+    }
+
+    // 작업자 등록
+    @Transactional
+    public WorkerResDto registerWorker(WorkerCreateReqDto dto) {
+
+        // 1) Member 생성
+        memberRepo.findByEmail(dto.getEmail()).ifPresent(m -> {
+            throw new RuntimeException("이미 존재하는 이메일입니다: " + dto.getEmail());
+        });
+
+        Member member = Member.builder()
+                .email(dto.getEmail())
+                .password(passwordEncoder.encode(dto.getPassword()))
+                .name(dto.getName())
+                .authority(dto.getAuthority() == null ? "OPERATOR" : dto.getAuthority())
+                .build();
+
+        Member savedMember = memberRepo.save(member);
+
+        // 2) Worker 생성
+        String certStr = (dto.getCertifications() == null || dto.getCertifications().isEmpty())
+                ? ""
+                : String.join(",", dto.getCertifications());
+
+        Worker worker = Worker.builder()
+                .member(savedMember)
+                .dept(dto.getDept() == null ? "TBD" : dto.getDept())
+                .shift(dto.getShift() == null ? "Day" : dto.getShift())
+                .status(dto.getStatus() == null ? "OFF" : dto.getStatus())
+                .joinDate(dto.getJoinDate() == null ? LocalDate.now() : dto.getJoinDate())
+                .certifications(certStr)
+                .build();
+
+        Worker savedWorker = workerRepo.save(worker);
+
+        return WorkerResDto.fromEntity(savedWorker);
+    }
+    // 작업자 수정
+    @Transactional
+    public WorkerResDto updateWorker(Long workerId, WorkerUpdateReqDto dto) {
+
+        Worker worker = workerRepo.findById(workerId)
+                .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + workerId));
+
+        // 1) WorkerProfile(Worker 테이블) 수정
+        if (dto.getDept() != null) worker.setDept(dto.getDept());
+        if (dto.getShift() != null) worker.setShift(dto.getShift());
+        if (dto.getStatus() != null) worker.setStatus(dto.getStatus());
 
 
+        if (dto.getCertifications() != null) {
+            worker.setCertifications(String.join(",", dto.getCertifications()));
+        }
+
+        // 2) Member 수정 (name/authority)
+        Member member = worker.getMember();
+        if (dto.getName() != null) member.setName(dto.getName());
+        if (dto.getAuthority() != null) member.setAuthority(dto.getAuthority());
+
+        // 저장 (worker만 save해도 member는 영속 상태라 반영됨)
+        Worker saved = workerRepo.save(worker);
+
+        return WorkerResDto.fromEntity(saved);
+    }
+    // 작업자 삭제
+    @Transactional
+    public void deleteWorker(Long workerId) {
+
+        Worker worker = workerRepo.findById(workerId)
+                .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + workerId));
+
+        // ⭐ Worker만 삭제 (Member는 유지)
+        workerRepo.delete(worker);
+    }
 
 }
+

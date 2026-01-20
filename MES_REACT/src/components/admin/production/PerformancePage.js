@@ -105,22 +105,11 @@ const PerformancePage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ✅ 추가/수정: KPI 요약(금일 목표/생산/불량/수율) 백엔드 조회
-      // GET /api/mes/performance/summary?date=YYYY-MM-DD&line=ALL
+      // 1) KPI 요약
       const resSummary = await axios.get(`${API_BASE}/performance/summary`, {
-        params: {
-          date,
-          line: selectedLine, // ALL / Fab / EDS / Module 등 그대로 전달
-        },
+        params: { date, line: selectedLine },
       });
 
-      // 서버 응답 예시:
-      // {
-      //   totalPlanQty: 455,
-      //   totalGoodQty: 412,
-      //   totalDefectQty: 4,
-      //   yieldRate: 90.5
-      // }
       setSummary({
         totalPlanQty: resSummary.data?.totalPlanQty ?? 0,
         totalGoodQty: resSummary.data?.totalGoodQty ?? 0,
@@ -128,18 +117,24 @@ const PerformancePage = () => {
         yieldRate: resSummary.data?.yieldRate ?? 0,
       });
 
-      // ⚠️ 차트/리스트는 현재 MOCK 유지 (원하면 다음 단계에서 DB 연동 가능)
+      // 2) 시간대별 차트
       const resHourly = await axios.get(`${API_BASE}/performance/hourly`, {
         params: { date, line: selectedLine },
       });
-
       setHourlyData(resHourly.data ?? []);
+
+      // 3) ⭐ 우측 리스트 API 연동
+      const resList = await axios.get(`${API_BASE}/performance/list`, {
+        params: { date, line: selectedLine },
+      });
+      setListData(resList.data ?? []);
+
+      setLoading(false);
     } catch (err) {
       console.error(err);
 
-      // ✅ 추가/수정: 서버 실패 시 KPI는 0으로 fallback
       setSummary({
-        totalPlanQty: 100,
+        totalPlanQty: 0,
         totalGoodQty: 0,
         totalDefectQty: 0,
         yieldRate: 0,
