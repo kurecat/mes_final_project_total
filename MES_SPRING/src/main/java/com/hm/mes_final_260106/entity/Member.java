@@ -3,25 +3,30 @@ package com.hm.mes_final_260106.entity;
 import com.hm.mes_final_260106.constant.Authority;
 import com.hm.mes_final_260106.constant.MemberStatus;
 import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @Entity
-@Getter
-@Setter
+@Table(name = "member",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_member_email", columnNames = "email")
+        })
+@Getter @Setter
 @NoArgsConstructor
-
+@AllArgsConstructor
+@Builder
 public class Member {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
+    @Column(nullable = false, unique = true, length = 150)
     private String email;
 
+    @Column(nullable = false, length = 255)
     private String password;
+
+    @Column(nullable = false, length = 100)
     private String name;
 
     @Enumerated(EnumType.STRING)

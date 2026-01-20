@@ -1,3 +1,4 @@
+// 백엔드에서 제외
 public class LoginReqDto
 {
     public string Email { get; set; } = string.Empty;

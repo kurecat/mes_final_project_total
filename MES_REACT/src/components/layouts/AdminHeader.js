@@ -78,8 +78,8 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
         {/* Home 탭 (고정) */}
         {homeTab && (
           <HomeTabItem
-            $active={location.pathname === "/"}
-            onClick={() => navigate("/")}
+            $active={location.pathname === "/admin/dashboard"}
+            onClick={() => navigate("/admin/dashboard")}
           >
             <FaHome size={18} />
           </HomeTabItem>

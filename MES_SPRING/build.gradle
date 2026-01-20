@@ -25,22 +25,27 @@ repositories {
 }
 
 dependencies {
-    // [중요] webmvc -> web으로 변경 (톰캣 포함시켜서 서버 안 꺼지게 함)
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-    
-    compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-    runtimeOnly 'com.mysql:mysql-connector-j'
-    annotationProcessor 'org.projectlombok:lombok'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.mapstruct:mapstruct:1.5.5.Final'
 
-    // 테스트 의존성
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test' // 통합 테스트용으로 변경
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	compileOnly 'org.projectlombok:lombok'
+
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	annotationProcessor 'org.projectlombok:lombok'
+	annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-security-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // Spring Security: 인증 및 인가 프레임워크
+    implementation 'org.springframework.boot:spring-boot-starter-security'
 
     // JWT 
     implementation group: 'io.jsonwebtoken', name: 'jjwt-api', version: '0.11.2'

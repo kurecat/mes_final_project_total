@@ -88,39 +88,82 @@ const PerformancePage = () => {
   const [listData, setListData] = useState(MOCK_LIST);
   const [loading, setLoading] = useState(true);
 
-  const [date, setDate] = useState("2024-06-01");
+  const [date, setDate] = useState("2026-01-20");
   const [selectedLine, setSelectedLine] = useState("ALL");
+
+  // ✅ 추가/수정: KPI 요약 데이터를 서버에서 받아오기 위한 state
+  const [summary, setSummary] = useState({
+    totalPlanQty: 0,
+    totalGoodQty: 0,
+    totalDefectQty: 0,
+    yieldRate: 0,
+  });
+
+  // ✅ 추가/수정: 백엔드 API BASE
+  const API_BASE = "http://localhost:8111/api/mes";
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ★ 실제 API 호출
-      // const resHourly = await axios.get("http://localhost:3001/performanceHourly");
-      // const resList = await axios.get("http://localhost:3001/performanceList");
-      // setHourlyData(resHourly.data);
-      // setListData(resList.data);
+      // ✅ 추가/수정: KPI 요약(금일 목표/생산/불량/수율) 백엔드 조회
+      // GET /api/mes/performance/summary?date=YYYY-MM-DD&line=ALL
+      const resSummary = await axios.get(`${API_BASE}/performance/summary`, {
+        params: {
+          date,
+          line: selectedLine, // ALL / Fab / EDS / Module 등 그대로 전달
+        },
+      });
 
+      // 서버 응답 예시:
+      // {
+      //   totalPlanQty: 455,
+      //   totalGoodQty: 412,
+      //   totalDefectQty: 4,
+      //   yieldRate: 90.5
+      // }
+      setSummary({
+        totalPlanQty: resSummary.data?.totalPlanQty ?? 0,
+        totalGoodQty: resSummary.data?.totalGoodQty ?? 0,
+        totalDefectQty: resSummary.data?.totalDefectQty ?? 0,
+        yieldRate: resSummary.data?.yieldRate ?? 0,
+      });
+
+      // ⚠️ 차트/리스트는 현재 MOCK 유지 (원하면 다음 단계에서 DB 연동 가능)
       setTimeout(() => {
         setHourlyData(MOCK_HOURLY);
         setListData(MOCK_LIST);
         setLoading(false);
-      }, 500);
+      }, 300);
     } catch (err) {
       console.error(err);
+       console.log("❌ API ERROR STATUS:", err?.response?.status);
+  console.log("❌ API ERROR DATA:", err?.response?.data);
+  console.log("❌ API ERROR MSG:", err.message);
+
+      // ✅ 추가/수정: 서버 실패 시 KPI는 0으로 fallback
+      setSummary({
+        totalPlanQty: 100,
+        totalGoodQty: 0,
+        totalDefectQty: 0,
+        yieldRate: 0,
+      });
+
+      setHourlyData(MOCK_HOURLY);
+      setListData(MOCK_LIST);
       setLoading(false);
     }
   };
 
+  // ✅ 수정: date/line 변경 시 재조회 되도록 변경
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [date, selectedLine]);
 
-  // KPI 계산 (Fab 기준 단순 합산)
-  const totalPlan = hourlyData.reduce((acc, cur) => acc + cur.plan, 0);
-  const totalActual = hourlyData.reduce((acc, cur) => acc + cur.actual, 0);
-  const totalScrap = hourlyData.reduce((acc, cur) => acc + cur.scrap, 0);
-  const achieveRate =
-    totalPlan > 0 ? ((totalActual / totalPlan) * 100).toFixed(1) : 0;
+  // ✅ 수정: KPI는 서버 값 사용
+  const totalPlan = summary.totalPlanQty;
+  const totalActual = summary.totalGoodQty;
+  const totalScrap = summary.totalDefectQty;
+  const achieveRate = summary.yieldRate;
 
   return (
     <Container>
@@ -149,15 +192,15 @@ const PerformancePage = () => {
           </DateInput>
           <SelectWrapper>
             <FaFilter color="#666" style={{ marginLeft: 10 }} />
-            <Select
-              value={selectedLine}
-              onChange={(e) => setSelectedLine(e.target.value)}
-            >
-              <option value="ALL">All Lines</option>
-              <option value="Fab">Fab (Wafer)</option>
-              <option value="EDS">EDS (Chip)</option>
-              <option value="Module">Module (Pkg)</option>
-            </Select>
+           <Select
+  value={selectedLine}
+  onChange={(e) => setSelectedLine(e.target.value)}
+>
+  <option value="ALL">All Lines</option>
+  <option value="Fab-Line-A">Fab-Line-A</option>      {/* ✅ 수정 */}
+  <option value="EDS-Line-01">EDS-Line-01</option>    {/* ✅ 수정 */}
+  <option value="Mod-Line-C">Mod-Line-C</option>      {/* ✅ 수정 */}
+</Select>
           </SelectWrapper>
           <ExportButton>
             <FaFileDownload /> Export
@@ -174,7 +217,7 @@ const PerformancePage = () => {
           <KpiInfo>
             <Label>Daily Plan</Label>
             <Value>
-              {totalPlan.toLocaleString()} <Unit>wfrs</Unit>
+              {Number(totalPlan).toLocaleString()} <Unit>wfrs</Unit>
             </Value>
           </KpiInfo>
         </KpiCard>
@@ -186,7 +229,7 @@ const PerformancePage = () => {
           <KpiInfo>
             <Label>Daily Output</Label>
             <Value>
-              {totalActual.toLocaleString()} <Unit>wfrs</Unit>
+              {Number(totalActual).toLocaleString()} <Unit>wfrs</Unit>
             </Value>
           </KpiInfo>
         </KpiCard>
@@ -198,7 +241,7 @@ const PerformancePage = () => {
           <KpiInfo>
             <Label>Scrap / Loss</Label>
             <Value style={{ color: "#e74c3c" }}>
-              {totalScrap} <Unit>wfrs</Unit>
+              {Number(totalScrap).toLocaleString()} <Unit>wfrs</Unit>
             </Value>
           </KpiInfo>
         </KpiCard>
@@ -207,12 +250,12 @@ const PerformancePage = () => {
           <KpiInfo style={{ width: "100%" }}>
             <Row>
               <Label>Achievement Rate</Label>
-              <PercentValue>{achieveRate}%</PercentValue>
+              <PercentValue>{Number(achieveRate).toFixed(1)}%</PercentValue>
             </Row>
             <ProgressBar>
               <ProgressFill
-                $width={Math.min(achieveRate, 100)}
-                $color={achieveRate >= 95 ? "#2ecc71" : "#f39c12"}
+                $width={Math.min(Number(achieveRate), 100)}
+                $color={Number(achieveRate) >= 95 ? "#2ecc71" : "#f39c12"}
               />
             </ProgressBar>
           </KpiInfo>
@@ -306,9 +349,7 @@ const PerformancePage = () => {
                       {row.lossQty > 0 ? row.lossQty.toLocaleString() : "-"}
                     </td>
                     <td>
-                      <StatusBadge $status={row.status}>
-                        {row.status}
-                      </StatusBadge>
+                      <StatusBadge $status={row.status}>{row.status}</StatusBadge>
                     </td>
                   </tr>
                 ))}

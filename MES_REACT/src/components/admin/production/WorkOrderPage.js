@@ -1,4 +1,3 @@
-// src/pages/production/WorkOrderPage.js
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import axios from "axios";
@@ -14,85 +13,38 @@ import {
   FaExclamationCircle,
   FaMicrochip,
   FaSync,
+  FaTrash,
 } from "react-icons/fa";
 
-// --- Fallback Mock Data ---
-const MOCK_ORDERS = [
-  {
-    id: "WO-FAB-240601-A",
-    product: "DDR5 1znm Wafer Process",
-    line: "Fab-Line-A",
-    type: "FAB",
-    status: "RUNNING",
-    planQty: 25,
-    actualQty: 12,
-    unit: "wfrs",
-    startTime: "06:30:00",
-    progress: 48,
-    priority: "HIGH",
-  },
-  {
-    id: "WO-EDS-240601-B",
-    product: "16Gb DDR5 SDRAM Test",
-    line: "EDS-Line-02",
-    type: "EDS",
-    status: "PAUSED",
-    planQty: 5000,
-    actualQty: 1200,
-    unit: "chips",
-    startTime: "09:00:00",
-    progress: 24,
-    issue: "Yield Drop Alert",
-    priority: "NORMAL",
-  },
-  {
-    id: "WO-MOD-240601-C",
-    product: "DDR5 32GB UDIMM Assy",
-    line: "Mod-Line-C",
-    type: "MOD",
-    status: "DONE",
-    planQty: 1000,
-    actualQty: 1000,
-    unit: "ea",
-    startTime: "08:00:00",
-    endTime: "14:20:00",
-    progress: 100,
-    priority: "NORMAL",
-  },
-  {
-    id: "WO-FAB-240602-D",
-    product: "LPDDR5X Mobile DRAM",
-    line: "Fab-Line-A",
-    type: "FAB",
-    status: "READY",
-    planQty: 50,
-    actualQty: 0,
-    unit: "wfrs",
-    progress: 0,
-    priority: "URGENT",
-  },
-];
+// ❌ MOCK 데이터는 더 이상 필요 없음 (DB 연동이므로)
+// const MOCK_ORDERS = [...]
 
 const WorkOrderPage = () => {
-  const [orders, setOrders] = useState(MOCK_ORDERS);
-  const [loading, setLoading] = useState(true);
+  // ✅ 수정: localStorage 기반 상태 초기화 제거 → 빈 배열로 시작
+  const [orders, setOrders] = useState([]); // ✅ 수정
+  const [loading, setLoading] = useState(false);
   const [lineFilter, setLineFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. 데이터 조회 (READ)
+  // ✅ 수정: API_BASE 추가 (백엔드 MesController 경로)
+  const API_BASE = "http://localhost:8111/api/mes"; // ✅ 수정
+
+  // ❌ localStorage 저장 제거 (DB가 기준)
+  // useEffect(() => {
+  //   localStorage.setItem("workOrders", JSON.stringify(orders));
+  // }, [orders]);
+
+  // ✅ 수정: 실제 작업지시 목록 조회 API 호출
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ★ 실제 API: http://localhost:3001/workOrders
-      // const res = await axios.get("http://localhost:3001/workOrders");
-      // setOrders(res.data);
-
-      setTimeout(() => {
-        setOrders(MOCK_ORDERS);
-        setLoading(false);
-      }, 500);
+      const res = await axios.get(`${API_BASE}/order`); // ✅ 수정
+      // res.data는 WorkOrderResDto 리스트 형태
+      setOrders(res.data); // ✅ 수정
     } catch (err) {
-      console.error(err);
+      console.error("작업지시 조회 실패:", err);
+      alert("작업지시 조회 실패");
+    } finally {
       setLoading(false);
     }
   };
@@ -101,59 +53,114 @@ const WorkOrderPage = () => {
     fetchData();
   }, []);
 
-  // 2. 상태 변경 (UPDATE - PATCH)
+  // ✅ 수정: 상태 변경도 백엔드 API 호출하도록 변경
   const updateStatus = async (id, newStatus) => {
     try {
-      // 업데이트할 내용 계산
-      const updates = { status: newStatus };
-      if (newStatus === "RUNNING") {
-        updates.startTime = new Date().toLocaleTimeString("en-US", {
-          hour12: false,
-        });
-      }
-      if (newStatus === "DONE") {
-        updates.endTime = new Date().toLocaleTimeString("en-US", {
-          hour12: false,
-        });
-        updates.progress = 100;
-        // 완료 시 실제 수량을 계획 수량으로 맞춤 (데모용)
-        const targetOrder = orders.find((o) => o.id === id);
-        if (targetOrder) updates.actualQty = targetOrder.planQty;
-      }
+      // 프론트에서 쓰던 RUNNING/DONE은 백엔드에 없음
+      // 백엔드 기준 상태로 변환해서 호출해야 함
 
-      // ★ 실제 API PATCH
-      // await axios.patch(`http://localhost:3001/workOrders/${id}`, updates);
-      // fetchData(); // 재조회
+      // ✅ 수정: 프론트 액션 → 백엔드 상태로 매핑
+      let nextStatus = newStatus; // 기본
 
-      // Mock 동작
-      setOrders((prev) =>
-        prev.map((order) =>
-          order.id === id ? { ...order, ...updates } : order
-        )
-      );
+      if (newStatus === "RUNNING") nextStatus = "IN_PROGRESS"; // ✅ 수정
+      if (newStatus === "DONE") nextStatus = "COMPLETED"; // ✅ 수정
+
+      // PAUSED는 백엔드에 updateWorkOrderStatus가 있으니 가능하지만
+      // 지금 start/finish API도 있어서 선택 가능
+      if (newStatus === "PAUSED") nextStatus = "PAUSED"; // ✅ 수정
+
+      // ✅ 수정: 상태 변경 API 호출 (Patch)
+      await axios.patch(`${API_BASE}/order/${id}/status`, {
+        status: nextStatus,
+      });
+
+      // ✅ 수정: 성공하면 재조회해서 화면 반영
+      await fetchData();
     } catch (err) {
       console.error("Update Error", err);
+      alert("상태 변경 실패: " + (err.response?.data?.message || err.message));
     }
   };
 
-  // 필터링
+  // ✅ 수정: 삭제도 백엔드 DELETE API 호출
+  const handleDelete = async (id) => {
+    if (!window.confirm("정말 이 작업 지시를 삭제하시겠습니까?")) return;
+
+    try {
+      await axios.delete(`${API_BASE}/order/${id}`); // ✅ 수정
+      alert("삭제 완료");
+      await fetchData(); // ✅ 수정
+    } catch (err) {
+      console.error("삭제 실패:", err);
+      alert("삭제 실패: " + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // ✅ 수정: 서버에서 내려오는 DTO 필드명에 맞게 검색 기준 수정
+  // WorkOrderResDto에 id/workorder_number/productId/targetQty/status/targetLine 등이 있을 가능성이 큼
   const filteredOrders = orders.filter((o) => {
-    const matchType = lineFilter === "ALL" || o.type === lineFilter;
+    // ✅ 수정: lineFilter는 FAB/EDS/MOD를 type으로 보던 구조였는데
+    // 서버는 targetLine 문자열을 주므로 포함 여부로 처리
+    const matchType =
+      lineFilter === "ALL" ||
+      (o.targetLine || "").toUpperCase().includes(lineFilter);
+
+    // ✅ 수정: 검색 대상도 서버 필드에 맞게 변경
+    const keyword = searchTerm.toLowerCase();
     const matchSearch =
-      o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.product.toLowerCase().includes(searchTerm.toLowerCase());
+      (o.workorder_number || "").toLowerCase().includes(keyword) ||
+      (o.productId || "").toLowerCase().includes(keyword);
+
     return matchType && matchSearch;
   });
 
-  const readyOrders = filteredOrders.filter((o) => o.status === "READY");
-  const runningOrders = filteredOrders.filter(
-    (o) => o.status === "RUNNING" || o.status === "PAUSED"
+  // ✅ 수정: READY/PLANNED는 서버 상태(WAITING/RELEASED)로 잡아야 함
+  const readyOrders = filteredOrders.filter(
+    (o) => o.status === "WAITING" || o.status === "RELEASED" // ✅ 수정
   );
-  const doneOrders = filteredOrders.filter((o) => o.status === "DONE");
+
+  // ✅ 수정: Running은 IN_PROGRESS(+PAUSED 있으면 포함)
+  const runningOrders = filteredOrders.filter(
+    (o) => o.status === "IN_PROGRESS" || o.status === "PAUSED" // ✅ 수정
+  );
+
+  // ✅ 수정: 완료는 COMPLETED
+  const doneOrders = filteredOrders.filter((o) => o.status === "COMPLETED"); // ✅ 수정
+
+  // ✅ 수정: 화면에서 표시할 데이터 필드 매핑 함수(프론트 UI 유지용)
+  const mapOrder = (order) => {
+    return {
+      // UI에서 order.id로 key를 쓰고 있으니 백엔드 id를 그대로 사용
+      id: order.id, // ✅ 수정
+      // UI 상단 WO 번호 표시
+      woNumber: order.workorder_number, // ✅ 수정
+      product: order.productId, // ✅ 수정 (productName 있으면 그걸로 교체 가능)
+      line: order.targetLine, // ✅ 수정
+      status: order.status, // ✅ 수정
+      planQty: order.targetQty ?? 0, // ✅ 수정
+      actualQty: order.currentQty ?? 0, // ✅ 수정
+      unit: "-", // 서버에 unit 없으면 "-" 처리
+      startTime: order.start_date
+        ? new Date(order.start_date).toLocaleTimeString("en-US", {
+            hour12: false,
+          })
+        : "-", // ✅ 수정
+      endTime: order.end_date
+        ? new Date(order.end_date).toLocaleTimeString("en-US", {
+            hour12: false,
+          })
+        : "-", // ✅ 수정
+      progress:
+        order.targetQty > 0
+          ? Math.floor(((order.currentQty ?? 0) / order.targetQty) * 100)
+          : 0, // ✅ 수정
+      priority: "NORMAL", // 서버에 없으면 기본값
+      issue: "",
+    };
+  };
 
   return (
     <Container>
-      {/* 1. 헤더 */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -167,6 +174,7 @@ const WorkOrderPage = () => {
           </PageTitle>
           <SubTitle>Fab / EDS / Module Shop Floor Control</SubTitle>
         </TitleArea>
+
         <ControlGroup>
           <FilterBox>
             <FaFilter color="#666" />
@@ -180,10 +188,11 @@ const WorkOrderPage = () => {
               <option value="MOD">Module (SMT)</option>
             </select>
           </FilterBox>
+
           <SearchBox>
             <FaSearch color="#aaa" />
             <input
-              placeholder="Search WO ID..."
+              placeholder="Search WO ID / Product..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -191,7 +200,6 @@ const WorkOrderPage = () => {
         </ControlGroup>
       </Header>
 
-      {/* 2. 칸반 보드 */}
       <BoardContainer>
         {/* Column 1: Ready */}
         <Column>
@@ -199,105 +207,128 @@ const WorkOrderPage = () => {
             <ColTitle>Ready / Planned</ColTitle>
             <CountBadge>{readyOrders.length}</CountBadge>
           </ColHeader>
+
           <CardList>
-            {readyOrders.map((order) => (
-              <OrderCard key={order.id} $priority={order.priority}>
-                <CardTop>
-                  <OrderId>{order.id}</OrderId>
-                  <PriorityBadge $level={order.priority}>
-                    {order.priority}
-                  </PriorityBadge>
-                </CardTop>
-                <ProdName>{order.product}</ProdName>
-                <LineInfo>
-                  <FaMicrochip /> {order.line}
-                </LineInfo>
-                <MetaInfo>
-                  Target: {order.planQty.toLocaleString()} {order.unit}
-                </MetaInfo>
-                <ActionFooter>
-                  <ActionButton
-                    $type="start"
-                    onClick={() => updateStatus(order.id, "RUNNING")}
-                  >
-                    <FaPlay /> Start
-                  </ActionButton>
-                  <PrintButton title="Print Lot Card">
-                    <FaPrint />
-                  </PrintButton>
-                </ActionFooter>
-              </OrderCard>
-            ))}
+            {readyOrders.map((raw) => {
+              const order = mapOrder(raw); // ✅ 수정
+              return (
+                <OrderCard key={order.id} $priority={order.priority}>
+                  <CardTop>
+                    <OrderId>{order.woNumber}</OrderId> {/* ✅ 수정 */}
+                    <PriorityBadge $level={order.priority}>
+                      {order.priority}
+                    </PriorityBadge>
+                  </CardTop>
+
+                  <ProdName>{order.product}</ProdName>
+                  <LineInfo>
+                    <FaMicrochip /> {order.line}
+                  </LineInfo>
+
+                  <MetaInfo>
+                    Target: {order.planQty.toLocaleString()} {order.unit}
+                  </MetaInfo>
+
+                  <ActionFooter>
+                    <ActionButton
+                      $type="start"
+                      onClick={() => updateStatus(order.id, "RUNNING")}
+                    >
+                      <FaPlay /> Start
+                    </ActionButton>
+
+                    <ActionButton
+                      $type="delete"
+                      onClick={() => handleDelete(order.id)}
+                      title="Delete Order"
+                    >
+                      <FaTrash />
+                    </ActionButton>
+
+                    <PrintButton title="Print Lot Card">
+                      <FaPrint />
+                    </PrintButton>
+                  </ActionFooter>
+                </OrderCard>
+              );
+            })}
           </CardList>
         </Column>
 
-        {/* Column 2: Running (Main) */}
+        {/* Column 2: Running */}
         <Column style={{ flex: 1.2 }}>
           <ColHeader $color="#2ecc71">
             <ColTitle>Running / In-Progress</ColTitle>
             <CountBadge>{runningOrders.length}</CountBadge>
           </ColHeader>
+
           <CardList>
-            {runningOrders.map((order) => (
-              <ActiveCard key={order.id} $isPaused={order.status === "PAUSED"}>
-                <CardTop>
-                  <OrderId>{order.id}</OrderId>
-                  <StatusTag $status={order.status}>{order.status}</StatusTag>
-                </CardTop>
+            {runningOrders.map((raw) => {
+              const order = mapOrder(raw); // ✅ 수정
+              return (
+                <ActiveCard
+                  key={order.id}
+                  $isPaused={order.status === "PAUSED"}
+                >
+                  <CardTop>
+                    <OrderId>{order.woNumber}</OrderId> {/* ✅ 수정 */}
+                    <StatusTag $status={order.status}>{order.status}</StatusTag>
+                  </CardTop>
 
-                <ProdName>{order.product}</ProdName>
-                <MetaInfo>
-                  <FaClock size={12} /> Started: {order.startTime}
-                </MetaInfo>
+                  <ProdName>{order.product}</ProdName>
+                  <MetaInfo>
+                    <FaClock size={12} /> Started: {order.startTime}
+                  </MetaInfo>
 
-                <ProgressWrapper>
-                  <ProgressLabel>
-                    <span>
-                      {order.actualQty.toLocaleString()} /{" "}
-                      {order.planQty.toLocaleString()} {order.unit}
-                    </span>
-                    <span>{order.progress}%</span>
-                  </ProgressLabel>
-                  <ProgressBar>
-                    <ProgressFill
-                      $percent={order.progress}
-                      $paused={order.status === "PAUSED"}
-                    />
-                  </ProgressBar>
-                </ProgressWrapper>
+                  <ProgressWrapper>
+                    <ProgressLabel>
+                      <span>
+                        {order.actualQty.toLocaleString()} /{" "}
+                        {order.planQty.toLocaleString()} {order.unit}
+                      </span>
+                      <span>{order.progress}%</span>
+                    </ProgressLabel>
+                    <ProgressBar>
+                      <ProgressFill
+                        $percent={order.progress}
+                        $paused={order.status === "PAUSED"}
+                      />
+                    </ProgressBar>
+                  </ProgressWrapper>
 
-                {order.status === "PAUSED" && (
-                  <IssueBox>
-                    <FaExclamationCircle /> {order.issue || "Line Paused"}
-                  </IssueBox>
-                )}
-
-                <ActionFooter>
-                  {order.status === "RUNNING" ? (
-                    <ActionButton
-                      $type="pause"
-                      onClick={() => updateStatus(order.id, "PAUSED")}
-                    >
-                      <FaPause /> Pause
-                    </ActionButton>
-                  ) : (
-                    <ActionButton
-                      $type="resume"
-                      onClick={() => updateStatus(order.id, "RUNNING")}
-                    >
-                      <FaPlay /> Resume
-                    </ActionButton>
+                  {order.status === "PAUSED" && (
+                    <IssueBox>
+                      <FaExclamationCircle /> {order.issue || "Line Paused"}
+                    </IssueBox>
                   )}
 
-                  <ActionButton
-                    $type="finish"
-                    onClick={() => updateStatus(order.id, "DONE")}
-                  >
-                    <FaCheck /> Finish
-                  </ActionButton>
-                </ActionFooter>
-              </ActiveCard>
-            ))}
+                  <ActionFooter>
+                    {order.status === "IN_PROGRESS" ? (
+                      <ActionButton
+                        $type="pause"
+                        onClick={() => updateStatus(order.id, "PAUSED")}
+                      >
+                        <FaPause /> Pause
+                      </ActionButton>
+                    ) : (
+                      <ActionButton
+                        $type="resume"
+                        onClick={() => updateStatus(order.id, "RUNNING")}
+                      >
+                        <FaPlay /> Resume
+                      </ActionButton>
+                    )}
+
+                    <ActionButton
+                      $type="finish"
+                      onClick={() => updateStatus(order.id, "DONE")}
+                    >
+                      <FaCheck /> Finish
+                    </ActionButton>
+                  </ActionFooter>
+                </ActiveCard>
+              );
+            })}
           </CardList>
         </Column>
 
@@ -307,24 +338,31 @@ const WorkOrderPage = () => {
             <ColTitle>Completed</ColTitle>
             <CountBadge>{doneOrders.length}</CountBadge>
           </ColHeader>
+
           <CardList>
-            {doneOrders.map((order) => (
-              <DoneCard key={order.id}>
-                <CardTop>
-                  <OrderId
-                    style={{ textDecoration: "line-through", color: "#999" }}
-                  >
-                    {order.id}
-                  </OrderId>
-                  <FaCheck color="#2ecc71" />
-                </CardTop>
-                <ProdName style={{ color: "#666" }}>{order.product}</ProdName>
-                <MetaInfo>
-                  Final: {order.actualQty.toLocaleString()} {order.unit}
-                </MetaInfo>
-                <MetaInfo>End: {order.endTime}</MetaInfo>
-              </DoneCard>
-            ))}
+            {doneOrders.map((raw) => {
+              const order = mapOrder(raw); // ✅ 수정
+              return (
+                <DoneCard key={order.id}>
+                  <CardTop>
+                    <OrderId
+                      style={{ textDecoration: "line-through", color: "#999" }}
+                    >
+                      {order.woNumber} {/* ✅ 수정 */}
+                    </OrderId>
+                    <FaCheck color="#2ecc71" />
+                  </CardTop>
+
+                  <ProdName style={{ color: "#666" }}>{order.product}</ProdName>
+
+                  <MetaInfo>
+                    Final: {order.actualQty.toLocaleString()} {order.unit}
+                  </MetaInfo>
+
+                  <MetaInfo>End: {order.endTime}</MetaInfo>
+                </DoneCard>
+              );
+            })}
           </CardList>
         </Column>
       </BoardContainer>
@@ -334,7 +372,7 @@ const WorkOrderPage = () => {
 
 export default WorkOrderPage;
 
-// --- Styled Components ---
+/* --- Styled Components (그대로) --- */
 
 const Container = styled.div`
   width: 100%;
@@ -597,6 +635,7 @@ const ActionFooter = styled.div`
   border-top: 1px solid #f0f0f0;
   gap: 10px;
 `;
+
 const ActionButton = styled.button`
   flex: 1;
   padding: 8px;
@@ -617,6 +656,8 @@ const ActionButton = styled.button`
       ? "#f39c12"
       : props.$type === "finish"
       ? "#3498db"
+      : props.$type === "delete"
+      ? "#e74c3c"
       : "#ccc"};
   &:hover {
     opacity: 0.9;

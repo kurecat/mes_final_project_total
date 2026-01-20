@@ -12,11 +12,11 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(name = "bom")
+@Getter @Setter
+@NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "bom")
 public class Bom {
 
     @Id
@@ -24,16 +24,14 @@ public class Bom {
     @Column(name = "bom_id")
     private Long id;
 
-    // ★ 중요: DB의 product_id (FK)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
-    private Products products;
+    private Product product;
 
-    // ★ 중요: DB의 material_id (FK)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "material_id", nullable = false)
     private Material material;
 
     @Column(name = "required_qty", nullable = false)
-    private int requiredQty; // 소요량 (예: 25)
+    private Integer requiredQty;
 }

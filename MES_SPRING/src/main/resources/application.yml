@@ -7,7 +7,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create # 개발 단계라 update 사용 (Member 테이블 변경사항 반영용)
+      ddl-auto: update # 개발 단계라 update 사용 (Member 테이블 변경사항 반영용)
     properties:
       hibernate:
         format_sql: true
