@@ -15,55 +15,15 @@ import {
   FaSync,
 } from "react-icons/fa";
 
-// --- Fallback Mock Data ---
-const MOCK_WORKERS = [
-  {
-    id: "24001",
-    name: "Kim Min-su",
-    role: "Engineer",
-    dept: "Photo",
-    shift: "Day",
-    status: "WORKING",
-    certifications: ["ASML Scanner", "Track System"],
-    joinDate: "2020-03-01",
-  },
-  {
-    id: "24002",
-    name: "Lee Ji-eun",
-    role: "Operator",
-    dept: "Etch",
-    shift: "Swing",
-    status: "OFF",
-    certifications: ["Lam Etcher"],
-    joinDate: "2021-06-15",
-  },
-  {
-    id: "24003",
-    name: "Park Dong-hoon",
-    role: "Manager",
-    dept: "Fab-Common",
-    shift: "Day",
-    status: "WORKING",
-    certifications: ["Safety Lv.1", "Process Mgmt"],
-    joinDate: "2018-01-10",
-  },
-  {
-    id: "24004",
-    name: "Choi Yu-jin",
-    role: "Engineer",
-    dept: "EDS",
-    shift: "Night",
-    status: "BREAK",
-    certifications: ["Advantest Tester", "Probe Card"],
-    joinDate: "2022-11-20",
-  },
-];
 const API_BASE = "http://localhost:8111/api/mes";
+
 const WorkerPage = () => {
-  const [workers, setWorkers] = useState(MOCK_WORKERS);
+  const [workers, setWorkers] = useState([]); // ✅ MOCK 제거
   const [loading, setLoading] = useState(true);
   const [filterRole, setFilterRole] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // 수정 모달
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
 
@@ -76,16 +36,17 @@ const WorkerPage = () => {
     certificationsText: "",
   });
 
-  // 1. 데이터 조회 (READ)
+  // =========================
+  // 1) 데이터 조회 (READ)
+  // =========================
   const fetchData = async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/worker/list`);
       setWorkers(res.data ?? []);
     } catch (err) {
-      console.error(err);
-      // 서버 실패 시 fallback
-      setWorkers(MOCK_WORKERS);
+      console.error("작업자 조회 실패:", err);
+      setWorkers([]);
     } finally {
       setLoading(false);
     }
@@ -95,13 +56,14 @@ const WorkerPage = () => {
     fetchData();
   }, []);
 
-  // 2. 삭제 (DELETE)
+  // =========================
+  // 2) 삭제 (DELETE)
+  // =========================
   const handleDelete = async (workerId) => {
+    if (!workerId) return;
     if (!window.confirm("해당 작업자를 삭제하시겠습니까?")) return;
 
     try {
-      console.log("삭제 요청 workerId =", workerId);
-
       await axios.delete(`${API_BASE}/worker/${workerId}`);
 
       // 화면에서도 제거
@@ -112,21 +74,24 @@ const WorkerPage = () => {
       console.error("삭제 실패:", err);
       console.log("status:", err?.response?.status);
       console.log("data:", err?.response?.data);
-
       alert("삭제 실패 (콘솔 확인)");
     }
   };
 
-  // 3. 추가 (CREATE - DB 저장)
+  // =========================
+  // 3) 추가 (CREATE)
+  // =========================
   const handleAdd = async () => {
     try {
       const today = new Date().toISOString().split("T")[0];
 
+      // ⚠️ authority 값은 프론트/백엔드에서 통일해야 함
+      // 여기서는 "Operator / Engineer / Manager" 로 통일 (추천)
       const res = await axios.post(`${API_BASE}/worker/register`, {
         email: `worker${Date.now()}@test.com`,
         password: "1234",
         name: "New Worker",
-        authority: "OPERATOR",
+        authority: "Operator",
         dept: "TBD",
         shift: "Day",
         status: "OFF",
@@ -134,15 +99,19 @@ const WorkerPage = () => {
         certifications: ["Basic Safety"],
       });
 
-      // ✅ 저장 성공한 데이터 화면에 추가
+      // 저장 성공한 데이터 화면에 추가
       setWorkers((prev) => [res.data, ...prev]);
     } catch (err) {
-      console.error(err);
-      alert("작업자 등록 실패");
+      console.error("작업자 등록 실패:", err);
+      console.log("status:", err?.response?.status);
+      console.log("data:", err?.response?.data);
+      alert("작업자 등록 실패 (콘솔 확인)");
     }
   };
-  // 수정 (UPDATE - DB 수정)
 
+  // =========================
+  // 4) 수정 모달 열기
+  // =========================
   const openEditModal = (worker) => {
     setEditTarget(worker);
 
@@ -157,6 +126,10 @@ const WorkerPage = () => {
 
     setEditOpen(true);
   };
+
+  // =========================
+  // 5) 수정 저장 (UPDATE)
+  // =========================
   const handleSaveEdit = async () => {
     if (!editTarget?.workerId) return;
 
@@ -185,25 +158,33 @@ const WorkerPage = () => {
 
       setEditOpen(false);
       setEditTarget(null);
+
+      alert("수정 완료");
     } catch (err) {
-      console.error(err);
-      alert("수정 실패");
+      console.error("수정 실패:", err);
+      console.log("status:", err?.response?.status);
+      console.log("data:", err?.response?.data);
+      alert("수정 실패 (콘솔 확인)");
     }
   };
 
-  // 필터링
+  // =========================
+  // 필터링 (authority 기준)
+  // =========================
   const filteredList = workers.filter((w) => {
-    const matchRole = filterRole === "ALL" || w.role === filterRole;
+    const matchRole = filterRole === "ALL" || w.authority === filterRole;
     const matchSearch =
-      w.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      w.dept.toLowerCase().includes(searchTerm.toLowerCase());
+      (w.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (w.dept ?? "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchRole && matchSearch;
   });
 
+  // =========================
   // KPI 계산
+  // =========================
   const total = workers.length;
   const onDuty = workers.filter((w) => w.status === "WORKING").length;
-  const engineers = workers.filter((w) => w.role === "Engineer").length;
+  const engineers = workers.filter((w) => w.authority === "Engineer").length;
 
   return (
     <Container>
@@ -221,6 +202,7 @@ const WorkerPage = () => {
           </PageTitle>
           <SubTitle>Fab Operators & Engineers Certification Status</SubTitle>
         </TitleArea>
+
         <ActionGroup>
           <AddButton onClick={handleAdd}>
             <FaPlus /> Register Worker
@@ -239,6 +221,7 @@ const WorkerPage = () => {
             <Value>{total}</Value>
           </StatInfo>
         </StatCard>
+
         <StatCard>
           <IconBox $color="#2ecc71">
             <FaBriefcase />
@@ -248,6 +231,7 @@ const WorkerPage = () => {
             <Value>{onDuty}</Value>
           </StatInfo>
         </StatCard>
+
         <StatCard>
           <IconBox $color="#e67e22">
             <FaCertificate />
@@ -287,6 +271,7 @@ const WorkerPage = () => {
             Managers
           </FilterBtn>
         </FilterGroup>
+
         <SearchBox>
           <FaSearch color="#999" />
           <input
@@ -300,10 +285,10 @@ const WorkerPage = () => {
       {/* 작업자 카드 그리드 */}
       <GridContainer>
         {filteredList.map((worker) => (
-          <WorkerCard key={worker.id} $status={worker.status}>
+          <WorkerCard key={worker.workerId} $status={worker.status}>
             <CardHeader>
               <ProfileSection>
-                <Avatar>{worker.name.charAt(0)}</Avatar>
+                <Avatar>{(worker.name ?? "W").charAt(0)}</Avatar>
                 <NameInfo>
                   <Name>{worker.name}</Name>
                   <Role>
@@ -311,6 +296,7 @@ const WorkerPage = () => {
                   </Role>
                 </NameInfo>
               </ProfileSection>
+
               <StatusBadge $status={worker.status}>{worker.status}</StatusBadge>
             </CardHeader>
 
@@ -327,7 +313,7 @@ const WorkerPage = () => {
                   <FaCertificate size={10} /> Certifications (Skill)
                 </CertiTitle>
                 <TagWrapper>
-                  {worker.certifications.map((cert, idx) => (
+                  {(worker.certifications ?? []).map((cert, idx) => (
                     <CertTag key={idx}>{cert}</CertTag>
                   ))}
                 </TagWrapper>
@@ -335,7 +321,7 @@ const WorkerPage = () => {
             </CardBody>
 
             <CardFooter>
-              <JoinDate>Joined: {worker.joinDate}</JoinDate>
+              <JoinDate>Joined: {worker.joinDate ?? "-"}</JoinDate>
               <ActionArea>
                 <IconBtn className="edit" onClick={() => openEditModal(worker)}>
                   <FaEdit />
@@ -351,6 +337,8 @@ const WorkerPage = () => {
           </WorkerCard>
         ))}
       </GridContainer>
+
+      {/* 수정 모달 */}
       {editOpen && (
         <ModalOverlay onClick={() => setEditOpen(false)}>
           <ModalBox onClick={(e) => e.stopPropagation()}>
@@ -418,7 +406,7 @@ const WorkerPage = () => {
               </ModalSelect>
             </ModalRow>
 
-            {/* ⭐ 가입날짜는 수정 불가: 읽기 전용 */}
+            {/* 가입날짜는 수정 불가 */}
             <ModalRow>
               <ModalLabel>Join Date</ModalLabel>
               <ModalReadonly>{editTarget?.joinDate ?? "-"}</ModalReadonly>
@@ -455,7 +443,9 @@ const WorkerPage = () => {
 
 export default WorkerPage;
 
-// --- Styled Components ---
+/* ===========================
+   Styled Components
+=========================== */
 
 const Container = styled.div`
   width: 100%;
@@ -766,7 +756,8 @@ const IconBtn = styled.button`
     color: #e74c3c;
   }
 `;
-// Modal
+
+/* ===== Modal ===== */
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
