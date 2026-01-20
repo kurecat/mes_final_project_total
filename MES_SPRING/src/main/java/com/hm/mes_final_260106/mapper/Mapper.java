@@ -17,7 +17,8 @@ public class Mapper {
     private final WireBondingInspectionMapper wireBondingInspectionMapper;
     private final MoldingMapper moldingMapper;
     private final MoldingInspectionMapper moldingInspectionMapper;
-    private final FinalInspectionLogMapper finalInspectionLogMapper;
+    private final ItemMapper itemMapper;
+    private final FinalInspectionMapper finalInspectionMapper;
     private final ProductionLogMapper productionLogMapper;
 
     public Dicing toEntity(DicingDto dto) {
@@ -52,8 +53,10 @@ public class Mapper {
         return moldingInspectionMapper.toEntity(dto);
     }
 
+    public Item toEntity(ItemDto dto) { return itemMapper.toEntity(dto); }
+
     public FinalInspection toEntity(FinalInspectionDto dto) {
-        return finalInspectionLogMapper.toEntity(dto);
+        return finalInspectionMapper.toEntity(dto);
     }
 
     public ProductionLog toEntity(ProductionReportDto dto) {return productionLogMapper.toEntity(dto);}

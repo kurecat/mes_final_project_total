@@ -105,22 +105,11 @@ const PerformancePage = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ✅ 추가/수정: KPI 요약(금일 목표/생산/불량/수율) 백엔드 조회
-      // GET /api/mes/performance/summary?date=YYYY-MM-DD&line=ALL
+      // 1) KPI 요약
       const resSummary = await axios.get(`${API_BASE}/performance/summary`, {
-        params: {
-          date,
-          line: selectedLine, // ALL / Fab / EDS / Module 등 그대로 전달
-        },
+        params: { date, line: selectedLine },
       });
 
-      // 서버 응답 예시:
-      // {
-      //   totalPlanQty: 455,
-      //   totalGoodQty: 412,
-      //   totalDefectQty: 4,
-      //   yieldRate: 90.5
-      // }
       setSummary({
         totalPlanQty: resSummary.data?.totalPlanQty ?? 0,
         totalGoodQty: resSummary.data?.totalGoodQty ?? 0,
@@ -128,21 +117,24 @@ const PerformancePage = () => {
         yieldRate: resSummary.data?.yieldRate ?? 0,
       });
 
-      // ⚠️ 차트/리스트는 현재 MOCK 유지 (원하면 다음 단계에서 DB 연동 가능)
-      setTimeout(() => {
-        setHourlyData(MOCK_HOURLY);
-        setListData(MOCK_LIST);
-        setLoading(false);
-      }, 300);
+      // 2) 시간대별 차트
+      const resHourly = await axios.get(`${API_BASE}/performance/hourly`, {
+        params: { date, line: selectedLine },
+      });
+      setHourlyData(resHourly.data ?? []);
+
+      // 3) ⭐ 우측 리스트 API 연동
+      const resList = await axios.get(`${API_BASE}/performance/list`, {
+        params: { date, line: selectedLine },
+      });
+      setListData(resList.data ?? []);
+
+      setLoading(false);
     } catch (err) {
       console.error(err);
-       console.log("❌ API ERROR STATUS:", err?.response?.status);
-  console.log("❌ API ERROR DATA:", err?.response?.data);
-  console.log("❌ API ERROR MSG:", err.message);
 
-      // ✅ 추가/수정: 서버 실패 시 KPI는 0으로 fallback
       setSummary({
-        totalPlanQty: 100,
+        totalPlanQty: 0,
         totalGoodQty: 0,
         totalDefectQty: 0,
         yieldRate: 0,
@@ -192,15 +184,15 @@ const PerformancePage = () => {
           </DateInput>
           <SelectWrapper>
             <FaFilter color="#666" style={{ marginLeft: 10 }} />
-           <Select
-  value={selectedLine}
-  onChange={(e) => setSelectedLine(e.target.value)}
->
-  <option value="ALL">All Lines</option>
-  <option value="Fab-Line-A">Fab-Line-A</option>      {/* ✅ 수정 */}
-  <option value="EDS-Line-01">EDS-Line-01</option>    {/* ✅ 수정 */}
-  <option value="Mod-Line-C">Mod-Line-C</option>      {/* ✅ 수정 */}
-</Select>
+            <Select
+              value={selectedLine}
+              onChange={(e) => setSelectedLine(e.target.value)}
+            >
+              <option value="ALL">All Lines</option>
+              <option value="Fab-Line-A">Fab-Line-A</option> {/* ✅ 수정 */}
+              <option value="EDS-Line-01">EDS-Line-01</option> {/* ✅ 수정 */}
+              <option value="Mod-Line-C">Mod-Line-C</option> {/* ✅ 수정 */}
+            </Select>
           </SelectWrapper>
           <ExportButton>
             <FaFileDownload /> Export
@@ -295,7 +287,7 @@ const PerformancePage = () => {
                 yAxisId="left"
                 dataKey="plan"
                 name="Plan"
-                fill="#e0e0e0"
+                fill="#a79d9d"
                 barSize={20}
               />
               <Bar
@@ -349,7 +341,9 @@ const PerformancePage = () => {
                       {row.lossQty > 0 ? row.lossQty.toLocaleString() : "-"}
                     </td>
                     <td>
-                      <StatusBadge $status={row.status}>{row.status}</StatusBadge>
+                      <StatusBadge $status={row.status}>
+                        {row.status}
+                      </StatusBadge>
                     </td>
                   </tr>
                 ))}

@@ -6,7 +6,6 @@ import {
   FaFilePdf,
   FaHistory,
   FaFileAlt,
-  FaFilter,
   FaCloudDownloadAlt,
   FaTimes,
   FaCheckCircle,
@@ -14,19 +13,109 @@ import {
   FaPenNib,
 } from "react-icons/fa";
 
+// --- ★ 요청하신 5가지 검사 기준 데이터 (한글 적용) ---
+const MOCK_STANDARDS = [
+  {
+    id: "STD-QC-01",
+    title: "Dicing 공정 검사 기준서",
+    category: "Quality",
+    revision: "Rev 1.0",
+    status: "ACTIVE",
+    owner: "품질관리팀",
+    updatedAt: "2024-01-15",
+    description:
+      "Dicing 공정 완료 후 품질 검사 기준입니다.\n1) 샘플링 수량 : 50 EA\n2) 검사 기준 : 두께 ±5μm, 칩핑(Chipping) 없음",
+    revisions: [
+      {
+        rev: "1.0",
+        date: "2024-01-15",
+        author: "박품질",
+        comment: "최초 제정",
+      },
+    ],
+  },
+  {
+    id: "STD-QC-02",
+    title: "DieBonding 공정 검사 기준서",
+    category: "Quality",
+    revision: "Rev 1.2",
+    status: "ACTIVE",
+    owner: "품질관리팀",
+    updatedAt: "2024-01-20",
+    description:
+      "Die Attach 공정 품질 검사 기준입니다.\n1) 샘플링 수량 : 40 EA\n2) 검사 기준 : 정렬 오차 ±2μm, 보이드(Void) 없음",
+    revisions: [
+      {
+        rev: "1.2",
+        date: "2024-01-20",
+        author: "김엔지니어",
+        comment: "샘플링 수량 조정",
+      },
+    ],
+  },
+  {
+    id: "STD-QC-03",
+    title: "WireBonding 공정 검사 기준서",
+    category: "Quality",
+    revision: "Rev 2.0",
+    status: "ACTIVE",
+    owner: "품질관리팀",
+    updatedAt: "2024-02-01",
+    description:
+      "Wire Bonding 연결 상태 검사 기준입니다.\n1) 샘플링 수량 : 60 EA\n2) 검사 기준 : 본딩 강도 ≥7g, 전기적 쇼트 없음",
+    revisions: [
+      {
+        rev: "2.0",
+        date: "2024-02-01",
+        author: "이QC",
+        comment: "본딩 강도 기준 상향",
+      },
+    ],
+  },
+  {
+    id: "STD-QC-04",
+    title: "Molding 공정 검사 기준서",
+    category: "Quality",
+    revision: "Rev 1.0",
+    status: "DRAFT", // 작성 중 예시
+    owner: "생산1팀",
+    updatedAt: "2024-03-10",
+    description:
+      "패키지 Molding 외관 및 치수 검사 기준입니다.\n1) 샘플링 수량 : 30 EA\n2) 검사 기준 : 두께 ±10μm, 내부 기포/크랙 없음",
+    revisions: [],
+  },
+  {
+    id: "STD-QC-05",
+    title: "Final Inspection (최종 검사) 기준서",
+    category: "Quality",
+    revision: "Rev 3.5",
+    status: "ACTIVE",
+    owner: "최종검사팀",
+    updatedAt: "2024-04-05",
+    description:
+      "제품 출하 전 최종 Item 단위 검사 기준입니다.\n1) 전기적 검사 (Electrical Test)\n2) 신뢰성 검사 (Reliability)\n3) 외관 검사 (Visual Inspection)",
+    revisions: [
+      {
+        rev: "3.5",
+        date: "2024-04-05",
+        author: "최팀장",
+        comment: "신뢰성 검사 항목 추가",
+      },
+    ],
+  },
+];
+
 const StandardPage = () => {
   // --- State ---
   const [documents, setDocuments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [selectedDoc, setSelectedDoc] = useState(null); // For Modal
+  const [selectedDoc, setSelectedDoc] = useState(null);
 
-  // --- Fetch Data ---
+  // --- Fetch Data (Mock Data 로드) ---
   useEffect(() => {
-    fetch("http://localhost:3001/standards")
-      .then((res) => res.json())
-      .then((data) => setDocuments(data))
-      .catch((err) => console.error("Error fetching standards:", err));
+    // 실제 서버 fetch 대신 MOCK 데이터를 바로 state에 설정
+    setDocuments(MOCK_STANDARDS);
   }, []);
 
   // --- Filtering ---
@@ -44,12 +133,6 @@ const StandardPage = () => {
     if (status === "ACTIVE") return <FaCheckCircle color="#2ecc71" />;
     if (status === "DRAFT") return <FaPenNib color="#f39c12" />;
     return <FaBan color="#95a5a6" />;
-  };
-
-  const getStatusColor = (status) => {
-    if (status === "ACTIVE") return "bg-green-100 text-green-800"; // Tailwind stlye logic
-    if (status === "DRAFT") return "bg-orange-100 text-orange-800";
-    return "bg-gray-100 text-gray-800";
   };
 
   return (
@@ -160,7 +243,10 @@ const StandardPage = () => {
 
               <DescriptionBox>
                 <h4>Description</h4>
-                <p>{selectedDoc.description}</p>
+                <p style={{ whiteSpace: "pre-line" }}>
+                  {/* 줄바꿈 처리를 위해 whiteSpace 스타일 추가 */}
+                  {selectedDoc.description}
+                </p>
               </DescriptionBox>
 
               <HistorySection>
@@ -215,16 +301,15 @@ export default StandardPage;
 
 // --- Styled Components ---
 
-// 1. 컨테이너: 100vh 대신 100%를 사용하여 부모 레이아웃(메인 영역)에 맞춤
 const Container = styled.div`
   width: 100%;
-  height: 100%; /* 부모 높이를 꽉 채움 */
+  height: 100%;
   padding: 20px;
   background-color: #f5f6fa;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box; /* 패딩 포함 크기 계산 */
-  overflow: hidden; /* 전체 화면 스크롤 방지 */
+  box-sizing: border-box;
+  overflow: hidden;
 `;
 
 const Header = styled.div`
@@ -232,7 +317,7 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  flex-shrink: 0; /* 헤더가 찌그러지지 않도록 고정 */
+  flex-shrink: 0;
 `;
 
 const TitleGroup = styled.div`
@@ -275,28 +360,26 @@ const SearchBox = styled.div`
   }
 `;
 
-// 2. 테이블 컨테이너: 남은 공간을 모두 차지하고 내부에서만 스크롤 발생
 const TableContainer = styled.div`
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  flex: 1; /* 남은 공간 모두 차지 */
-  overflow: auto; /* 내용이 넘치면 이 안에서만 스크롤 */
+  flex: 1;
+  overflow: auto;
   display: flex;
   flex-direction: column;
 `;
 
-// 3. 테이블: 텍스트 줄바꿈 방지 및 헤더 고정 (선택 사항)
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  white-space: nowrap; /* 텍스트 줄바꿈 방지 (깔끔하게 보임) */
+  white-space: nowrap;
 
   thead {
-    position: sticky; /* 헤더 고정 */
+    position: sticky;
     top: 0;
     z-index: 10;
-    background: #f8f9fa; /* 헤더 배경색 지정 필수 */
+    background: #f8f9fa;
   }
 
   th {
@@ -359,14 +442,14 @@ const StatusBadge = styled.div`
     props.$status === "ACTIVE"
       ? "#e8f5e9"
       : props.$status === "DRAFT"
-      ? "#fff3e0"
-      : "#f5f5f5"};
+        ? "#fff3e0"
+        : "#f5f5f5"};
   color: ${(props) =>
     props.$status === "ACTIVE"
       ? "#2ecc71"
       : props.$status === "DRAFT"
-      ? "#f39c12"
-      : "#95a5a6"};
+        ? "#f39c12"
+        : "#95a5a6"};
 `;
 
 const ViewBtn = styled.button`
@@ -381,7 +464,6 @@ const ViewBtn = styled.button`
   }
 `;
 
-// --- Modal Styles (그대로 유지) ---
 const Overlay = styled.div`
   position: fixed;
   top: 0;

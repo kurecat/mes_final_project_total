@@ -105,7 +105,7 @@ public class ApiService
     {
         try
         {
-            var url = $"api/mes/machine/poll?machineId={Uri.EscapeDataString(AppConfig.MachineId)}";
+            var url = $"api/mes/machine/poll?machineId={AppConfig.MachineId}";
 
             // SendWithRetryAsync를 거쳐서 호출
             var response = await SendWithRetryAsync(() => _httpClient.GetAsync(url));
