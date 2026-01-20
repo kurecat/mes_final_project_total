@@ -300,6 +300,7 @@ public class ProductionService {
         MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
         moldingInspection.setMolding(molding);
 
+        List<FinalInspection> finalInspections = new ArrayList<>();
         List<Item> items = new ArrayList<>();
         List<FinalInspection> finalInspections = new ArrayList<>();
 
@@ -503,7 +504,7 @@ public class ProductionService {
         // 2) Member 수정 (name/authority)
         Member member = worker.getMember();
         if (dto.getName() != null) member.setName(dto.getName());
-        if (dto.getAuthority() != null) member.setAuthority(dto.getAuthority());
+        if (dto.getAuthority() != null) member.setAuthority(Authority.valueOf(dto.getAuthority()));
 
         // 저장 (worker만 save해도 member는 영속 상태라 반영됨)
         Worker saved = workerRepo.save(worker);
