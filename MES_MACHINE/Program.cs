@@ -80,7 +80,7 @@ namespace L1_MachineSim
             using (MemoryStream bodyMs = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(bodyMs))
             {
-                int count = 0;
+                int remain = 0;
                 int step = 0;
 
                 Console.WriteLine("--- 전체 공정 시뮬레이션 시작 (Refactored) ---");
@@ -96,20 +96,19 @@ namespace L1_MachineSim
                     SendTempPacket(stream, totalTemp);
                     Console.WriteLine($"[TotalTemp] 종합온도 패킷 전송: {totalTemp}℃");
 
-                    if (client.Client.Available > 0)
+                    if (client.Client.Available > 0 && remain == 0)
                     {
                         byte[] readBuffer = new byte[7];
                         int size = stream.Read(readBuffer, 0, readBuffer.Length);
                         if (size == readBuffer.Length && readBuffer[0] == 0x01)
                         {
-                            count = BitConverter.ToInt32(readBuffer, 2);
+                            remain = BitConverter.ToInt32(readBuffer, 2);
+                            step = 1;
                         }
                     }
 
-                    Console.WriteLine($"count : {count}");
+                    Console.WriteLine($"remain : {remain}");
                     Console.WriteLine($"step : {step}");
-
-                    if (count > 0 && step == 0) step = 1;    // 공정시작
 
                     DtoType procType = DtoType.Sleep;
                     string logMessage = "";
@@ -358,14 +357,15 @@ namespace L1_MachineSim
                                 writer.Write(body);
                             }
                         }
+
                         byte[] packetBytes = bodyMs.ToArray();
                         Console.WriteLine($"총 패킷 길이: {packetBytes.Length} 바이트, 아이템 수: {arrayLength}");
                         logMessage = "[★FINAL] 최종검사 배열 Data 전송 완료";
 
                         dicWear = 12.0; // Reset wear
 
+                        remain = 0;
                         step = 0;
-                        count--;
                     }
                     else
                     {
