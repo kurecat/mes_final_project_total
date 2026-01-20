@@ -20,7 +20,7 @@ public class MemberResDto {
         return MemberResDto.builder()
                 .email(member.getEmail())
                 .name(member.getName())
-                .authority(member.getAuthority())
+                .authority(member.getAuthority().name())
                 .build();
     }
 }
