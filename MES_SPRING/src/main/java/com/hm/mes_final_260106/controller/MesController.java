@@ -170,6 +170,18 @@ public class MesController {
                 productionService.getHourlyPerformance(date, line)
         );
     }
+    // 우측 테이블: 작업지시별 실적 리스트
+    @GetMapping("/performance/list")
+    public ResponseEntity<List<WorkOrderPerformanceResDto>> getWorkOrderPerformanceList(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date,
+            @RequestParam(defaultValue = "ALL") String line
+    ) {
+        return ResponseEntity.ok(
+                productionService.getWorkOrderPerformanceList(date, line)
+        );
+    }
 
 
 

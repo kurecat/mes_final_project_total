@@ -1,13 +1,10 @@
 package com.hm.mes_final_260106.service;
 
-import com.hm.mes_final_260106.dto.HourlyPerformanceResDto;
-import com.hm.mes_final_260106.dto.PerformanceSummaryResDto;
+import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Bom;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.ProductionLog;
 import com.hm.mes_final_260106.entity.WorkOrder;
-import com.hm.mes_final_260106.dto.FinalInspectionDto;
-import com.hm.mes_final_260106.dto.ProductionReportDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.repository.*;
@@ -400,6 +397,34 @@ public class ProductionService {
                         ((Number) result[3]).longValue()         // scrap
                 ))
                 .collect(Collectors.toList());
+    }
+    @Transactional(readOnly = true)
+    public List<WorkOrderPerformanceResDto> getWorkOrderPerformanceList(LocalDate date, String line) {
+
+        // 1) 라인 기준 WorkOrder 조회
+        List<WorkOrder> orders = orderRepo.findByLineForPerformance(line);
+
+        // 2) DTO 변환
+        return orders.stream().map(wo -> {
+
+            long plan = (long) wo.getTargetQty();
+            long actual = (long) wo.getCurrentQty();
+            long loss = Math.max(plan - actual, 0L);
+            double rate = (plan == 0L) ? 0.0 : (actual * 100.0 / plan);
+            String status = "IN_PROGRESS".equals(wo.getStatus()) ? "RUNNING" : wo.getStatus();
+
+            return new WorkOrderPerformanceResDto(
+                    wo.getWorkorder_number(),   // woId
+                    wo.getProductId(),          // product (지금은 productId 그대로 출력)
+                    wo.getTargetLine(),         // line
+                    "wfrs",                     // unit (고정, 필요시 제품단위로 바꿀 수 있음)
+                    plan,
+                    actual,
+                    loss,
+                    rate,
+                    status
+            );
+        }).toList();
     }
 
 
