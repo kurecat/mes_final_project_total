@@ -12,6 +12,7 @@ import com.hm.mes_final_260106.mapper.Mapper;
 import com.hm.mes_final_260106.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,10 @@ public class ProductionService {
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
+    private final MemberRepository memberRepo;
+    private final WorkerRepository workerRepo;
+    private final PasswordEncoder passwordEncoder;
+
 
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
@@ -164,7 +169,7 @@ public class ProductionService {
     // 5) 작업지시 수정
     // =========================
     @Transactional
-    public WorkOrder updateWorkOrder(Long id, String productId, int targetQty,String targetLine) {
+    public WorkOrder updateWorkOrder(Long id, String productId, int targetQty, String targetLine) {
 
         WorkOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + id));
@@ -369,7 +374,8 @@ public class ProductionService {
     private String generateSerial(String productId) {
         return productId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
-// 생산실적현황 서비스
+
+    // 생산실적현황 서비스
     @Transactional(readOnly = true)
     public PerformanceSummaryResDto getPerformanceSummary(LocalDate date, String line) {
 
@@ -383,6 +389,7 @@ public class ProductionService {
 
         return dto;
     }
+
     @Transactional(readOnly = true)
     public List<HourlyPerformanceResDto> getHourlyPerformance(LocalDate date, String line) {
         // 1. Repository에서 Native Query 실행 (Object[] 리스트 반환)
@@ -398,6 +405,7 @@ public class ProductionService {
                 ))
                 .collect(Collectors.toList());
     }
+
     @Transactional(readOnly = true)
     public List<WorkOrderPerformanceResDto> getWorkOrderPerformanceList(LocalDate date, String line) {
 
@@ -427,7 +435,79 @@ public class ProductionService {
         }).toList();
     }
 
+    // 작업자 등록
+    @Transactional
+    public WorkerResDto registerWorker(WorkerCreateReqDto dto) {
+
+        // 1) Member 생성
+        memberRepo.findByEmail(dto.getEmail()).ifPresent(m -> {
+            throw new RuntimeException("이미 존재하는 이메일입니다: " + dto.getEmail());
+        });
+
+        Member member = Member.builder()
+                .email(dto.getEmail())
+                .password(passwordEncoder.encode(dto.getPassword()))
+                .name(dto.getName())
+                .authority(dto.getAuthority() == null ? "OPERATOR" : dto.getAuthority())
+                .build();
+
+        Member savedMember = memberRepo.save(member);
+
+        // 2) Worker 생성
+        String certStr = (dto.getCertifications() == null || dto.getCertifications().isEmpty())
+                ? ""
+                : String.join(",", dto.getCertifications());
+
+        Worker worker = Worker.builder()
+                .member(savedMember)
+                .dept(dto.getDept() == null ? "TBD" : dto.getDept())
+                .shift(dto.getShift() == null ? "Day" : dto.getShift())
+                .status(dto.getStatus() == null ? "OFF" : dto.getStatus())
+                .joinDate(dto.getJoinDate() == null ? LocalDate.now() : dto.getJoinDate())
+                .certifications(certStr)
+                .build();
+
+        Worker savedWorker = workerRepo.save(worker);
+
+        return WorkerResDto.fromEntity(savedWorker);
+    }
+    // 작업자 수정
+    @Transactional
+    public WorkerResDto updateWorker(Long workerId, WorkerUpdateReqDto dto) {
+
+        Worker worker = workerRepo.findById(workerId)
+                .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + workerId));
+
+        // 1) WorkerProfile(Worker 테이블) 수정
+        if (dto.getDept() != null) worker.setDept(dto.getDept());
+        if (dto.getShift() != null) worker.setShift(dto.getShift());
+        if (dto.getStatus() != null) worker.setStatus(dto.getStatus());
 
 
+        if (dto.getCertifications() != null) {
+            worker.setCertifications(String.join(",", dto.getCertifications()));
+        }
+
+        // 2) Member 수정 (name/authority)
+        Member member = worker.getMember();
+        if (dto.getName() != null) member.setName(dto.getName());
+        if (dto.getAuthority() != null) member.setAuthority(dto.getAuthority());
+
+        // 저장 (worker만 save해도 member는 영속 상태라 반영됨)
+        Worker saved = workerRepo.save(worker);
+
+        return WorkerResDto.fromEntity(saved);
+    }
+    // 작업자 삭제
+    @Transactional
+    public void deleteWorker(Long workerId) {
+
+        Worker worker = workerRepo.findById(workerId)
+                .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + workerId));
+
+        // ⭐ Worker만 삭제 (Member는 유지)
+        workerRepo.delete(worker);
+    }
 
 }
+

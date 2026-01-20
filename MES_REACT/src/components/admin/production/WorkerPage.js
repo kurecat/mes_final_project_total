@@ -58,27 +58,35 @@ const MOCK_WORKERS = [
     joinDate: "2022-11-20",
   },
 ];
-
+const API_BASE = "http://localhost:8111/api/mes";
 const WorkerPage = () => {
   const [workers, setWorkers] = useState(MOCK_WORKERS);
   const [loading, setLoading] = useState(true);
   const [filterRole, setFilterRole] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+
+  const [editForm, setEditForm] = useState({
+    name: "",
+    authority: "Operator",
+    dept: "",
+    shift: "Day",
+    status: "OFF",
+    certificationsText: "",
+  });
 
   // 1. 데이터 조회 (READ)
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ★ 실제 API: http://localhost:3001/workers
-      // const res = await axios.get("http://localhost:3001/workers");
-      // setWorkers(res.data);
-
-      setTimeout(() => {
-        setWorkers(MOCK_WORKERS);
-        setLoading(false);
-      }, 500);
+      const res = await axios.get(`${API_BASE}/worker/list`);
+      setWorkers(res.data ?? []);
     } catch (err) {
       console.error(err);
+      // 서버 실패 시 fallback
+      setWorkers(MOCK_WORKERS);
+    } finally {
       setLoading(false);
     }
   };
@@ -88,29 +96,99 @@ const WorkerPage = () => {
   }, []);
 
   // 2. 삭제 (DELETE)
-  const handleDelete = async (id) => {
+  const handleDelete = async (workerId) => {
     if (!window.confirm("해당 작업자를 삭제하시겠습니까?")) return;
+
     try {
-      // await axios.delete(`http://localhost:3001/workers/${id}`);
-      setWorkers((prev) => prev.filter((w) => w.id !== id));
+      console.log("삭제 요청 workerId =", workerId);
+
+      await axios.delete(`${API_BASE}/worker/${workerId}`);
+
+      // 화면에서도 제거
+      setWorkers((prev) => prev.filter((w) => w.workerId !== workerId));
+
+      alert("삭제 완료");
     } catch (err) {
-      console.error(err);
+      console.error("삭제 실패:", err);
+      console.log("status:", err?.response?.status);
+      console.log("data:", err?.response?.data);
+
+      alert("삭제 실패 (콘솔 확인)");
     }
   };
 
-  // 3. 추가 (CREATE - Mock)
-  const handleAdd = () => {
-    const newWorker = {
-      id: `2400${Math.floor(Math.random() * 9)}`,
-      name: "New Worker",
-      role: "Operator",
-      dept: "TBD",
-      shift: "Day",
-      status: "OFF",
-      certifications: ["Basic Safety"],
-      joinDate: new Date().toISOString().split("T")[0],
-    };
-    setWorkers([newWorker, ...workers]);
+  // 3. 추가 (CREATE - DB 저장)
+  const handleAdd = async () => {
+    try {
+      const today = new Date().toISOString().split("T")[0];
+
+      const res = await axios.post(`${API_BASE}/worker/register`, {
+        email: `worker${Date.now()}@test.com`,
+        password: "1234",
+        name: "New Worker",
+        authority: "OPERATOR",
+        dept: "TBD",
+        shift: "Day",
+        status: "OFF",
+        joinDate: today,
+        certifications: ["Basic Safety"],
+      });
+
+      // ✅ 저장 성공한 데이터 화면에 추가
+      setWorkers((prev) => [res.data, ...prev]);
+    } catch (err) {
+      console.error(err);
+      alert("작업자 등록 실패");
+    }
+  };
+  // 수정 (UPDATE - DB 수정)
+
+  const openEditModal = (worker) => {
+    setEditTarget(worker);
+
+    setEditForm({
+      name: worker.name ?? "",
+      authority: worker.authority ?? "Operator",
+      dept: worker.dept ?? "",
+      shift: worker.shift ?? "Day",
+      status: worker.status ?? "OFF",
+      certificationsText: (worker.certifications ?? []).join(", "),
+    });
+
+    setEditOpen(true);
+  };
+  const handleSaveEdit = async () => {
+    if (!editTarget?.workerId) return;
+
+    try {
+      const certList = editForm.certificationsText
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
+
+      const res = await axios.patch(
+        `${API_BASE}/worker/${editTarget.workerId}`,
+        {
+          name: editForm.name,
+          authority: editForm.authority,
+          dept: editForm.dept,
+          shift: editForm.shift,
+          status: editForm.status,
+          certifications: certList,
+        },
+      );
+
+      // 화면 데이터 업데이트
+      setWorkers((prev) =>
+        prev.map((w) => (w.workerId === editTarget.workerId ? res.data : w)),
+      );
+
+      setEditOpen(false);
+      setEditTarget(null);
+    } catch (err) {
+      console.error(err);
+      alert("수정 실패");
+    }
   };
 
   // 필터링
@@ -229,7 +307,7 @@ const WorkerPage = () => {
                 <NameInfo>
                   <Name>{worker.name}</Name>
                   <Role>
-                    {worker.role} | {worker.dept}
+                    {worker.authority} | {worker.dept}
                   </Role>
                 </NameInfo>
               </ProfileSection>
@@ -238,7 +316,7 @@ const WorkerPage = () => {
 
             <CardBody>
               <InfoRow>
-                <FaIdBadge color="#aaa" /> <span>ID: {worker.id}</span>
+                <FaIdBadge color="#aaa" /> <span>ID: {worker.workerId}</span>
               </InfoRow>
               <InfoRow>
                 <FaClock color="#aaa" /> <span>Shift: {worker.shift}</span>
@@ -259,12 +337,12 @@ const WorkerPage = () => {
             <CardFooter>
               <JoinDate>Joined: {worker.joinDate}</JoinDate>
               <ActionArea>
-                <IconBtn className="edit">
+                <IconBtn className="edit" onClick={() => openEditModal(worker)}>
                   <FaEdit />
                 </IconBtn>
                 <IconBtn
                   className="del"
-                  onClick={() => handleDelete(worker.id)}
+                  onClick={() => handleDelete(worker.workerId)}
                 >
                   <FaTrash />
                 </IconBtn>
@@ -273,6 +351,104 @@ const WorkerPage = () => {
           </WorkerCard>
         ))}
       </GridContainer>
+      {editOpen && (
+        <ModalOverlay onClick={() => setEditOpen(false)}>
+          <ModalBox onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>Worker Edit</ModalTitle>
+
+            <ModalRow>
+              <ModalLabel>Name</ModalLabel>
+              <ModalInput
+                value={editForm.name}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, name: e.target.value })
+                }
+              />
+            </ModalRow>
+
+            <ModalRow>
+              <ModalLabel>Role(Authority)</ModalLabel>
+              <ModalSelect
+                value={editForm.authority}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, authority: e.target.value })
+                }
+              >
+                <option value="Engineer">Engineer</option>
+                <option value="Operator">Operator</option>
+                <option value="Manager">Manager</option>
+              </ModalSelect>
+            </ModalRow>
+
+            <ModalRow>
+              <ModalLabel>Dept</ModalLabel>
+              <ModalInput
+                value={editForm.dept}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, dept: e.target.value })
+                }
+              />
+            </ModalRow>
+
+            <ModalRow>
+              <ModalLabel>Shift</ModalLabel>
+              <ModalSelect
+                value={editForm.shift}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, shift: e.target.value })
+                }
+              >
+                <option value="Day">Day</option>
+                <option value="Swing">Swing</option>
+                <option value="Night">Night</option>
+              </ModalSelect>
+            </ModalRow>
+
+            <ModalRow>
+              <ModalLabel>Status</ModalLabel>
+              <ModalSelect
+                value={editForm.status}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, status: e.target.value })
+                }
+              >
+                <option value="WORKING">WORKING</option>
+                <option value="OFF">OFF</option>
+                <option value="BREAK">BREAK</option>
+              </ModalSelect>
+            </ModalRow>
+
+            {/* ⭐ 가입날짜는 수정 불가: 읽기 전용 */}
+            <ModalRow>
+              <ModalLabel>Join Date</ModalLabel>
+              <ModalReadonly>{editTarget?.joinDate ?? "-"}</ModalReadonly>
+            </ModalRow>
+
+            <ModalRow>
+              <ModalLabel>Certifications</ModalLabel>
+              <ModalTextarea
+                placeholder="ex) Basic Safety, ASML Scanner"
+                value={editForm.certificationsText}
+                onChange={(e) =>
+                  setEditForm({
+                    ...editForm,
+                    certificationsText: e.target.value,
+                  })
+                }
+              />
+            </ModalRow>
+
+            <ModalFooter>
+              <ModalBtn className="cancel" onClick={() => setEditOpen(false)}>
+                Cancel
+              </ModalBtn>
+              <ModalBtn className="save" onClick={handleSaveEdit}>
+                Save
+              </ModalBtn>
+            </ModalFooter>
+          </ModalBox>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };
@@ -448,8 +624,8 @@ const WorkerCard = styled.div`
       props.$status === "WORKING"
         ? "#2ecc71"
         : props.$status === "BREAK"
-        ? "#f39c12"
-        : "#ccc"};
+          ? "#f39c12"
+          : "#ccc"};
   transition: transform 0.2s;
   &:hover {
     transform: translateY(-4px);
@@ -504,14 +680,14 @@ const StatusBadge = styled.span`
     props.$status === "WORKING"
       ? "#e8f5e9"
       : props.$status === "BREAK"
-      ? "#fff3e0"
-      : "#eee"};
+        ? "#fff3e0"
+        : "#eee"};
   color: ${(props) =>
     props.$status === "WORKING"
       ? "#2e7d32"
       : props.$status === "BREAK"
-      ? "#e67e22"
-      : "#888"};
+        ? "#e67e22"
+        : "#888"};
 `;
 
 const CardBody = styled.div`
@@ -588,5 +764,102 @@ const IconBtn = styled.button`
   }
   &.del:hover {
     color: #e74c3c;
+  }
+`;
+// Modal
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+`;
+
+const ModalBox = styled.div`
+  width: 520px;
+  max-width: calc(100vw - 40px);
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0 0 14px 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #333;
+`;
+
+const ModalRow = styled.div`
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+`;
+
+const ModalLabel = styled.div`
+  font-size: 13px;
+  color: #666;
+  font-weight: 700;
+`;
+
+const ModalInput = styled.input`
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  outline: none;
+`;
+
+const ModalSelect = styled.select`
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  outline: none;
+  background: white;
+`;
+
+const ModalTextarea = styled.textarea`
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px;
+  outline: none;
+  min-height: 70px;
+  resize: vertical;
+`;
+
+const ModalReadonly = styled.div`
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 10px;
+  background: #f9f9f9;
+  color: #555;
+  font-size: 13px;
+`;
+
+const ModalFooter = styled.div`
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+`;
+
+const ModalBtn = styled.button`
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 800;
+  cursor: pointer;
+
+  &.cancel {
+    background: #eee;
+    color: #555;
+  }
+  &.save {
+    background: #1a4f8b;
+    color: white;
   }
 `;
