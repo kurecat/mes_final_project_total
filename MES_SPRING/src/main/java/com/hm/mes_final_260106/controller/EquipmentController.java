@@ -1,6 +1,7 @@
 // src/main/java/com/hm/mes_final_260106/controller/EquipmentController.java
 package com.hm.mes_final_260106.controller;
 
+import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
 import com.hm.mes_final_260106.dto.EquipmentDetailResDto;
 import com.hm.mes_final_260106.dto.EquipmentMonitorResDto;
 import com.hm.mes_final_260106.service.EquipmentService;
@@ -47,5 +48,13 @@ public class EquipmentController {
     ) {
         return ResponseEntity.ok(equipmentService.getEquipmentDetail(equipmentCode));
     }
+
+    // 장비생성저장
+    @PostMapping("")
+    public ResponseEntity<?> createEquipment(@RequestBody EquipmentCreateReqDto dto) {
+        equipmentService.createEquipment(dto);
+        return ResponseEntity.ok().build();
+    }
+
 
 }

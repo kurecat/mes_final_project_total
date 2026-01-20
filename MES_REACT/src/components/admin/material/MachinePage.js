@@ -1,6 +1,6 @@
-// src/pages/resource/MachinePage.js
 import React, { useState, useEffect } from "react";
 import styled, { keyframes, css } from "styled-components";
+import axios from "axios";
 import {
   FaSearch,
   FaThermometerHalf,
@@ -14,10 +14,9 @@ import {
   FaTimes,
   FaClipboardList,
   FaInfoCircle,
-  FaPlus, // 추가
-  FaEdit, // 추가
-  FaTrash, // 추가
-  FaTimes, // 추가
+  FaPlus,
+  FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 
 const API_BASE = "http://localhost:8111/api/mes";
@@ -25,24 +24,38 @@ const API_BASE = "http://localhost:8111/api/mes";
 const MachinePage = () => {
   const [machines, setMachines] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // ⭐ 모달 상태
+  // 상세 모달
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailTarget, setDetailTarget] = useState(null);
 
-  // ⭐ 로그 (일단 화면용 임시 데이터)
+  // 로그
   const [logs, setLogs] = useState([]);
 
-  // 데이터 가져오기
+  // CRUD 모달
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingMachine, setEditingMachine] = useState(null);
+  const [formData, setFormData] = useState({
+    id: "",
+    name: "",
+    type: "Photo",
+    status: "IDLE",
+    lotId: "-",
+    uph: 0,
+    temperature: 20,
+    param: "-",
+    progress: 0,
+    errorCode: null,
+  });
+
+  // ============================
+  // 데이터 가져오기 (DB)
+  // ============================
   const fetchData = async () => {
-  // 데이터 로딩 시뮬레이션 (최초 1회만)
-  useEffect(() => {
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
     try {
       const res = await axios.get(`${API_BASE}/equipment/monitor`);
       setMachines(res.data ?? []);
@@ -55,18 +68,23 @@ const MachinePage = () => {
     }
   };
 
+  // 최초 로딩 + 10초마다 자동 갱신
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- CRUD Handlers ---
+  // ============================
+  // CRUD Handlers (현재는 프론트 상태만 변경)
+  // DB 연동하려면 API 연결하면 됨
+  // ============================
 
-  // 1. 추가 버튼 클릭
   const handleAddClick = () => {
-    setEditingMachine(null); // 추가 모드
+    setEditingMachine(null);
     setFormData({
+      id: "",
       name: "",
       type: "Photo",
       status: "IDLE",
@@ -74,60 +92,80 @@ const MachinePage = () => {
       uph: 0,
       temperature: 20,
       param: "-",
+      progress: 0,
+      errorCode: null,
     });
     setIsModalOpen(true);
   };
 
-  // 2. 수정 버튼 클릭
   const handleEditClick = (machine) => {
-    setEditingMachine(machine); // 수정 모드
+    setEditingMachine(machine);
     setFormData({ ...machine });
     setIsModalOpen(true);
   };
 
-  // 3. 삭제 버튼 클릭
   const handleDeleteClick = (id) => {
     if (window.confirm("Are you sure you want to delete this equipment?")) {
       setMachines((prev) => prev.filter((m) => m.id !== id));
     }
   };
 
-  // 4. 저장 (추가/수정 반영)
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name) {
       alert("Please enter machine name.");
       return;
     }
 
-    if (editingMachine) {
-      // 수정 로직
-      setMachines((prev) =>
-        prev.map((m) =>
-          m.id === editingMachine.id ? { ...formData, id: m.id } : m,
-        ),
-      );
-    } else {
-      // 추가 로직
-      const newId = `EQ-${formData.type.substring(0, 3).toUpperCase()}-${Math.floor(
-        Math.random() * 100,
-      )}`;
-      const newMachine = {
-        ...formData,
-        id: newId,
-        progress: 0, // 초기값
+    try {
+      // ✅ 신규 등록일 때만 code 생성해서 DB 저장
+      const newCode = editingMachine?.id
+        ? editingMachine.id
+        : `EQ-${formData.type.substring(0, 3).toUpperCase()}-${Math.floor(
+            Math.random() * 1000,
+          )}`;
+
+      const payload = {
+        code: newCode, // ⭐ 백엔드 Equipment.code
+        name: formData.name,
+        type: formData.type,
+        status: formData.status,
+        lotId: formData.lotId,
+        uph: formData.uph,
+        temperature: formData.temperature,
+        param: formData.param,
       };
-      setMachines((prev) => [newMachine, ...prev]);
+
+      // ✅ 신규 추가
+      if (!editingMachine) {
+        await axios.post(`${API_BASE}/equipment`, payload);
+        alert("설비가 DB에 저장되었습니다.");
+      } else {
+        // 수정은 PUT API가 있어야 가능
+        alert("수정 기능은 PUT API 연결이 필요합니다.");
+      }
+
+      setIsModalOpen(false);
+      await fetchData(); // 저장 후 DB 다시 조회해서 카드 갱신
+    } catch (err) {
+      console.error("설비 저장 실패:", err);
+      alert("DB 저장 실패! (백엔드 API 확인)");
     }
-    setIsModalOpen(false);
   };
 
-  // 모달 입력 핸들러
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "uph" || name === "temperature" || name === "progress"
+          ? Number(value)
+          : value,
+    }));
   };
 
+  // ============================
   // 필터링
+  // ============================
   const filteredData = machines.filter((item) => {
     const matchStatus = filterStatus === "ALL" || item.status === filterStatus;
     const matchSearch =
@@ -136,7 +174,7 @@ const MachinePage = () => {
     return matchStatus && matchSearch;
   });
 
-  // 상태 카운트 계산
+  // 상태 카운트
   const statusCounts = {
     TOTAL: machines.length,
     RUN: machines.filter((m) => m.status === "RUN").length,
@@ -145,15 +183,13 @@ const MachinePage = () => {
   };
 
   // ============================
-  // ⭐ 모달 열기 (상세/로그)
+  // 상세/로그 모달
   // ============================
   const openDetailModal = async (machine) => {
     setDetailTarget(machine);
     setDetailOpen(true);
 
-    // 🔥 나중에 여기서 진짜 API로 로그 가져오면 됨
-    // 예: GET /api/mes/equipment/{code}/logs
-    // 지금은 UI 테스트용으로 임시 로그 생성
+    // 임시 로그
     const dummyLogs = [
       {
         time: "2026-01-20 10:22:11",
@@ -182,6 +218,11 @@ const MachinePage = () => {
     setDetailOpen(false);
     setDetailTarget(null);
     setLogs([]);
+  };
+
+  const closeCrudModal = () => {
+    setIsModalOpen(false);
+    setEditingMachine(null);
   };
 
   return (
@@ -239,6 +280,7 @@ const MachinePage = () => {
           <AddButton onClick={handleAddClick}>
             <FaPlus /> Add Equipment
           </AddButton>
+
           <SearchBox>
             <FaSearch color="#999" />
             <input
@@ -248,7 +290,7 @@ const MachinePage = () => {
             />
           </SearchBox>
 
-          <RefreshBtn onClick={fetchData}>
+          <RefreshBtn onClick={fetchData} title="Refresh">
             <FaSync />
           </RefreshBtn>
         </FilterGroup>
@@ -262,6 +304,7 @@ const MachinePage = () => {
               <MachineName>
                 <FaMicrochip /> {machine.name}
               </MachineName>
+
               <HeaderActions>
                 <StatusBadge $status={machine.status}>
                   {machine.status === "RUN" && <FaPlay size={10} />}
@@ -272,13 +315,18 @@ const MachinePage = () => {
                   {machine.status === "PM" && <FaTools size={10} />}
                   <span>{machine.status}</span>
                 </StatusBadge>
-                {/* 수정/삭제 아이콘 */}
-                <ActionIcon onClick={() => handleEditClick(machine)}>
+
+                <ActionIcon
+                  onClick={() => handleEditClick(machine)}
+                  title="Edit"
+                >
                   <FaEdit />
                 </ActionIcon>
+
                 <ActionIcon
                   className="del"
                   onClick={() => handleDeleteClick(machine.id)}
+                  title="Delete"
                 >
                   <FaTrash />
                 </ActionIcon>
@@ -309,7 +357,7 @@ const MachinePage = () => {
 
               {machine.status === "DOWN" ? (
                 <ErrorBox>
-                  <FaExclamationTriangle />{" "}
+                  <FaExclamationTriangle />
                   {machine.errorCode || "Unknown Error"}
                 </ErrorBox>
               ) : (
@@ -338,7 +386,7 @@ const MachinePage = () => {
       </GridContainer>
 
       {/* ============================
-          ⭐ View Detail / Log Modal
+          상세/로그 모달
          ============================ */}
       {detailOpen && detailTarget && (
         <ModalOverlay onClick={closeDetailModal}>
@@ -353,7 +401,6 @@ const MachinePage = () => {
             </ModalHeader>
 
             <ModalBody>
-              {/* 설비 상세 정보 */}
               <SectionTitle>
                 <FaMicrochip /> Equipment Detail
               </SectionTitle>
@@ -401,7 +448,6 @@ const MachinePage = () => {
                 </InfoItem>
               </InfoGrid>
 
-              {/* 다운일 경우 에러 표시 */}
               {detailTarget.status === "DOWN" && (
                 <DownAlarmBox>
                   <FaExclamationTriangle />
@@ -409,7 +455,6 @@ const MachinePage = () => {
                 </DownAlarmBox>
               )}
 
-              {/* 로그 테이블 */}
               <SectionTitle style={{ marginTop: 18 }}>
                 <FaClipboardList /> Recent Logs
               </SectionTitle>
@@ -452,6 +497,118 @@ const MachinePage = () => {
             <ModalFooter>
               <ModalBtn className="close" onClick={closeDetailModal}>
                 Close
+              </ModalBtn>
+            </ModalFooter>
+          </ModalBox>
+        </ModalOverlay>
+      )}
+
+      {/* ============================
+          Add/Edit 모달
+         ============================ */}
+      {isModalOpen && (
+        <ModalOverlay onClick={closeCrudModal}>
+          <ModalBox onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>
+                <FaTools />
+                {editingMachine ? "Edit Equipment" : "Add Equipment"}
+              </ModalTitle>
+              <CloseBtn onClick={closeCrudModal}>
+                <FaTimes />
+              </CloseBtn>
+            </ModalHeader>
+
+            <ModalBody>
+              <SectionTitle>
+                <FaMicrochip /> Equipment Form
+              </SectionTitle>
+
+              <FormGrid>
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormInput
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Equipment name"
+                  />
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Type</FormLabel>
+                  <FormSelect
+                    name="type"
+                    value={formData.type}
+                    onChange={handleInputChange}
+                  >
+                    <option value="Photo">Photo</option>
+                    <option value="Etch">Etch</option>
+                    <option value="Diffusion">Diffusion</option>
+                    <option value="CMP">CMP</option>
+                    <option value="Test">Test</option>
+                  </FormSelect>
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <FormSelect
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                  >
+                    <option value="RUN">RUN</option>
+                    <option value="IDLE">IDLE</option>
+                    <option value="DOWN">DOWN</option>
+                    <option value="PM">PM</option>
+                  </FormSelect>
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Lot ID</FormLabel>
+                  <FormInput
+                    name="lotId"
+                    value={formData.lotId}
+                    onChange={handleInputChange}
+                    placeholder="LOT-..."
+                  />
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>UPH</FormLabel>
+                  <FormInput
+                    type="number"
+                    name="uph"
+                    value={formData.uph}
+                    onChange={handleInputChange}
+                  />
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Temperature</FormLabel>
+                  <FormInput
+                    type="number"
+                    name="temperature"
+                    value={formData.temperature}
+                    onChange={handleInputChange}
+                  />
+                </FormItem>
+
+                <FormItem style={{ gridColumn: "1 / -1" }}>
+                  <FormLabel>Main Param</FormLabel>
+                  <FormInput
+                    name="param"
+                    value={formData.param}
+                    onChange={handleInputChange}
+                    placeholder="ex) Pressure=3.2Torr"
+                  />
+                </FormItem>
+              </FormGrid>
+            </ModalBody>
+
+            <ModalFooter>
+              <ModalBtn className="close" onClick={handleSave}>
+                Save
               </ModalBtn>
             </ModalFooter>
           </ModalBox>
@@ -551,6 +708,7 @@ const FilterGroup = styled.div`
   display: flex;
   gap: 10px;
 `;
+
 const AddButton = styled.button`
   background-color: #1a4f8b;
   color: white;
@@ -562,10 +720,12 @@ const AddButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
+
   &:hover {
     background-color: #153e6d;
   }
 `;
+
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -658,7 +818,6 @@ const MachineName = styled.div`
   font-size: 15px;
 `;
 
-
 const HeaderActions = styled.div`
   display: flex;
   align-items: center;
@@ -669,9 +828,11 @@ const ActionIcon = styled.div`
   cursor: pointer;
   color: #666;
   font-size: 14px;
+
   &:hover {
     color: #1a4f8b;
   }
+
   &.del:hover {
     color: #e74c3c;
   }
@@ -830,7 +991,7 @@ const DetailButton = styled.button`
 `;
 
 /* ===========================
-   Modal (WorkerPage 스타일 참고)
+   Modal
 =========================== */
 
 const ModalOverlay = styled.div`
@@ -1047,5 +1208,49 @@ const ModalBtn = styled.button`
 
   &:hover {
     opacity: 0.9;
+  }
+`;
+
+/* CRUD Form */
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+`;
+
+const FormItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const FormLabel = styled.div`
+  font-size: 12px;
+  font-weight: 800;
+  color: #666;
+`;
+
+const FormInput = styled.input`
+  height: 38px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0 12px;
+  outline: none;
+
+  &:focus {
+    border-color: #1a4f8b;
+  }
+`;
+
+const FormSelect = styled.select`
+  height: 38px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0 12px;
+  outline: none;
+  background: white;
+
+  &:focus {
+    border-color: #1a4f8b;
   }
 `;

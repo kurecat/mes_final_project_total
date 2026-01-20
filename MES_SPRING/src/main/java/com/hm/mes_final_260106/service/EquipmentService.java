@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
 import com.hm.mes_final_260106.dto.EquipmentDetailResDto;
 import com.hm.mes_final_260106.dto.EquipmentMonitorResDto;
 import com.hm.mes_final_260106.entity.Equipment;
@@ -18,14 +19,14 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class EquipmentService {
 
-    private final EquipmentRepository equipmentRepository;
-    private final ProductionLogRepository productionLogRepository;
+    private final EquipmentRepository equipmentRepo;
+    private final ProductionLogRepository productionLogRepo;
 
     private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     // ✅ 모니터링 리스트 (MachinePage 카드용)
     public List<EquipmentMonitorResDto> getMonitoringList() {
-        List<Equipment> list = equipmentRepository.findAll();
+        List<Equipment> list = equipmentRepo.findAll();
 
         return list.stream()
                 .map(EquipmentMonitorResDto::fromEntity)
@@ -34,11 +35,11 @@ public class EquipmentService {
 
     // ✅ 상세 모달 (equipmentCode 기반)
     public EquipmentDetailResDto getEquipmentDetail(String equipmentCode) {
-        Equipment eq = equipmentRepository.findByCode(equipmentCode)
+        Equipment eq = equipmentRepo.findByCode(equipmentCode)
                 .orElseThrow(() -> new IllegalArgumentException("Equipment not found: " + equipmentCode));
 
         // 진행중 로그
-        ProductionLog runningLog = productionLogRepository
+        ProductionLog runningLog = productionLogRepo
                 .findFirstByEquipmentAndEndTimeIsNullOrderByStartTimeDesc(eq)
                 .orElse(null);
 
@@ -58,7 +59,7 @@ public class EquipmentService {
 
         // 최근 로그 10개
         List<EquipmentDetailResDto.EquipmentLogItem> recentLogs =
-                productionLogRepository.findTop10ByEquipmentOrderByStartTimeDesc(eq)
+                productionLogRepo.findTop10ByEquipmentOrderByStartTimeDesc(eq)
                         .stream()
                         .map(log -> EquipmentDetailResDto.EquipmentLogItem.builder()
                                 .productionLogId(log.getId())
@@ -83,5 +84,31 @@ public class EquipmentService {
                 .currentRun(currentRun)
                 .recentLogs(recentLogs)
                 .build();
+    }
+
+    // =====================================================
+    // ✅ 설비 추가 저장 (Add Equipment -> Save -> DB INSERT)
+    // =====================================================
+    @Transactional
+    public void createEquipment(EquipmentCreateReqDto dto) {
+
+        // code 중복 방지 (프론트에서 code를 만들어 보내는 구조일 때)
+        if (dto.getCode() == null || dto.getCode().isBlank()) {
+            throw new IllegalArgumentException("Equipment code is required.");
+        }
+
+        if (equipmentRepo.existsByCode(dto.getCode())) {
+            throw new IllegalArgumentException("Equipment code already exists: " + dto.getCode());
+        }
+
+        Equipment eq = Equipment.builder()
+                .code(dto.getCode())
+                .name(dto.getName())
+                .type(dto.getType())
+                .status(dto.getStatus())
+                .location(dto.getLocation())   // dto에 있으면 넣고, 없으면 null 가능
+                .build();
+
+        equipmentRepo.save(eq);
     }
 }

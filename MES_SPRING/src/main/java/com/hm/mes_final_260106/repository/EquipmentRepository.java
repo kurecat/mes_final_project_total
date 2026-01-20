@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface EquipmentRepository extends JpaRepository<Equipment, Long> {
     Optional<Equipment> findByCode(String code);
+    boolean existsByCode(String code);
+
 }
