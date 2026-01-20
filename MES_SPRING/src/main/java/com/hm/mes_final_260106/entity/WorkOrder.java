@@ -42,4 +42,15 @@ public class WorkOrder {
     public void prePersist() {
         start_date = LocalDateTime.now();
     }
+
+    // ⭐ camelCase getter 별칭 (서비스/DTO에서 편하게 쓰기용)
+    public String getWorkorderNumber() {
+        return this.workorder_number;
+    }
+
+    // ⭐ camelCase setter 별칭 (혹시 앞으로 setWorkorderNumber 쓸 수도 있어서 같이 추가)
+    public void setWorkorderNumber(String workorderNumber) {
+        this.workorder_number = workorderNumber;
+    }
+
 }

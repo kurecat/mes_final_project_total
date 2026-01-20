@@ -1,6 +1,6 @@
-// src/pages/resource/MachinePage.js
 import React, { useState, useEffect } from "react";
 import styled, { keyframes, css } from "styled-components";
+import axios from "axios";
 import {
   FaSearch,
   FaThermometerHalf,
@@ -11,71 +11,35 @@ import {
   FaTools,
   FaMicrochip,
   FaSync,
-  FaPlus, // 추가
-  FaEdit, // 추가
-  FaTrash, // 추가
-  FaTimes, // 추가
+  FaTimes,
+  FaClipboardList,
+  FaInfoCircle,
+  FaPlus,
+  FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 
-// --- Fallback Mock Data ---
-const MOCK_MACHINES = [
-  {
-    id: "EQ-PHO-01",
-    name: "Photo Stepper #01 (ASML)",
-    type: "Photo",
-    status: "RUN",
-    lotId: "LOT-DDR5-240601-A",
-    uph: 140,
-    temperature: 23.5,
-    param: "Focus: 0.05um",
-    progress: 82,
-  },
-  {
-    id: "EQ-ETC-03",
-    name: "Poly Etcher #03 (Lam)",
-    type: "Etch",
-    status: "RUN",
-    lotId: "LOT-DDR5-240601-B",
-    uph: 55,
-    temperature: 65,
-    param: "Gas: 450sccm",
-    progress: 45,
-  },
-  {
-    id: "EQ-DEP-02",
-    name: "CVD Deposition #02",
-    type: "Deposition",
-    status: "DOWN",
-    errorCode: "ERR-503: Gas Flow Low",
-    lotId: "LOT-DDR5-240601-C",
-    uph: 0,
-    temperature: 450,
-    param: "Vac: 2.1Torr",
-    progress: 12,
-  },
-  {
-    id: "EQ-EDS-01",
-    name: "EDS Tester #01 (Advantest)",
-    type: "Test",
-    status: "RUN",
-    lotId: "LOT-DDR5-TEST-09",
-    uph: 3,
-    temperature: 85,
-    param: "Yield: 98.2%",
-    progress: 98,
-  },
-];
+const API_BASE = "http://localhost:8111/api/mes";
 
 const MachinePage = () => {
-  const [machines, setMachines] = useState(MOCK_MACHINES);
-  const [loading, setLoading] = useState(false);
+  const [machines, setMachines] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // --- Modal State ---
+  // 상세 모달
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailTarget, setDetailTarget] = useState(null);
+
+  // 로그
+  const [logs, setLogs] = useState([]);
+
+  // CRUD 모달
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingMachine, setEditingMachine] = useState(null); // 수정 시 대상 객체, 추가 시 null
+  const [editingMachine, setEditingMachine] = useState(null);
   const [formData, setFormData] = useState({
+    id: "",
     name: "",
     type: "Photo",
     status: "IDLE",
@@ -83,22 +47,44 @@ const MachinePage = () => {
     uph: 0,
     temperature: 20,
     param: "-",
+    progress: 0,
+    errorCode: null,
   });
 
-  // 데이터 로딩 시뮬레이션 (최초 1회만)
-  useEffect(() => {
+  // ============================
+  // 데이터 가져오기 (DB)
+  // ============================
+  const fetchData = async () => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const res = await axios.get(`${API_BASE}/equipment/monitor`);
+      setMachines(res.data ?? []);
+    } catch (err) {
+      console.error("설비 조회 실패:", err);
+      alert("설비 데이터를 불러오지 못했습니다. (서버/포트 확인)");
+      setMachines([]);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
+  };
+
+  // 최초 로딩 + 10초마다 자동 갱신
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- CRUD Handlers ---
+  // ============================
+  // CRUD Handlers (현재는 프론트 상태만 변경)
+  // DB 연동하려면 API 연결하면 됨
+  // ============================
 
-  // 1. 추가 버튼 클릭
   const handleAddClick = () => {
-    setEditingMachine(null); // 추가 모드
+    setEditingMachine(null);
     setFormData({
+      id: "",
       name: "",
       type: "Photo",
       status: "IDLE",
@@ -106,74 +92,137 @@ const MachinePage = () => {
       uph: 0,
       temperature: 20,
       param: "-",
+      progress: 0,
+      errorCode: null,
     });
     setIsModalOpen(true);
   };
 
-  // 2. 수정 버튼 클릭
   const handleEditClick = (machine) => {
-    setEditingMachine(machine); // 수정 모드
+    setEditingMachine(machine);
     setFormData({ ...machine });
     setIsModalOpen(true);
   };
 
-  // 3. 삭제 버튼 클릭
   const handleDeleteClick = (id) => {
     if (window.confirm("Are you sure you want to delete this equipment?")) {
       setMachines((prev) => prev.filter((m) => m.id !== id));
     }
   };
 
-  // 4. 저장 (추가/수정 반영)
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name) {
       alert("Please enter machine name.");
       return;
     }
 
-    if (editingMachine) {
-      // 수정 로직
-      setMachines((prev) =>
-        prev.map((m) =>
-          m.id === editingMachine.id ? { ...formData, id: m.id } : m,
-        ),
-      );
-    } else {
-      // 추가 로직
-      const newId = `EQ-${formData.type.substring(0, 3).toUpperCase()}-${Math.floor(
-        Math.random() * 100,
-      )}`;
-      const newMachine = {
-        ...formData,
-        id: newId,
-        progress: 0, // 초기값
+    try {
+      // ✅ 신규 등록일 때만 code 생성해서 DB 저장
+      const newCode = editingMachine?.id
+        ? editingMachine.id
+        : `EQ-${formData.type.substring(0, 3).toUpperCase()}-${Math.floor(
+            Math.random() * 1000,
+          )}`;
+
+      const payload = {
+        code: newCode, // ⭐ 백엔드 Equipment.code
+        name: formData.name,
+        type: formData.type,
+        status: formData.status,
+        lotId: formData.lotId,
+        uph: formData.uph,
+        temperature: formData.temperature,
+        param: formData.param,
       };
-      setMachines((prev) => [newMachine, ...prev]);
+
+      // ✅ 신규 추가
+      if (!editingMachine) {
+        await axios.post(`${API_BASE}/equipment`, payload);
+        alert("설비가 DB에 저장되었습니다.");
+      } else {
+        // 수정은 PUT API가 있어야 가능
+        alert("수정 기능은 PUT API 연결이 필요합니다.");
+      }
+
+      setIsModalOpen(false);
+      await fetchData(); // 저장 후 DB 다시 조회해서 카드 갱신
+    } catch (err) {
+      console.error("설비 저장 실패:", err);
+      alert("DB 저장 실패! (백엔드 API 확인)");
     }
-    setIsModalOpen(false);
   };
 
-  // 모달 입력 핸들러
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]:
+        name === "uph" || name === "temperature" || name === "progress"
+          ? Number(value)
+          : value,
+    }));
   };
 
+  // ============================
   // 필터링
+  // ============================
   const filteredData = machines.filter((item) => {
     const matchStatus = filterStatus === "ALL" || item.status === filterStatus;
     const matchSearch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchTerm.toLowerCase());
+      (item.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.id ?? "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchStatus && matchSearch;
   });
 
-  // 상태 카운트 계산
+  // 상태 카운트
   const statusCounts = {
     TOTAL: machines.length,
     RUN: machines.filter((m) => m.status === "RUN").length,
     DOWN: machines.filter((m) => m.status === "DOWN").length,
     IDLE: machines.filter((m) => m.status === "IDLE").length,
+  };
+
+  // ============================
+  // 상세/로그 모달
+  // ============================
+  const openDetailModal = async (machine) => {
+    setDetailTarget(machine);
+    setDetailOpen(true);
+
+    // 임시 로그
+    const dummyLogs = [
+      {
+        time: "2026-01-20 10:22:11",
+        type: "INFO",
+        message: "Equipment monitoring started.",
+      },
+      {
+        time: "2026-01-20 10:29:40",
+        type: "RUN",
+        message: `Lot changed to ${machine.lotId ?? "-"}`,
+      },
+      {
+        time: "2026-01-20 10:35:12",
+        type: machine.status === "DOWN" ? "ALARM" : "INFO",
+        message:
+          machine.status === "DOWN"
+            ? (machine.errorCode ?? "Unknown Trouble")
+            : "Process running normally.",
+      },
+    ];
+
+    setLogs(dummyLogs);
+  };
+
+  const closeDetailModal = () => {
+    setDetailOpen(false);
+    setDetailTarget(null);
+    setLogs([]);
+  };
+
+  const closeCrudModal = () => {
+    setIsModalOpen(false);
+    setEditingMachine(null);
   };
 
   return (
@@ -187,6 +236,7 @@ const MachinePage = () => {
           <Label>Total Equipments</Label>
           <Value>{statusCounts.TOTAL}</Value>
         </SummaryItem>
+
         <SummaryItem
           onClick={() => setFilterStatus("RUN")}
           $active={filterStatus === "RUN"}
@@ -195,6 +245,7 @@ const MachinePage = () => {
           <Label>Running (Prod)</Label>
           <Value>{statusCounts.RUN}</Value>
         </SummaryItem>
+
         <SummaryItem
           onClick={() => setFilterStatus("IDLE")}
           $active={filterStatus === "IDLE"}
@@ -203,6 +254,7 @@ const MachinePage = () => {
           <Label>Idle / Standby</Label>
           <Value>{statusCounts.IDLE}</Value>
         </SummaryItem>
+
         <SummaryItem
           onClick={() => setFilterStatus("DOWN")}
           $active={filterStatus === "DOWN"}
@@ -223,10 +275,12 @@ const MachinePage = () => {
             </LoadingSpinner>
           )}
         </Title>
+
         <FilterGroup>
           <AddButton onClick={handleAddClick}>
             <FaPlus /> Add Equipment
           </AddButton>
+
           <SearchBox>
             <FaSearch color="#999" />
             <input
@@ -235,6 +289,10 @@ const MachinePage = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </SearchBox>
+
+          <RefreshBtn onClick={fetchData} title="Refresh">
+            <FaSync />
+          </RefreshBtn>
         </FilterGroup>
       </ControlSection>
 
@@ -246,6 +304,7 @@ const MachinePage = () => {
               <MachineName>
                 <FaMicrochip /> {machine.name}
               </MachineName>
+
               <HeaderActions>
                 <StatusBadge $status={machine.status}>
                   {machine.status === "RUN" && <FaPlay size={10} />}
@@ -256,13 +315,18 @@ const MachinePage = () => {
                   {machine.status === "PM" && <FaTools size={10} />}
                   <span>{machine.status}</span>
                 </StatusBadge>
-                {/* 수정/삭제 아이콘 */}
-                <ActionIcon onClick={() => handleEditClick(machine)}>
+
+                <ActionIcon
+                  onClick={() => handleEditClick(machine)}
+                  title="Edit"
+                >
                   <FaEdit />
                 </ActionIcon>
+
                 <ActionIcon
                   className="del"
                   onClick={() => handleDeleteClick(machine.id)}
+                  title="Delete"
                 >
                   <FaTrash />
                 </ActionIcon>
@@ -272,39 +336,39 @@ const MachinePage = () => {
             <CardBody>
               <InfoRow>
                 <InfoLabel>Current Lot</InfoLabel>
-                <InfoValue className="lot">{machine.lotId}</InfoValue>
+                <InfoValue className="lot">{machine.lotId ?? "-"}</InfoValue>
               </InfoRow>
 
               <MetricGrid>
                 <MetricItem>
                   <FaBolt color="#f1c40f" />
-                  <span>{machine.uph} WPH</span>
+                  <span>{machine.uph ?? 0} WPH</span>
                 </MetricItem>
                 <MetricItem>
                   <FaThermometerHalf color="#e74c3c" />
-                  <span>{machine.temperature}°C</span>
+                  <span>{machine.temperature ?? 0}°C</span>
                 </MetricItem>
               </MetricGrid>
 
               <ParamRow>
                 <ParamLabel>Main Param:</ParamLabel>
-                <ParamValue>{machine.param}</ParamValue>
+                <ParamValue>{machine.param ?? "-"}</ParamValue>
               </ParamRow>
 
               {machine.status === "DOWN" ? (
                 <ErrorBox>
-                  <FaExclamationTriangle />{" "}
+                  <FaExclamationTriangle />
                   {machine.errorCode || "Unknown Error"}
                 </ErrorBox>
               ) : (
                 <ProgressWrapper>
                   <ProgressLabel>
                     <span>Process Progress</span>
-                    <span>{machine.progress}%</span>
+                    <span>{machine.progress ?? 0}%</span>
                   </ProgressLabel>
                   <ProgressBar>
                     <ProgressFill
-                      $percent={machine.progress}
+                      $percent={machine.progress ?? 0}
                       $status={machine.status}
                     />
                   </ProgressBar>
@@ -313,107 +377,242 @@ const MachinePage = () => {
             </CardBody>
 
             <CardFooter>
-              <DetailButton>View Detail / Log</DetailButton>
+              <DetailButton onClick={() => openDetailModal(machine)}>
+                View Detail / Log
+              </DetailButton>
             </CardFooter>
           </MachineCard>
         ))}
       </GridContainer>
 
-      {/* --- Add/Edit Modal --- */}
-      {isModalOpen && (
-        <Overlay onClick={() => setIsModalOpen(false)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
+      {/* ============================
+          상세/로그 모달
+         ============================ */}
+      {detailOpen && detailTarget && (
+        <ModalOverlay onClick={closeDetailModal}>
+          <ModalBox onClick={(e) => e.stopPropagation()}>
             <ModalHeader>
-              <h3>{editingMachine ? "Edit Equipment" : "Add New Equipment"}</h3>
-              <CloseBtn onClick={() => setIsModalOpen(false)}>
+              <ModalTitle>
+                <FaInfoCircle /> {detailTarget.name}
+              </ModalTitle>
+              <CloseBtn onClick={closeDetailModal}>
                 <FaTimes />
               </CloseBtn>
             </ModalHeader>
+
             <ModalBody>
-              <FormGroup>
-                <label>Equipment Name</label>
-                <input
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Photo Stepper #05"
-                />
-              </FormGroup>
-              <FormRow>
-                <FormGroup>
-                  <label>Type</label>
-                  <select
+              <SectionTitle>
+                <FaMicrochip /> Equipment Detail
+              </SectionTitle>
+
+              <InfoGrid>
+                <InfoItem>
+                  <InfoKey>Equipment ID</InfoKey>
+                  <InfoValueText>{detailTarget.id}</InfoValueText>
+                </InfoItem>
+
+                <InfoItem>
+                  <InfoKey>Status</InfoKey>
+                  <StatusChip $status={detailTarget.status}>
+                    {detailTarget.status}
+                  </StatusChip>
+                </InfoItem>
+
+                <InfoItem>
+                  <InfoKey>Type</InfoKey>
+                  <InfoValueText>{detailTarget.type ?? "-"}</InfoValueText>
+                </InfoItem>
+
+                <InfoItem>
+                  <InfoKey>Current Lot</InfoKey>
+                  <InfoValueText className="mono">
+                    {detailTarget.lotId ?? "-"}
+                  </InfoValueText>
+                </InfoItem>
+
+                <InfoItem>
+                  <InfoKey>UPH</InfoKey>
+                  <InfoValueText>{detailTarget.uph ?? 0}</InfoValueText>
+                </InfoItem>
+
+                <InfoItem>
+                  <InfoKey>Temperature</InfoKey>
+                  <InfoValueText>
+                    {detailTarget.temperature ?? 0}°C
+                  </InfoValueText>
+                </InfoItem>
+
+                <InfoItem style={{ gridColumn: "1 / -1" }}>
+                  <InfoKey>Main Param</InfoKey>
+                  <InfoValueText>{detailTarget.param ?? "-"}</InfoValueText>
+                </InfoItem>
+              </InfoGrid>
+
+              {detailTarget.status === "DOWN" && (
+                <DownAlarmBox>
+                  <FaExclamationTriangle />
+                  <span>{detailTarget.errorCode ?? "Trouble Detected"}</span>
+                </DownAlarmBox>
+              )}
+
+              <SectionTitle style={{ marginTop: 18 }}>
+                <FaClipboardList /> Recent Logs
+              </SectionTitle>
+
+              <LogTable>
+                <thead>
+                  <tr>
+                    <th width="170">Time</th>
+                    <th width="90">Type</th>
+                    <th>Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {logs.length > 0 ? (
+                    logs.map((log, idx) => (
+                      <tr key={idx}>
+                        <td className="mono">{log.time}</td>
+                        <td>
+                          <LogTypeBadge $type={log.type}>
+                            {log.type}
+                          </LogTypeBadge>
+                        </td>
+                        <td>{log.message}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="3"
+                        style={{ textAlign: "center", color: "#999" }}
+                      >
+                        No logs found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </LogTable>
+            </ModalBody>
+
+            <ModalFooter>
+              <ModalBtn className="close" onClick={closeDetailModal}>
+                Close
+              </ModalBtn>
+            </ModalFooter>
+          </ModalBox>
+        </ModalOverlay>
+      )}
+
+      {/* ============================
+          Add/Edit 모달
+         ============================ */}
+      {isModalOpen && (
+        <ModalOverlay onClick={closeCrudModal}>
+          <ModalBox onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>
+                <FaTools />
+                {editingMachine ? "Edit Equipment" : "Add Equipment"}
+              </ModalTitle>
+              <CloseBtn onClick={closeCrudModal}>
+                <FaTimes />
+              </CloseBtn>
+            </ModalHeader>
+
+            <ModalBody>
+              <SectionTitle>
+                <FaMicrochip /> Equipment Form
+              </SectionTitle>
+
+              <FormGrid>
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormInput
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Equipment name"
+                  />
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Type</FormLabel>
+                  <FormSelect
                     name="type"
                     value={formData.type}
                     onChange={handleInputChange}
                   >
                     <option value="Photo">Photo</option>
                     <option value="Etch">Etch</option>
-                    <option value="Deposition">Deposition</option>
-                    <option value="Test">Test</option>
+                    <option value="Diffusion">Diffusion</option>
                     <option value="CMP">CMP</option>
-                  </select>
-                </FormGroup>
-                <FormGroup>
-                  <label>Status</label>
-                  <select
+                    <option value="Test">Test</option>
+                  </FormSelect>
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Status</FormLabel>
+                  <FormSelect
                     name="status"
                     value={formData.status}
                     onChange={handleInputChange}
                   >
-                    <option value="IDLE">IDLE</option>
                     <option value="RUN">RUN</option>
+                    <option value="IDLE">IDLE</option>
                     <option value="DOWN">DOWN</option>
                     <option value="PM">PM</option>
-                  </select>
-                </FormGroup>
-              </FormRow>
-              <FormGroup>
-                <label>Current Lot ID</label>
-                <input
-                  name="lotId"
-                  value={formData.lotId}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              <FormRow>
-                <FormGroup>
-                  <label>UPH (WPH)</label>
-                  <input
+                  </FormSelect>
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Lot ID</FormLabel>
+                  <FormInput
+                    name="lotId"
+                    value={formData.lotId}
+                    onChange={handleInputChange}
+                    placeholder="LOT-..."
+                  />
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>UPH</FormLabel>
+                  <FormInput
                     type="number"
                     name="uph"
                     value={formData.uph}
                     onChange={handleInputChange}
                   />
-                </FormGroup>
-                <FormGroup>
-                  <label>Temp (°C)</label>
-                  <input
+                </FormItem>
+
+                <FormItem>
+                  <FormLabel>Temperature</FormLabel>
+                  <FormInput
                     type="number"
                     name="temperature"
                     value={formData.temperature}
                     onChange={handleInputChange}
                   />
-                </FormGroup>
-              </FormRow>
-              <FormGroup>
-                <label>Main Parameter</label>
-                <input
-                  name="param"
-                  value={formData.param}
-                  onChange={handleInputChange}
-                  placeholder="e.g. Focus: 0.05um"
-                />
-              </FormGroup>
+                </FormItem>
+
+                <FormItem style={{ gridColumn: "1 / -1" }}>
+                  <FormLabel>Main Param</FormLabel>
+                  <FormInput
+                    name="param"
+                    value={formData.param}
+                    onChange={handleInputChange}
+                    placeholder="ex) Pressure=3.2Torr"
+                  />
+                </FormItem>
+              </FormGrid>
             </ModalBody>
+
             <ModalFooter>
-              <CancelBtn onClick={() => setIsModalOpen(false)}>
-                Cancel
-              </CancelBtn>
-              <SaveBtn onClick={handleSave}>Save Changes</SaveBtn>
+              <ModalBtn className="close" onClick={handleSave}>
+                Save
+              </ModalBtn>
             </ModalFooter>
-          </ModalContent>
-        </Overlay>
+          </ModalBox>
+        </ModalOverlay>
       )}
     </Container>
   );
@@ -421,7 +620,9 @@ const MachinePage = () => {
 
 export default MachinePage;
 
-// --- Styled Components ---
+/* ===========================
+   Styled Components
+=========================== */
 
 const Container = styled.div`
   width: 100%;
@@ -440,6 +641,7 @@ const SummaryBar = styled.div`
   margin-bottom: 20px;
   flex-shrink: 0;
 `;
+
 const SummaryItem = styled.div`
   flex: 1;
   background: white;
@@ -451,16 +653,19 @@ const SummaryItem = styled.div`
   transition: all 0.2s;
   opacity: ${(props) => (props.$active ? 1 : 0.6)};
   transform: ${(props) => (props.$active ? "translateY(-2px)" : "none")};
+
   &:hover {
     opacity: 1;
     transform: translateY(-2px);
   }
 `;
+
 const Label = styled.div`
   font-size: 12px;
   color: #888;
   margin-bottom: 5px;
 `;
+
 const Value = styled.div`
   font-size: 24px;
   font-weight: 800;
@@ -474,6 +679,7 @@ const ControlSection = styled.div`
   margin-bottom: 20px;
   flex-shrink: 0;
 `;
+
 const Title = styled.h2`
   font-size: 20px;
   color: #333;
@@ -482,12 +688,15 @@ const Title = styled.h2`
   align-items: center;
   gap: 10px;
 `;
+
 const LoadingSpinner = styled.span`
   font-size: 16px;
   color: #1a4f8b;
+
   .spin {
     animation: spin 1s linear infinite;
   }
+
   @keyframes spin {
     100% {
       transform: rotate(360deg);
@@ -499,6 +708,7 @@ const FilterGroup = styled.div`
   display: flex;
   gap: 10px;
 `;
+
 const AddButton = styled.button`
   background-color: #1a4f8b;
   color: white;
@@ -510,10 +720,12 @@ const AddButton = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
+
   &:hover {
     background-color: #153e6d;
   }
 `;
+
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -521,11 +733,28 @@ const SearchBox = styled.div`
   padding: 8px 15px;
   border-radius: 20px;
   border: 1px solid #ddd;
+
   input {
     border: none;
     outline: none;
     margin-left: 10px;
     font-size: 14px;
+  }
+`;
+
+const RefreshBtn = styled.button`
+  background: white;
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+
+  &:hover {
+    background: #f9f9f9;
   }
 `;
 
@@ -551,11 +780,13 @@ const MachineCard = styled.div`
   flex-direction: column;
   transition: transform 0.2s;
   border: 1px solid #eee;
+
   ${(props) =>
     props.$status === "DOWN" &&
     css`
       animation: ${blink} 1.5s infinite;
     `}
+
   &:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
@@ -597,9 +828,11 @@ const ActionIcon = styled.div`
   cursor: pointer;
   color: #666;
   font-size: 14px;
+
   &:hover {
     color: #1a4f8b;
   }
+
   &.del:hover {
     color: #e74c3c;
   }
@@ -632,19 +865,23 @@ const CardBody = styled.div`
   flex-direction: column;
   gap: 15px;
 `;
+
 const InfoRow = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
 `;
+
 const InfoLabel = styled.span`
   font-size: 13px;
   color: #888;
 `;
+
 const InfoValue = styled.span`
   font-size: 14px;
   color: #333;
   font-weight: 600;
+
   &.lot {
     color: #1a4f8b;
     font-family: monospace;
@@ -659,6 +896,7 @@ const MetricGrid = styled.div`
   padding: 10px;
   border-radius: 8px;
 `;
+
 const MetricItem = styled.div`
   display: flex;
   align-items: center;
@@ -674,9 +912,11 @@ const ParamRow = styled.div`
   font-size: 13px;
   margin-top: -5px;
 `;
+
 const ParamLabel = styled.span`
   color: #888;
 `;
+
 const ParamValue = styled.span`
   color: #555;
   font-weight: 600;
@@ -702,12 +942,14 @@ const ProgressWrapper = styled.div`
   flex-direction: column;
   gap: 5px;
 `;
+
 const ProgressLabel = styled.div`
   display: flex;
   justify-content: space-between;
   font-size: 12px;
   color: #666;
 `;
+
 const ProgressBar = styled.div`
   width: 100%;
   height: 6px;
@@ -715,6 +957,7 @@ const ProgressBar = styled.div`
   border-radius: 3px;
   overflow: hidden;
 `;
+
 const ProgressFill = styled.div`
   width: ${(props) => props.$percent}%;
   height: 100%;
@@ -728,6 +971,7 @@ const CardFooter = styled.div`
   border-top: 1px solid #eee;
   text-align: center;
 `;
+
 const DetailButton = styled.button`
   width: 100%;
   padding: 8px 0;
@@ -738,6 +982,7 @@ const DetailButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+
   &:hover {
     background: #1a4f8b;
     color: white;
@@ -745,108 +990,267 @@ const DetailButton = styled.button`
   }
 `;
 
-// --- Modal Styles ---
-const Overlay = styled.div`
+/* ===========================
+   Modal
+=========================== */
+
+const ModalOverlay = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 1000;
+  justify-content: center;
+  z-index: 9999;
 `;
-const ModalContent = styled.div`
+
+const ModalBox = styled.div`
+  width: 760px;
+  max-width: calc(100vw - 40px);
   background: white;
-  width: 450px;
-  border-radius: 8px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
+  max-height: 90vh;
 `;
+
 const ModalHeader = styled.div`
-  padding: 20px;
-  border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  h3 {
-    margin: 0;
-    color: #333;
-    font-size: 18px;
-  }
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
 `;
-const CloseBtn = styled.button`
-  background: transparent;
-  border: none;
+
+const ModalTitle = styled.h3`
+  margin: 0;
   font-size: 18px;
+  font-weight: 800;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const CloseBtn = styled.button`
+  border: none;
+  background: transparent;
   cursor: pointer;
-  color: #999;
+  font-size: 18px;
+  color: #888;
+
   &:hover {
     color: #333;
   }
 `;
+
 const ModalBody = styled.div`
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  padding: 14px 0;
+  overflow-y: auto;
 `;
-const FormRow = styled.div`
+
+const SectionTitle = styled.div`
+  font-size: 13px;
+  font-weight: 800;
+  color: #1a4f8b;
+  margin-bottom: 10px;
   display: flex;
-  gap: 15px;
+  align-items: center;
+  gap: 8px;
 `;
-const FormGroup = styled.div`
-  flex: 1;
+
+const InfoGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+`;
+
+const InfoItem = styled.div`
+  background: #f9fafb;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  padding: 12px;
+`;
+
+const InfoKey = styled.div`
+  font-size: 11px;
+  color: #888;
+  font-weight: 700;
+  margin-bottom: 6px;
+`;
+
+const InfoValueText = styled.div`
+  font-size: 14px;
+  color: #333;
+  font-weight: 700;
+
+  &.mono {
+    font-family: monospace;
+    color: #1a4f8b;
+  }
+`;
+
+const StatusChip = styled.div`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  width: fit-content;
+
+  background: ${(props) =>
+    props.$status === "RUN"
+      ? "#e8f5e9"
+      : props.$status === "DOWN"
+        ? "#ffebee"
+        : props.$status === "IDLE"
+          ? "#fff8e1"
+          : "#eee"};
+
+  color: ${(props) =>
+    props.$status === "RUN"
+      ? "#2ecc71"
+      : props.$status === "DOWN"
+        ? "#e74c3c"
+        : props.$status === "IDLE"
+          ? "#f1c40f"
+          : "#777"};
+`;
+
+const DownAlarmBox = styled.div`
+  margin-top: 12px;
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  color: #c62828;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 800;
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  label {
-    font-size: 13px;
-    font-weight: 600;
+  align-items: center;
+  gap: 10px;
+`;
+
+const LogTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 13px;
+
+  th {
+    text-align: left;
+    background: #f3f4f6;
+    padding: 10px;
     color: #555;
+    font-size: 12px;
+    border-bottom: 1px solid #eee;
   }
-  input,
-  select {
-    padding: 8px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-    outline: none;
-    &:focus {
-      border-color: #1a4f8b;
-    }
+
+  td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    color: #333;
+    vertical-align: middle;
+  }
+
+  .mono {
+    font-family: monospace;
+    color: #444;
   }
 `;
+
+const LogTypeBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+
+  background: ${(props) =>
+    props.$type === "ALARM"
+      ? "#ffebee"
+      : props.$type === "RUN"
+        ? "#e8f5e9"
+        : "#eef2ff"};
+
+  color: ${(props) =>
+    props.$type === "ALARM"
+      ? "#c62828"
+      : props.$type === "RUN"
+        ? "#2e7d32"
+        : "#3f51b5"};
+`;
+
 const ModalFooter = styled.div`
-  padding: 20px;
+  padding-top: 12px;
   border-top: 1px solid #eee;
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
 `;
-const CancelBtn = styled.button`
-  background: #f5f5f5;
-  border: 1px solid #ddd;
-  padding: 8px 16px;
-  border-radius: 4px;
+
+const ModalBtn = styled.button`
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 800;
   cursor: pointer;
-  color: #666;
+
+  &.close {
+    background: #1a4f8b;
+    color: white;
+  }
+
   &:hover {
-    background: #eee;
+    opacity: 0.9;
   }
 `;
-const SaveBtn = styled.button`
-  background: #1a4f8b;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: white;
-  font-weight: 600;
-  &:hover {
-    background: #153e6d;
+
+/* CRUD Form */
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+`;
+
+const FormItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const FormLabel = styled.div`
+  font-size: 12px;
+  font-weight: 800;
+  color: #666;
+`;
+
+const FormInput = styled.input`
+  height: 38px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0 12px;
+  outline: none;
+
+  &:focus {
+    border-color: #1a4f8b;
+  }
+`;
+
+const FormSelect = styled.select`
+  height: 38px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0 12px;
+  outline: none;
+  background: white;
+
+  &:focus {
+    border-color: #1a4f8b;
   }
 `;
