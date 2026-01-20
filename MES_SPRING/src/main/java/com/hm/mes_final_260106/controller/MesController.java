@@ -158,6 +158,19 @@ public class MesController {
                 productionService.getPerformanceSummary(date, line)
         );
     }
+    // 시간대별 생산 실적 차트 데이터
+    @GetMapping("/performance/hourly")
+    public ResponseEntity<List<HourlyPerformanceResDto>> getHourlyPerformance(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date,
+            @RequestParam(defaultValue = "ALL") String line
+    ) {
+        return ResponseEntity.ok(
+                productionService.getHourlyPerformance(date, line)
+        );
+    }
+
 
 
 

@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.dto.HourlyPerformanceResDto;
 import com.hm.mes_final_260106.dto.PerformanceSummaryResDto;
 import com.hm.mes_final_260106.entity.Bom;
 import com.hm.mes_final_260106.entity.Material;
@@ -44,6 +45,8 @@ public class ProductionService {
     private final MoldingRepository moldingRepo;
     private final MoldingInspectionRepository moldingInspectionRepo;
     private final FinalInspectionLogRepository finalInspectionLogRepo;
+    private final ProductionResultRepository productionResultRepo;
+
 
     private final Mapper mapper;
 
@@ -369,12 +372,12 @@ public class ProductionService {
     private String generateSerial(String productId) {
         return productId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
-
+// 생산실적현황 서비스
     @Transactional(readOnly = true)
     public PerformanceSummaryResDto getPerformanceSummary(LocalDate date, String line) {
 
         // ✅ 수정: Repository에서 DTO를 바로 받으므로 캐스팅/배열처리 하면 안됨
-        PerformanceSummaryResDto dto = productionResultRepository.getSummary(date, line);
+        PerformanceSummaryResDto dto = productionResultRepo.getSummary(date, line);
 
         // ✅ 추가: 혹시 null 방어 (데이터 없을 때)
         if (dto == null) {
@@ -383,6 +386,22 @@ public class ProductionService {
 
         return dto;
     }
+    @Transactional(readOnly = true)
+    public List<HourlyPerformanceResDto> getHourlyPerformance(LocalDate date, String line) {
+        // 1. Repository에서 Native Query 실행 (Object[] 리스트 반환)
+        List<Object[]> results = productionResultRepo.getHourlyNative(date, line);
+
+        // 2. Object[]를 DTO로 변환
+        return results.stream()
+                .map(result -> new HourlyPerformanceResDto(
+                        (String) result[0],                      // time
+                        ((Number) result[1]).longValue(),        // plan
+                        ((Number) result[2]).longValue(),        // actual
+                        ((Number) result[3]).longValue()         // scrap
+                ))
+                .collect(Collectors.toList());
+    }
+
 
 
 

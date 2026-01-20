@@ -129,16 +129,13 @@ const PerformancePage = () => {
       });
 
       // ⚠️ 차트/리스트는 현재 MOCK 유지 (원하면 다음 단계에서 DB 연동 가능)
-      setTimeout(() => {
-        setHourlyData(MOCK_HOURLY);
-        setListData(MOCK_LIST);
-        setLoading(false);
-      }, 300);
+      const resHourly = await axios.get(`${API_BASE}/performance/hourly`, {
+        params: { date, line: selectedLine },
+      });
+
+      setHourlyData(resHourly.data ?? []);
     } catch (err) {
       console.error(err);
-       console.log("❌ API ERROR STATUS:", err?.response?.status);
-  console.log("❌ API ERROR DATA:", err?.response?.data);
-  console.log("❌ API ERROR MSG:", err.message);
 
       // ✅ 추가/수정: 서버 실패 시 KPI는 0으로 fallback
       setSummary({
@@ -192,15 +189,15 @@ const PerformancePage = () => {
           </DateInput>
           <SelectWrapper>
             <FaFilter color="#666" style={{ marginLeft: 10 }} />
-           <Select
-  value={selectedLine}
-  onChange={(e) => setSelectedLine(e.target.value)}
->
-  <option value="ALL">All Lines</option>
-  <option value="Fab-Line-A">Fab-Line-A</option>      {/* ✅ 수정 */}
-  <option value="EDS-Line-01">EDS-Line-01</option>    {/* ✅ 수정 */}
-  <option value="Mod-Line-C">Mod-Line-C</option>      {/* ✅ 수정 */}
-</Select>
+            <Select
+              value={selectedLine}
+              onChange={(e) => setSelectedLine(e.target.value)}
+            >
+              <option value="ALL">All Lines</option>
+              <option value="Fab-Line-A">Fab-Line-A</option> {/* ✅ 수정 */}
+              <option value="EDS-Line-01">EDS-Line-01</option> {/* ✅ 수정 */}
+              <option value="Mod-Line-C">Mod-Line-C</option> {/* ✅ 수정 */}
+            </Select>
           </SelectWrapper>
           <ExportButton>
             <FaFileDownload /> Export
@@ -295,7 +292,7 @@ const PerformancePage = () => {
                 yAxisId="left"
                 dataKey="plan"
                 name="Plan"
-                fill="#e0e0e0"
+                fill="#a79d9d"
                 barSize={20}
               />
               <Bar
@@ -349,7 +346,9 @@ const PerformancePage = () => {
                       {row.lossQty > 0 ? row.lossQty.toLocaleString() : "-"}
                     </td>
                     <td>
-                      <StatusBadge $status={row.status}>{row.status}</StatusBadge>
+                      <StatusBadge $status={row.status}>
+                        {row.status}
+                      </StatusBadge>
                     </td>
                   </tr>
                 ))}
