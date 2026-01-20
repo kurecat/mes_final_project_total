@@ -32,7 +32,6 @@ namespace L1_MachineSim
 
         Item = 0x3A,
         FinalInspection = 0x3B,
-
     }
 
     class Program
@@ -372,8 +371,6 @@ namespace L1_MachineSim
                         procType = DtoType.Processing;
                     }
 
-                    if (step > 0) step++;
-
                     if (procType != DtoType.Sleep && procType != DtoType.Processing)
                     {
                         // 패킷 조립 및 전송 (공통 로직)
@@ -387,6 +384,8 @@ namespace L1_MachineSim
                         if (!string.IsNullOrEmpty(logMessage))
                             Console.WriteLine(logMessage);
                     }
+
+                    if (step > 0) step++;
                 }
             }
         }
