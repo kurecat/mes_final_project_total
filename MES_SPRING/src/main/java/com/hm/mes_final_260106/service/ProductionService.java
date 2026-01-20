@@ -47,7 +47,8 @@ public class ProductionService {
     private final WireBondingInspectionRepository wireBondingInspectionRepo;
     private final MoldingRepository moldingRepo;
     private final MoldingInspectionRepository moldingInspectionRepo;
-    private final FinalInspectionLogRepository finalInspectionLogRepo;
+    private final ItemRepository itemRepo;
+    private final FinalInspectionLogRepository finalInspectionLRepo;
     private final ProductionResultRepository productionResultRepo;
 
 
@@ -262,7 +263,7 @@ public class ProductionService {
     @Transactional
     public void reportProduction(ProductionReportDto dto) {
         log.info("reportProduction 실행 : {}", dto.getWorkOrderId());
-        log.info("{}", dto);
+        log.info("{}", dto.getItemDtos());
         Long orderId = dto.getWorkOrderId();
 
         // 지시 정보 확인
@@ -310,6 +311,7 @@ public class ProductionService {
 
             FinalInspection finalInspection = mapper.toEntity(dto.getFinalInspectionDtos().get(i));
             finalInspection.setProductionLog(productionLog);
+            finalInspection.setItem(item);
             finalInspections.add(finalInspection);
         }
 
@@ -322,10 +324,11 @@ public class ProductionService {
         wireBondingInspection = wireBondingInspectionRepo.save(wireBondingInspection);
         molding = moldingRepo.save(molding);
         moldingInspection = moldingInspectionRepo.save(moldingInspection);
-        finalInspections = finalInspectionLogRepo.saveAll(finalInspections);
+        items = itemRepo.saveAll(items);
+        finalInspections = finalInspectionLRepo.saveAll(finalInspections);
 
         if (true) {
-            List<Bom> boms = bomRepo.findAllByProductId(order.getProductId());
+            List<Bom> boms = bomRepo.findAllByProductCode(order.getProductId());
             for (Bom bom : boms) {
                 Material mat = bom.getMaterial();
                 int required = bom.getRequiredQty();
