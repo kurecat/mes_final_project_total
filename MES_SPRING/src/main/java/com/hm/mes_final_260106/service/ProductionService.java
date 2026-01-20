@@ -37,6 +37,7 @@ public class ProductionService {
     private final WorkerRepository workerRepo;
     private final PasswordEncoder passwordEncoder;
 
+    private final ProductRepository productRepo;
 
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
@@ -260,14 +261,19 @@ public class ProductionService {
     // =========================
     @Transactional
     public void reportProduction(ProductionReportDto dto) {
-
+        log.info("reportProduction 실행 : {}", dto.getWorkOrderId());
+        log.info("{}", dto);
         Long orderId = dto.getWorkOrderId();
 
         // 지시 정보 확인
-        WorkOrder order = orderRepo.findById(orderId).
-                orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+        WorkOrder order = orderRepo.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+
+        Product product = productRepo.findByCode(order.getProductId())
+                .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다. ID: " + order.getProductId()));
 
         ProductionLog productionLog = mapper.toEntity(dto);
+        productionLog.setWorkOrder(order);
 
         Dicing dicing = mapper.toEntity(dto.getDicingDto());
         dicing.setProductionLog(productionLog);
@@ -294,8 +300,15 @@ public class ProductionService {
         moldingInspection.setMolding(molding);
 
         List<FinalInspection> finalInspections = new ArrayList<>();
-        for (FinalInspectionDto inspDto : dto.getFinalInspectionDtos()) {
-            FinalInspection finalInspection = mapper.toEntity(inspDto);
+        List<Item> items = new ArrayList<>();
+
+        for (int i = 0; i < dto.getItemDtos().size(); i++) {
+            Item item = mapper.toEntity(dto.getItemDtos().get(i));
+            item.setWorkOrder(order);
+            item.setProduct(product);
+            items.add(item);
+
+            FinalInspection finalInspection = mapper.toEntity(dto.getFinalInspectionDtos().get(i));
             finalInspection.setProductionLog(productionLog);
             finalInspections.add(finalInspection);
         }

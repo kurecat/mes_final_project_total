@@ -1,6 +1,5 @@
 public class FinalInspectionDto
 {
-    public string? SerialNumber { get; set; }
     public string? Electrical { get; set; }
     public string? Reliability { get; set; }
     public string? Visual { get; set; }
@@ -14,13 +13,6 @@ public class FinalInspectionDto
 
         // 문자열 처리: 길이(int) → UTF8 디코딩
         int strLen = BitConverter.ToInt16(payload, offset); offset += 2;
-        if (strLen > 0)
-        {
-            dto.SerialNumber = System.Text.Encoding.UTF8.GetString(payload, offset, strLen);
-            offset += strLen;
-        }
-
-        strLen = BitConverter.ToInt16(payload, offset); offset += 2;
         if (strLen > 0)
         {
             dto.Electrical = System.Text.Encoding.UTF8.GetString(payload, offset, strLen);

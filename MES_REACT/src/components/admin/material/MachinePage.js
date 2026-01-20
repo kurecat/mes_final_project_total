@@ -1,7 +1,6 @@
 // src/pages/resource/MachinePage.js
 import React, { useState, useEffect } from "react";
 import styled, { keyframes, css } from "styled-components";
-import axios from "axios";
 import {
   FaSearch,
   FaThermometerHalf,
@@ -15,6 +14,10 @@ import {
   FaTimes,
   FaClipboardList,
   FaInfoCircle,
+  FaPlus, // 추가
+  FaEdit, // 추가
+  FaTrash, // 추가
+  FaTimes, // 추가
 } from "react-icons/fa";
 
 const API_BASE = "http://localhost:8111/api/mes";
@@ -34,7 +37,12 @@ const MachinePage = () => {
 
   // 데이터 가져오기
   const fetchData = async () => {
+  // 데이터 로딩 시뮬레이션 (최초 1회만)
+  useEffect(() => {
     setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+    }, 500);
     try {
       const res = await axios.get(`${API_BASE}/equipment/monitor`);
       setMachines(res.data ?? []);
@@ -52,6 +60,72 @@ const MachinePage = () => {
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // --- CRUD Handlers ---
+
+  // 1. 추가 버튼 클릭
+  const handleAddClick = () => {
+    setEditingMachine(null); // 추가 모드
+    setFormData({
+      name: "",
+      type: "Photo",
+      status: "IDLE",
+      lotId: "-",
+      uph: 0,
+      temperature: 20,
+      param: "-",
+    });
+    setIsModalOpen(true);
+  };
+
+  // 2. 수정 버튼 클릭
+  const handleEditClick = (machine) => {
+    setEditingMachine(machine); // 수정 모드
+    setFormData({ ...machine });
+    setIsModalOpen(true);
+  };
+
+  // 3. 삭제 버튼 클릭
+  const handleDeleteClick = (id) => {
+    if (window.confirm("Are you sure you want to delete this equipment?")) {
+      setMachines((prev) => prev.filter((m) => m.id !== id));
+    }
+  };
+
+  // 4. 저장 (추가/수정 반영)
+  const handleSave = () => {
+    if (!formData.name) {
+      alert("Please enter machine name.");
+      return;
+    }
+
+    if (editingMachine) {
+      // 수정 로직
+      setMachines((prev) =>
+        prev.map((m) =>
+          m.id === editingMachine.id ? { ...formData, id: m.id } : m,
+        ),
+      );
+    } else {
+      // 추가 로직
+      const newId = `EQ-${formData.type.substring(0, 3).toUpperCase()}-${Math.floor(
+        Math.random() * 100,
+      )}`;
+      const newMachine = {
+        ...formData,
+        id: newId,
+        progress: 0, // 초기값
+      };
+      setMachines((prev) => [newMachine, ...prev]);
+    }
+    setIsModalOpen(false);
+  };
+
+  // 모달 입력 핸들러
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   // 필터링
   const filteredData = machines.filter((item) => {
@@ -162,6 +236,9 @@ const MachinePage = () => {
         </Title>
 
         <FilterGroup>
+          <AddButton onClick={handleAddClick}>
+            <FaPlus /> Add Equipment
+          </AddButton>
           <SearchBox>
             <FaSearch color="#999" />
             <input
@@ -185,16 +262,27 @@ const MachinePage = () => {
               <MachineName>
                 <FaMicrochip /> {machine.name}
               </MachineName>
-
-              <StatusBadge $status={machine.status}>
-                {machine.status === "RUN" && <FaPlay size={10} />}
-                {machine.status === "IDLE" && <FaStop size={10} />}
-                {machine.status === "DOWN" && (
-                  <FaExclamationTriangle size={10} />
-                )}
-                {machine.status === "PM" && <FaTools size={10} />}
-                <span>{machine.status}</span>
-              </StatusBadge>
+              <HeaderActions>
+                <StatusBadge $status={machine.status}>
+                  {machine.status === "RUN" && <FaPlay size={10} />}
+                  {machine.status === "IDLE" && <FaStop size={10} />}
+                  {machine.status === "DOWN" && (
+                    <FaExclamationTriangle size={10} />
+                  )}
+                  {machine.status === "PM" && <FaTools size={10} />}
+                  <span>{machine.status}</span>
+                </StatusBadge>
+                {/* 수정/삭제 아이콘 */}
+                <ActionIcon onClick={() => handleEditClick(machine)}>
+                  <FaEdit />
+                </ActionIcon>
+                <ActionIcon
+                  className="del"
+                  onClick={() => handleDeleteClick(machine.id)}
+                >
+                  <FaTrash />
+                </ActionIcon>
+              </HeaderActions>
             </CardHeader>
 
             <CardBody>
@@ -221,7 +309,8 @@ const MachinePage = () => {
 
               {machine.status === "DOWN" ? (
                 <ErrorBox>
-                  <FaExclamationTriangle /> {machine.errorCode ?? "ERROR"}
+                  <FaExclamationTriangle />{" "}
+                  {machine.errorCode || "Unknown Error"}
                 </ErrorBox>
               ) : (
                 <ProgressWrapper>
@@ -462,7 +551,21 @@ const FilterGroup = styled.div`
   display: flex;
   gap: 10px;
 `;
-
+const AddButton = styled.button`
+  background-color: #1a4f8b;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  &:hover {
+    background-color: #153e6d;
+  }
+`;
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -555,6 +658,25 @@ const MachineName = styled.div`
   font-size: 15px;
 `;
 
+
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const ActionIcon = styled.div`
+  cursor: pointer;
+  color: #666;
+  font-size: 14px;
+  &:hover {
+    color: #1a4f8b;
+  }
+  &.del:hover {
+    color: #e74c3c;
+  }
+`;
+
 const StatusBadge = styled.div`
   display: flex;
   align-items: center;
@@ -564,6 +686,7 @@ const StatusBadge = styled.div`
   padding: 4px 10px;
   border-radius: 20px;
   background: white;
+  margin-right: 5px;
   color: ${(props) =>
     props.$status === "RUN"
       ? "#2ecc71"
