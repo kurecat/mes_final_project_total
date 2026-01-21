@@ -33,11 +33,11 @@ public class ProductionService {
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
+    private final ProductRepository productRepo;
+
     private final MemberRepository memberRepo;
     private final WorkerRepository workerRepo;
     private final PasswordEncoder passwordEncoder;
-
-    private final ProductRepository productRepo;
 
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
@@ -300,8 +300,8 @@ public class ProductionService {
         MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
         moldingInspection.setMolding(molding);
 
-        List<FinalInspection> finalInspections = new ArrayList<>();
         List<Item> items = new ArrayList<>();
+        List<FinalInspection> finalInspections = new ArrayList<>();
 
         for (int i = 0; i < dto.getItemDtos().size(); i++) {
             Item item = mapper.toEntity(dto.getItemDtos().get(i));
@@ -327,22 +327,18 @@ public class ProductionService {
         items = itemRepo.saveAll(items);
         finalInspections = finalInspectionLRepo.saveAll(finalInspections);
 
-        if (true) {
-            List<Bom> boms = bomRepo.findAllByProductCode(order.getProductId());
-            for (Bom bom : boms) {
-                Material mat = bom.getMaterial();
-                int required = bom.getRequiredQty();
-                int current = mat.getCurrentStock();
+        List<Bom> boms = bomRepo.findAllByProductCode(order.getProductId());
+        for (Bom bom : boms) {
+            Material mat = bom.getMaterial();
+            int required = bom.getRequiredQty();
+            int current = mat.getCurrentStock();
 
-                if (current < required) {
-                    throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:" + mat.getName());
-                }
-
-                mat.setCurrentStock(current - required);
-                log.info("[Backflushing] 자재: {}, 차감후 재고: {}", mat.getName(), mat.getCurrentStock());
+            if (current < required) {
+                throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:" + mat.getName());
             }
-        } else {
-            log.info("생산 불량(NG) -> 자재 차감 하지 않음");
+
+            mat.setCurrentStock(current - required);
+            log.info("[Backflushing] 자재: {}, 차감후 재고: {}", mat.getName(), mat.getCurrentStock());
         }
 
         // 수량 증가
