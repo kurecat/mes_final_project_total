@@ -104,9 +104,18 @@ const MachinePage = () => {
     setIsModalOpen(true);
   };
 
-  const handleDeleteClick = (id) => {
-    if (window.confirm("Are you sure you want to delete this equipment?")) {
-      setMachines((prev) => prev.filter((m) => m.id !== id));
+  const handleDeleteClick = async (id) => {
+    console.log("삭제 클릭 값 =", id, "type =", typeof id);
+    if (!window.confirm("Are you sure you want to delete this equipment?"))
+      return;
+
+    try {
+      await axios.delete(`${API_BASE}/equipment/${id}`);
+      alert("설비가 삭제되었습니다.");
+      await fetchData(); // DB 기준으로 다시 조회해서 화면 갱신
+    } catch (err) {
+      console.error("설비 삭제 실패:", err);
+      alert("삭제 실패! (백엔드 DELETE API 확인)");
     }
   };
 
@@ -117,15 +126,15 @@ const MachinePage = () => {
     }
 
     try {
-      // ✅ 신규 등록일 때만 code 생성해서 DB 저장
+      // 신규 등록일 때만 code 생성
       const newCode = editingMachine?.id
-        ? editingMachine.id
+        ? (formData.code ?? editingMachine.code) // 수정이면 기존 code 유지
         : `EQ-${formData.type.substring(0, 3).toUpperCase()}-${Math.floor(
             Math.random() * 1000,
           )}`;
 
       const payload = {
-        code: newCode, // ⭐ 백엔드 Equipment.code
+        code: newCode,
         name: formData.name,
         type: formData.type,
         status: formData.status,
@@ -140,8 +149,9 @@ const MachinePage = () => {
         await axios.post(`${API_BASE}/equipment`, payload);
         alert("설비가 DB에 저장되었습니다.");
       } else {
-        // 수정은 PUT API가 있어야 가능
-        alert("수정 기능은 PUT API 연결이 필요합니다.");
+        // ✅ 수정 저장 (PUT API 호출)
+        await axios.put(`${API_BASE}/equipment/${editingMachine.id}`, payload);
+        alert("설비 정보가 수정되어 DB에 저장되었습니다.");
       }
 
       setIsModalOpen(false);
@@ -170,7 +180,7 @@ const MachinePage = () => {
     const matchStatus = filterStatus === "ALL" || item.status === filterStatus;
     const matchSearch =
       (item.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.id ?? "").toLowerCase().includes(searchTerm.toLowerCase());
+      (item.code ?? "").toLowerCase().includes(searchTerm.toLowerCase());
     return matchStatus && matchSearch;
   });
 
@@ -325,7 +335,16 @@ const MachinePage = () => {
 
                 <ActionIcon
                   className="del"
-                  onClick={() => handleDeleteClick(machine.id)}
+                  onClick={() => {
+                    console.log("machine 객체 =", machine);
+                    console.log("machine.id =", machine.id, typeof machine.id);
+                    console.log(
+                      "machine.code =",
+                      machine.code,
+                      typeof machine.code,
+                    );
+                    handleDeleteClick(machine.id);
+                  }}
                   title="Delete"
                 >
                   <FaTrash />
