@@ -1,5 +1,5 @@
 // src/pages/resource/MaterialPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import axios from "axios";
 import {
@@ -15,86 +15,71 @@ import {
   FaSync,
 } from "react-icons/fa";
 
-// --- Fallback Mock Data ---
-const MOCK_HISTORY = [
-  {
-    id: 105,
-    type: "OUT",
-    item: "Photo Resist (ArF)",
-    qty: 5,
-    unit: "Btl",
-    target: "Photo-Line-A",
-    time: "14:20:05",
-    worker: "Kim",
-  },
-  {
-    id: 104,
-    type: "IN",
-    item: "12-inch Prime Wafer",
-    qty: 25,
-    unit: "Box",
-    target: "WH-Raw-01",
-    time: "13:10:22",
-    worker: "Lee",
-  },
-  {
-    id: 103,
-    type: "OUT",
-    item: "Etching Gas (C4F6)",
-    qty: 2,
-    unit: "Cyl",
-    target: "Etch-Line-B",
-    time: "11:45:30",
-    worker: "Park",
-  },
-  {
-    id: 102,
-    type: "IN",
-    item: "Copper Target (Cu)",
-    qty: 10,
-    unit: "ea",
-    target: "WH-Part-04",
-    time: "10:05:11",
-    worker: "Choi",
-  },
-  {
-    id: 101,
-    type: "IN",
-    item: "Slurry (Ceria)",
-    qty: 20,
-    unit: "Drum",
-    target: "WH-Chem-02",
-    time: "09:15:44",
-    worker: "Kim",
-  },
-];
+// =============================
+// API Base
+// =============================
+const API_BASE = "http://localhost:8111/api/mes/material-tx";
+
+// =============================
+// 유틸: 시간 포맷
+// =============================
+const formatTime = (isoString) => {
+  if (!isoString) return "-";
+  const d = new Date(isoString);
+  return d.toLocaleTimeString("en-US", { hour12: false });
+};
+
+// =============================
+// 백엔드 응답 -> 화면 row 변환
+// (MaterialTxResDto 기반)
+// =============================
+const mapTxToRow = (tx) => {
+  const type = tx.type === "INBOUND" ? "IN" : "OUT";
+  const target =
+    type === "IN"
+      ? tx.targetLocation || "-"
+      : tx.targetEquipment || tx.targetLocation || "-";
+
+  return {
+    id: tx.txId,
+    type, // "IN" | "OUT"
+    item: tx.materialName,
+    qty: tx.qty,
+    unit: tx.unit || "-",
+    target,
+    time: formatTime(tx.time),
+    worker: tx.workerName || "-",
+  };
+};
 
 const MaterialPage = () => {
   const [activeTab, setActiveTab] = useState("IN"); // IN (입고) or OUT (불출)
-  const [history, setHistory] = useState(MOCK_HISTORY);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // 검색
+  const [keyword, setKeyword] = useState("");
 
   // 입력 폼 상태
   const [inputs, setInputs] = useState({
     barcode: "",
     qty: "",
-    location: "",
+    location: "", // IN: targetLocation / OUT: targetEquipment (현재 UI 그대로 사용)
   });
 
-  // 데이터 조회
+  // =============================
+  // 오늘 로그 조회
+  // =============================
   const fetchData = async () => {
     setLoading(true);
     try {
-      // ★ 실제 API: http://localhost:3001/materialHistory?_sort=id&_order=desc
-      // const res = await axios.get("http://localhost:3001/materialHistory?_sort=id&_order=desc");
-      // setHistory(res.data);
-
-      setTimeout(() => {
-        setHistory(MOCK_HISTORY);
-        setLoading(false);
-      }, 500);
+      const res = await axios.get(`${API_BASE}/transactions/today`);
+      const rows = (res.data || []).map(mapTxToRow);
+      setHistory(rows);
     } catch (err) {
-      console.error(err);
+      console.error("오늘 트랜잭션 로그 조회 실패:", err);
+      alert("오늘 트랜잭션 로그 조회에 실패했습니다. (백엔드 실행/주소 확인)");
+    } finally {
       setLoading(false);
     }
   };
@@ -103,49 +88,89 @@ const MaterialPage = () => {
     fetchData();
   }, []);
 
+  // =============================
   // 입력 핸들러
+  // =============================
   const handleChange = (e) => {
     setInputs({ ...inputs, [e.target.name]: e.target.value });
   };
 
-  // 등록 핸들러 (API POST)
+  // =============================
+  // 등록(입고/불출) 처리
+  // =============================
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!inputs.barcode || !inputs.qty) return alert("필수 정보를 입력하세요.");
 
-    // 바코드에 따른 자재명 자동 매핑 (예시)
-    let itemName = "Unknown Item";
-    if (inputs.barcode.includes("WF")) itemName = "12-inch Prime Wafer";
-    else if (inputs.barcode.includes("PR")) itemName = "Photo Resist (ArF)";
-    else if (inputs.barcode.includes("GAS")) itemName = "Etching Gas (C4F6)";
-    else if (inputs.barcode.includes("TGT")) itemName = "Copper Target";
+    if (!inputs.barcode || !inputs.qty) {
+      return alert("필수 정보를 입력하세요. (Barcode, Qty)");
+    }
 
-    const newItem = {
-      // id: Date.now(), // json-server가 자동 생성하므로 생략 가능
-      type: activeTab,
-      item: itemName,
-      qty: Number(inputs.qty),
-      unit: itemName.includes("Wafer") ? "Box" : "ea",
-      target:
-        inputs.location || (activeTab === "IN" ? "Warehouse" : "Fab Line"),
-      time: new Date().toLocaleTimeString("en-US", { hour12: false }),
-      worker: "Admin", // 현재 로그인 유저
-    };
+    const qtyNumber = Number(inputs.qty);
+    if (Number.isNaN(qtyNumber) || qtyNumber <= 0) {
+      return alert("수량은 1 이상 숫자만 입력 가능합니다.");
+    }
 
     try {
-      // ★ 실제 API POST
-      // await axios.post("http://localhost:3001/materialHistory", newItem);
-      // fetchData(); // 목록 갱신
+      if (activeTab === "IN") {
+        // =============================
+        // 입고 API
+        // =============================
+        const payload = {
+          materialBarcode: inputs.barcode,
+          qty: qtyNumber,
+          unit: "ea", // 필요하면 UI에서 선택하도록 확장 가능
+          targetLocation: inputs.location || null,
+          workerName: "Admin", // TODO: 로그인 유저로 교체
+        };
 
-      // Mock 동작
-      setHistory([{ ...newItem, id: Date.now() }, ...history]);
+        await axios.post(`${API_BASE}/inbound`, payload);
+        alert("입고 처리가 완료되었습니다.");
+      } else {
+        // =============================
+        // 불출 API
+        // =============================
+        const payload = {
+          materialBarcode: inputs.barcode,
+          qty: qtyNumber,
+          unit: "ea",
+          targetLocation: null, // 지금 UI는 location 하나라서 장비에 넣는 형태
+          targetEquipment: inputs.location || null,
+          workerName: "Admin",
+        };
 
+        await axios.post(`${API_BASE}/outbound`, payload);
+        alert("불출 처리가 완료되었습니다.");
+      }
+
+      // 입력 초기화
       setInputs({ barcode: "", qty: "", location: "" });
-      alert(`${activeTab === "IN" ? "입고" : "불출"} 처리가 완료되었습니다.`);
+
+      // 로그 갱신
+      fetchData();
     } catch (err) {
-      console.error("Transcaton Error", err);
+      console.error("Transaction Error:", err);
+
+      // CustomException 처리 (백엔드가 {code, message}로 내려주는 경우)
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "처리 중 오류가 발생했습니다.";
+
+      alert(msg);
     }
   };
+
+  // =============================
+  // 검색 필터링
+  // =============================
+  const filteredHistory = useMemo(() => {
+    if (!keyword.trim()) return history;
+    const lower = keyword.toLowerCase();
+    return history.filter((row) =>
+      (row.item || "").toLowerCase().includes(lower),
+    );
+  }, [history, keyword]);
 
   return (
     <Container>
@@ -162,6 +187,7 @@ const MaterialPage = () => {
             <TabDesc>Raw Wafer / Chemical / Parts 입고 검수</TabDesc>
           </div>
         </TabButton>
+
         <TabButton
           $active={activeTab === "OUT"}
           onClick={() => setActiveTab("OUT")}
@@ -182,6 +208,7 @@ const MaterialPage = () => {
             {activeTab === "IN" ? <FaTruckLoading /> : <FaDolly />}
             {activeTab === "IN" ? " 입고 등록 (Scan)" : " 불출 등록 (Scan)"}
           </CardHeader>
+
           <Form onSubmit={handleSubmit}>
             <FormGroup>
               <Label>Material Barcode *</Label>
@@ -197,7 +224,9 @@ const MaterialPage = () => {
                   <FaBarcode />
                 </ScanIcon>
               </InputWrapper>
-              <HintText>Tip: 'WF', 'PR', 'GAS' 등을 포함해보세요.</HintText>
+              <HintText>
+                백엔드 Material.code와 동일한 값을 입력하세요.
+              </HintText>
             </FormGroup>
 
             <FormGroup>
@@ -222,7 +251,7 @@ const MaterialPage = () => {
                 value={inputs.location}
                 onChange={handleChange}
                 placeholder={
-                  activeTab === "IN" ? "ex: WH-Raw-01" : "ex: Photo-02"
+                  activeTab === "IN" ? "ex: WH-Raw-01" : "ex: Photo-Line-A"
                 }
               />
             </FormGroup>
@@ -246,11 +275,17 @@ const MaterialPage = () => {
                 />
               )}
             </TitleArea>
+
             <SearchGroup>
               <FaSearch color="#aaa" />
-              <SmallInput placeholder="Search Item..." />
+              <SmallInput
+                placeholder="Search Item..."
+                value={keyword}
+                onChange={(e) => setKeyword(e.target.value)}
+              />
             </SearchGroup>
           </SectionHeader>
+
           <TableContainer>
             <Table>
               <thead>
@@ -264,40 +299,49 @@ const MaterialPage = () => {
                   <th>Worker</th>
                 </tr>
               </thead>
+
               <tbody>
-                {history.map((row) => (
-                  <tr key={row.id}>
-                    <td>{row.time}</td>
-                    <td>
-                      <TypeBadge $type={row.type}>
-                        {row.type === "IN" ? "입고" : "불출"}
-                      </TypeBadge>
+                {!loading && filteredHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: 20, color: "#999" }}>
+                      오늘 트랜잭션 로그가 없습니다.
                     </td>
-                    <td
-                      style={{
-                        fontWeight: "600",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      {row.item.includes("Wafer") ? (
-                        <FaCircle size={8} color="#555" />
-                      ) : row.item.includes("Gas") ? (
-                        <FaFlask size={10} color="#3498db" />
-                      ) : (
-                        <FaMicrochip size={12} color="#f39c12" />
-                      )}
-                      {row.item}
-                    </td>
-                    <td style={{ fontWeight: "bold" }}>{row.qty}</td>
-                    <td>
-                      <UnitBadge>{row.unit}</UnitBadge>
-                    </td>
-                    <td>{row.target}</td>
-                    <td>{row.worker}</td>
                   </tr>
-                ))}
+                ) : (
+                  filteredHistory.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.time}</td>
+                      <td>
+                        <TypeBadge $type={row.type}>
+                          {row.type === "IN" ? "입고" : "불출"}
+                        </TypeBadge>
+                      </td>
+                      <td
+                        style={{
+                          fontWeight: "600",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                        }}
+                      >
+                        {(row.item || "").includes("Wafer") ? (
+                          <FaCircle size={8} color="#555" />
+                        ) : (row.item || "").includes("Gas") ? (
+                          <FaFlask size={10} color="#3498db" />
+                        ) : (
+                          <FaMicrochip size={12} color="#f39c12" />
+                        )}
+                        {row.item}
+                      </td>
+                      <td style={{ fontWeight: "bold" }}>{row.qty}</td>
+                      <td>
+                        <UnitBadge>{row.unit}</UnitBadge>
+                      </td>
+                      <td>{row.target}</td>
+                      <td>{row.worker}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </Table>
           </TableContainer>
@@ -328,6 +372,7 @@ const HeaderSection = styled.div`
   height: 90px;
   flex-shrink: 0;
 `;
+
 const TabButton = styled.div`
   flex: 1;
   background: white;
@@ -342,19 +387,23 @@ const TabButton = styled.div`
   background-color: ${(props) =>
     props.$active ? `${props.$color}10` : "white"};
   transition: all 0.2s;
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
   }
+
   svg {
     color: ${(props) => (props.$active ? props.$color : "#ccc")};
   }
 `;
+
 const TabTitle = styled.div`
   font-size: 18px;
   font-weight: 800;
   color: #333;
 `;
+
 const TabDesc = styled.div`
   font-size: 13px;
   color: #888;
@@ -382,7 +431,6 @@ const InputCard = styled.div`
 
 const CardHeader = styled.h3`
   margin: 0 0 25px 0;
-  color: #333;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -395,21 +443,25 @@ const Form = styled.form`
   flex-direction: column;
   gap: 20px;
 `;
+
 const FormGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
 `;
+
 const Label = styled.label`
   font-size: 13px;
   font-weight: 700;
   color: #555;
 `;
+
 const InputWrapper = styled.div`
   position: relative;
   display: flex;
   align-items: center;
 `;
+
 const Input = styled.input`
   width: 100%;
   padding: 12px 15px;
@@ -419,16 +471,19 @@ const Input = styled.input`
   font-size: 14px;
   outline: none;
   transition: border-color 0.2s;
+
   &:focus {
     border-color: #1a4f8b;
   }
 `;
+
 const ScanIcon = styled.div`
   position: absolute;
   right: 15px;
   color: #999;
   font-size: 16px;
 `;
+
 const HintText = styled.span`
   font-size: 11px;
   color: #999;
@@ -451,6 +506,7 @@ const SubmitButton = styled.button`
   justify-content: center;
   gap: 10px;
   transition: opacity 0.2s;
+
   &:hover {
     opacity: 0.9;
   }
@@ -473,6 +529,7 @@ const SectionHeader = styled.div`
   justify-content: space-between;
   align-items: center;
 `;
+
 const TitleArea = styled.div`
   font-size: 16px;
   font-weight: 700;
@@ -480,15 +537,18 @@ const TitleArea = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+
   .spin {
     animation: spin 1s linear infinite;
   }
+
   @keyframes spin {
     100% {
       transform: rotate(360deg);
     }
   }
 `;
+
 const SearchGroup = styled.div`
   display: flex;
   align-items: center;
@@ -497,6 +557,7 @@ const SearchGroup = styled.div`
   border-radius: 20px;
   gap: 8px;
 `;
+
 const SmallInput = styled.input`
   border: none;
   background: transparent;
@@ -509,15 +570,18 @@ const TableContainer = styled.div`
   flex: 1;
   overflow-y: auto;
 `;
+
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+
   thead {
     background-color: #fafafa;
     position: sticky;
     top: 0;
     z-index: 1;
+
     th {
       padding: 12px 15px;
       text-align: left;
@@ -526,12 +590,14 @@ const Table = styled.table`
       border-bottom: 1px solid #eee;
     }
   }
+
   tbody {
     td {
       padding: 12px 15px;
       border-bottom: 1px solid #f5f5f5;
       color: #333;
     }
+
     tr:hover {
       background-color: #f8fbff;
     }
@@ -547,6 +613,7 @@ const TypeBadge = styled.span`
     props.$type === "IN" ? "#e8f5e9" : "#fff3e0"};
   color: ${(props) => (props.$type === "IN" ? "#2e7d32" : "#e67e22")};
 `;
+
 const UnitBadge = styled.span`
   font-size: 11px;
   background: #eee;
