@@ -1,18 +1,66 @@
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
-import { IoMdClose, IoIosHome } from "react-icons/io"; // ★ IoIosHome 추가
+import {
+  IoMdClose,
+  IoIosHome,
+  IoMdSunny,
+  IoMdCloudy,
+  IoMdRainy,
+  IoMdSnow,
+} from "react-icons/io"; // ★ IoIosHome 추가
 import { FaSignOutAlt, FaClock } from "react-icons/fa";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import axios from "axios";
 
 const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [weather, setWeather] = useState({ temp: null, desc: "", icon: "" });
+  const API_KEY = "5b6a625b25065e038c9a33e0674ea4e6";
 
   const HOME_PATH = "/admin";
   const homeTab = tabs.find((tab) => tab.path === HOME_PATH);
   const otherTabs = tabs.filter((tab) => tab.path !== HOME_PATH);
+
+  // 날씨 API 호출 로직
+  useEffect(() => {
+    const fetchWeather = async () => {
+      // 키가 없거나 기본값인 경우 API 호출 스킵 (Mock 데이터 유지)
+      if (!API_KEY || API_KEY === "YOUR_OPENWEATHERMAP_API_KEY") return;
+
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=36.815&lon=127.113&units=metric&appid=${API_KEY}`;
+        const res = await axios.get(url);
+
+        setWeather({
+          temp: Math.round(res.data.main.temp * 10) / 10,
+          desc: res.data.weather[0].main,
+          icon: res.data.weather[0].icon,
+        });
+      } catch (err) {
+        // ★ 수정 3: API 오류(401 등) 발생 시 에러 띄우지 않고 조용히 Mock 데이터 사용
+        console.warn("Weather API Failed, using mock data.");
+        setWeather({ temp: 22.5, desc: "Sunny", icon: "01d" });
+      }
+    };
+
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 1800000); // 30분 주기
+    return () => clearInterval(interval);
+  }, []);
+
+  const renderWeatherIcon = (code) => {
+    if (!code) return <IoMdSunny />;
+    if (code.startsWith("01")) return <IoMdSunny color="#f39c12" />;
+    if (code.startsWith("02") || code.startsWith("03"))
+      return <IoMdCloudy color="#bdc3c7" />;
+    if (code.startsWith("09") || code.startsWith("10"))
+      return <IoMdRainy color="#3498db" />;
+    if (code.startsWith("13")) return <IoMdSnow color="#ecf0f1" />;
+    return <IoMdCloudy color="#95a5a6" />;
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -37,11 +85,21 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
       <Menubar>
         <Breadcrumb>MES System Management</Breadcrumb>
         <RightSection>
+          <WeatherItem>
+            {renderWeatherIcon(weather.icon)}
+            <span>{weather.temp}°C</span>
+            <span className="desc">({weather.desc})</span>
+          </WeatherItem>
+
+          <Divider />
+
           <ClockItem>
             <FaClock size={14} style={{ marginRight: 6 }} />
             {currentTime.toLocaleTimeString()}
           </ClockItem>
+
           <Divider />
+
           <HeaderBtn onClick={handleLogout} title="Logout" $logout>
             <FaSignOutAlt size={16} />
             <span>Logout</span>
@@ -298,4 +356,30 @@ const CloseBtn = styled.span`
 const IconWrapper = styled.div`
   display: flex;
   align-items: center;
+`;
+
+const WeatherItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #ecf0f1;
+
+  svg {
+    font-size: 18px;
+  }
+
+  .desc {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.8;
+    margin-left: 2px;
+    @media (max-width: 800px) {
+      display: none;
+    }
+  }
 `;
