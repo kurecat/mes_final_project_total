@@ -73,7 +73,7 @@ public class MachineSimulator
             if (_currentWorkOrder == null && workOrder != null)
             {
                 _currentWorkOrder = workOrder;
-                Console.WriteLine($"작업 수주 : {workOrder.CurrentQty} / 목표:{workOrder.TargetQty}");
+                Console.WriteLine($"[작업 수주] 번호 : {workOrder.Id}, 완료됨 : {workOrder.CurrentQty} / 목표 : {workOrder.TargetQty}");
                 await SendWorkOrderToDevice(workOrder);
 
             }
@@ -284,7 +284,7 @@ public class MachineSimulator
         };
 
         string status = await _apiService.ReportProductionAsync(report);
-        Console.WriteLine($"작업지시번호 : {report.WorkOrderId} 생산 보고");
+        Console.WriteLine($"[생산 보고] 작업지시번호 : {report.WorkOrderId}");
 
         _currentWorkOrder = null;
     }

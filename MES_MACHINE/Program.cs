@@ -36,6 +36,22 @@ namespace L1_MachineSim
 
     class Program
     {
+        // 상태 관리 클래스
+        public static class Device
+        {
+            public static double DicWear = 12.0;
+            public static double DbTemp = 150.0;
+            public static double WbTemp = 250.0;
+            public static double MolTemp = 175.0;
+            public static string LotId = "LOT-INIT";
+            public static Random Rand = new Random();
+
+            public static void Reset(string newLotId)
+            {
+                LotId = newLotId;
+                DicWear = 12.0;
+            }
+        }
         static void Main(string[] args)
         {
             TcpListener server = new TcpListener(IPAddress.Any, 5001);
@@ -62,332 +78,298 @@ namespace L1_MachineSim
             }
         }
 
-        static void RunDeviceLoop(TcpClient client, NetworkStream stream)
+        public static void RunDeviceLoop(TcpClient client, NetworkStream stream)
         {
-            Random rand = new Random();
+            Console.WriteLine("--- 전체 공정 시뮬레이션 시작 (Direct Logging) ---");
 
-            string currentLotId = "LOT-INIT";
-
-            // 상태 변수
-            double dicWear = 12.0;
-            double dbTemp = 150.0;
-            double wbTemp = 250.0;
-            double molTemp = 175.0;
-
-            // 2. BinaryWriter 사용을 위한 메모리 스트림 (임시 버퍼)
-            // 매번 new 하지 않고 재사용
             using (MemoryStream bodyMs = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(bodyMs))
             {
-                int remain = 0;
                 int step = 0;
-
-                Console.WriteLine("--- 전체 공정 시뮬레이션 시작 (Refactored) ---");
+                int remain = 0;
 
                 while (client.Connected)
                 {
-                    Thread.Sleep(500);
-                    bodyMs.SetLength(0); // 버퍼 초기화
+                    // 1. 주기적 온도 패킷 (항상 전송)
+                    double avgTemp = (Device.DbTemp + Device.DbTemp + Device.MolTemp) / 3.0;
 
-                    // 온도 패킷 전송
-                    double avgTemp = (dbTemp + wbTemp + molTemp) / 3.0;
                     short totalTemp = (short)Math.Round(avgTemp - 120);
+
                     SendTempPacket(stream, totalTemp);
+
                     Console.WriteLine($"[TotalTemp] 종합온도 패킷 전송: {totalTemp}℃");
 
-                    if (client.Client.Available > 0 && remain == 0)
+                    // 2. 대기 상태 (Step 0)
+                    if (step == 0)
                     {
-                        byte[] readBuffer = new byte[7];
-                        int size = stream.Read(readBuffer, 0, readBuffer.Length);
-                        if (size == readBuffer.Length && readBuffer[0] == 0x01)
+                        if (client.Client.Available > 0)
                         {
-                            remain = BitConverter.ToInt32(readBuffer, 2);
-                            step = 1;
-                        }
-                    }
+                            byte[] readBuffer = new byte[7];
+                            int size = stream.Read(readBuffer, 0, readBuffer.Length);
 
-                    Console.WriteLine($"remain : {remain}");
-                    Console.WriteLine($"step : {step}");
-
-                    DtoType procType = DtoType.Sleep;
-                    string logMessage = "";
-                    bool isArray = false;
-
-                    if (step == 1)
-                    {
-                        currentLotId = $"LOT-{DateTime.Now:HHmmss}";
-                    }
-
-                    // === 공정 데이터 생성 (메서드 분리 권장하지만, 여기선 BinaryWriter 예시를 위해 인라인 처리) ===
-
-                    if (step == 2) // Dicing
-                    {
-                        procType = DtoType.Dicing;
-                        dicWear = Math.Round(dicWear + 0.05, 2);
-                        double flow = Math.Round(2.5 + (rand.NextDouble() * 0.2 - 0.1), 2);
-
-                        // ✅ DTO 구조에 맞게 데이터 작성
-                        int spindleSpeed = (int)(30000 + rand.Next(-300, 300)); // rpm
-                        double feedRate = Math.Round(5.0 + (rand.NextDouble() * 0.4 - 0.2), 2); // mm/s
-                        double bladeWear = dicWear; // %
-                        double coolantFlow = flow;  // L/min
-
-                        // 패킷에 쓰기
-                        writer.Write(spindleSpeed);
-                        writer.Write(feedRate);
-                        writer.Write(bladeWear);
-                        writer.Write(coolantFlow);
-
-                        logMessage = $"[Dicing] 공정 가동.. 마모율: {bladeWear}%, 유량: {coolantFlow}L";
-                    }
-                    else if (step == 3) // Dicing Insp
-                    {
-                        procType = DtoType.DicingInspection;
-                        double passRate = 97.0;
-
-                        // ✅ DTO 구조에 맞게 데이터 작성
-                        int sampleSize = 50;
-                        string inspectionCriteria = currentLotId + "-DIC";
-                        double thicknessPassRatio = 96.0;
-                        double chippingPassRatio = 98.0;
-                        double overallPassRatio = passRate;
-
-                        // 패킷에 쓰기
-                        writer.Write(sampleSize);
-
-                        // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
-                        byte[] criteriaBytes = System.Text.Encoding.UTF8.GetBytes(inspectionCriteria);
-                        writer.Write((short)criteriaBytes.Length);
-                        writer.Write(criteriaBytes);
-                        writer.Write(thicknessPassRatio);
-                        writer.Write(chippingPassRatio);
-                        writer.Write(overallPassRatio);
-
-                        logMessage = $"[Dicing] >> 검사 완료 (합격률: {overallPassRatio}%)";
-                    }
-                    else if (step == 6) // DieBonding
-                    {
-                        procType = DtoType.DieBonding;
-
-                        // ✅ DTO 구조에 맞는 값 준비
-                        double pickUpForce = Math.Round(1.5 + (rand.NextDouble() * 0.2 - 0.1), 2); // 픽업 힘
-                        double placementAccuracy = Math.Round(0.05 + (rand.NextDouble() * 0.01 - 0.005), 3); // 배치 정확도
-                        double epoxyDispenseVolume = Math.Round(0.8 + (rand.NextDouble() * 0.1 - 0.05), 2); // 에폭시 도포량
-                        double curingTemp = Math.Round(150.0 + (rand.NextDouble() * 5 - 2.5), 1); // 경화 온도
-
-                        // ✅ 패킷에 쓰기
-                        writer.Write(pickUpForce);
-                        writer.Write(placementAccuracy);
-                        writer.Write(epoxyDispenseVolume);
-                        writer.Write(curingTemp);
-
-                        logMessage = $"[DieBonding] 공정 가동.. 픽업힘:{pickUpForce}, 정확도:{placementAccuracy}, 도포량:{epoxyDispenseVolume}, 온도:{curingTemp}℃";
-                    }
-                    else if (step == 7) // DieBond Insp
-                    {
-                        procType = DtoType.DieBondingInspection;
-                        double alignmentPass = 94.0;
-                        double voidPass = 92.0;
-                        double overallPass = 93.0;
-
-                        // ✅ DTO 구조에 맞는 값 준비
-                        int sampleSize = 40;        // 샘플링 수량
-                        string inspectionCriteria = currentLotId + "-DIE"; // 검사 기준 문자열
-
-                        // ✅ 패킷에 쓰기
-                        writer.Write(sampleSize);
-
-                        // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
-                        byte[] criteriaBytes = System.Text.Encoding.UTF8.GetBytes(inspectionCriteria);
-                        writer.Write((short)criteriaBytes.Length);
-                        writer.Write(criteriaBytes);
-
-                        writer.Write(alignmentPass);
-                        writer.Write(voidPass);
-                        writer.Write(overallPass);
-
-                        logMessage = $"[DieBonding] >> 검사 완료 (합격률: {overallPass}%)";
-                    }
-                    else if (step == 10) // WireBonding
-                    {
-                        procType = DtoType.WireBonding;
-
-                        // ✅ DTO 구조에 맞는 값 준비
-                        double bondingTemp = Math.Round(250.0 + (rand.NextDouble() * 10 - 5), 1);   // 본딩 온도 (℃)
-                        double bondingForce = Math.Round(0.5 + (rand.NextDouble() * 0.1 - 0.05), 3); // 본딩 힘 (N)
-                        double ultrasonicPower = Math.Round(2.0 + (rand.NextDouble() * 0.2 - 0.1), 2); // 초음파 출력 (W)
-                        double bondingTime = Math.Round(0.02 + (rand.NextDouble() * 0.005 - 0.0025), 4); // 본딩 시간 (s)
-                        double loopHeight = Math.Round(0.15 + (rand.NextDouble() * 0.02 - 0.01), 3); // 루프 높이 (mm)
-                        double ballDiameter = Math.Round(0.025 + (rand.NextDouble() * 0.005 - 0.0025), 4); // 볼 직경 (mm)
-
-                        // ✅ 패킷에 쓰기
-                        writer.Write(bondingTemp);
-                        writer.Write(bondingForce);
-                        writer.Write(ultrasonicPower);
-                        writer.Write(bondingTime);
-                        writer.Write(loopHeight);
-                        writer.Write(ballDiameter);
-
-                        logMessage = $"[WireBonding] 공정 가동.. 온도:{bondingTemp}℃, 힘:{bondingForce}N, 초음파:{ultrasonicPower}W, 시간:{bondingTime}s, 루프:{loopHeight}mm, 볼:{ballDiameter}mm";
-                    }
-                    else if (step == 11) // WireBond Insp
-                    {
-                        procType = DtoType.WireBondingInspection;
-
-                        // ✅ DTO 구조에 맞는 값 준비
-                        int sampleSize = 30;         // 샘플링 수량
-                        string inspectionCriteria = currentLotId + "-WB"; // 검사 기준 문자열
-
-                        double pullTestPassRatio = 95.0;
-                        double shearTestPassRatio = 96.0;
-                        double xrayPassRatio = 98.0;
-                        double overallPassRatio = 97.0;
-
-                        // ✅ 패킷에 쓰기
-                        writer.Write(sampleSize);
-
-                        // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
-                        byte[] criteriaBytes = System.Text.Encoding.UTF8.GetBytes(inspectionCriteria);
-                        writer.Write((short)criteriaBytes.Length);
-                        writer.Write(criteriaBytes);
-
-                        writer.Write(pullTestPassRatio);
-                        writer.Write(shearTestPassRatio);
-                        writer.Write(xrayPassRatio);
-                        writer.Write(overallPassRatio);
-
-                        logMessage = $"[WireBonding] >> 검사 완료 (합격률: {overallPassRatio}%)";
-                    }
-                    else if (step == 14) // Molding
-                    {
-                        procType = DtoType.Molding;
-
-                        // ✅ DTO 구조에 맞는 값 준비
-                        double moldTemp = Math.Round(175.0 + (rand.NextDouble() * 5 - 2.5), 1);       // 금형 온도 (℃)
-                        double injectionPressure = Math.Round(80.0 + (rand.NextDouble() * 10 - 5), 1); // 사출 압력 (bar)
-                        double cureTime = Math.Round(30.0 + (rand.NextDouble() * 2 - 1), 1);           // 경화 시간 (s)
-                        double clampForce = Math.Round(90.0 + (rand.NextDouble() * 5 - 2.5), 1);       // 클램프 힘 (kN)
-
-                        // ✅ 패킷에 쓰기
-                        writer.Write(moldTemp);
-                        writer.Write(injectionPressure);
-                        writer.Write(cureTime);
-                        writer.Write(clampForce);
-
-                        logMessage = $"[Molding] 공정 가동.. 온도:{moldTemp}℃, 압력:{injectionPressure}bar, 경화:{cureTime}s, 클램프:{clampForce}kN";
-                    }
-                    else if (step == 15) // Molding Insp
-                    {
-                        procType = DtoType.MoldingInspection;
-
-                        // ✅ DTO 구조에 맞는 값 준비
-                        int sampleSize = 30;         // 샘플링 수량
-                        string inspectionCriteria = currentLotId + "-MOL"; // 검사 기준 문자열
-
-                        double thicknessPassRatio = 95.0;
-                        double voidPassRatio = 96.0;
-                        double crackPassRatio = 97.0;
-                        double overallPassRatio = 96.0;
-
-                        // ✅ 패킷에 쓰기
-                        writer.Write(sampleSize);
-
-                        // 문자열은 길이 먼저 쓰고, 그 다음 UTF8 바이트
-                        byte[] criteriaBytes = System.Text.Encoding.UTF8.GetBytes(inspectionCriteria);
-                        writer.Write((short)criteriaBytes.Length);
-                        writer.Write(criteriaBytes);
-
-                        writer.Write(thicknessPassRatio);
-                        writer.Write(voidPassRatio);
-                        writer.Write(crackPassRatio);
-                        writer.Write(overallPassRatio);
-
-                        logMessage = $"[Molding] >> 검사 완료 (합격률: {overallPassRatio}%)";
-                    }
-                    else if (step == 16) // Final Inspection (Array)
-                    {
-                        procType = DtoType.FinalInspection;
-
-                        isArray = true;
-                        // 배열 길이 랜덤 (예: 1~5개)
-                        short arrayLength = (short)rand.Next(1, 6);
-
-                        for (int i = 0; i < arrayLength; i++)
-                        {
-                            using (MemoryStream itemMs = new MemoryStream())
-                            using (BinaryWriter itemWriter = new BinaryWriter(itemMs))
+                            if (size == readBuffer.Length && readBuffer[0] == 0x01)
                             {
-
-                                string serialNumber = Guid.NewGuid().ToString();
-
-                                // 문자열 필드들 랜덤
-                                string[] electricalOptions = { "Normal", "Abnormal" };
-                                string[] reliabilityOptions = { "Pass", "Fail" };
-                                string[] visualOptions = { "Good", "Defect", "Average" };
-                                string[] finalPassOptions = { "Pass", "Fail" };
-
-                                string electrical = electricalOptions[rand.Next(electricalOptions.Length)];
-                                string reliability = reliabilityOptions[rand.Next(reliabilityOptions.Length)];
-                                string visual = visualOptions[rand.Next(visualOptions.Length)];
-                                string finalPass = finalPassOptions[rand.Next(finalPassOptions.Length)];
-
-                                WritePacketString(itemWriter, serialNumber);
-                                WritePacketString(itemWriter, finalPass);
-
-                                // body 완성
-                                byte[] body = itemMs.ToArray();
-
-                                // 헤더 붙이기
-                                writer.Write((short)body.Length);   // size
-                                writer.Write((byte)DtoType.Item);   // type
-                                writer.Write(body);                 // body
-
-                                itemMs.SetLength(0);
-
-                                WritePacketString(itemWriter, electrical);
-                                WritePacketString(itemWriter, reliability);
-                                WritePacketString(itemWriter, visual);
-                                WritePacketString(itemWriter, finalPass);
-
-                                body = itemMs.ToArray();
-
-                                writer.Write((short)body.Length);
-                                writer.Write((byte)DtoType.FinalInspection);
-                                writer.Write(body);
+                                remain = BitConverter.ToInt32(readBuffer, 2);
+                                step = 1;
                             }
                         }
-
-                        byte[] packetBytes = bodyMs.ToArray();
-                        Console.WriteLine($"총 패킷 길이: {packetBytes.Length} 바이트, 아이템 수: {arrayLength}");
-                        logMessage = "[★FINAL] 최종검사 배열 Data 전송 완료";
-
-                        dicWear = 12.0; // Reset wear
-
-                        remain = 0;
-                        step = 0;
-                    }
-                    else
-                    {
-                        procType = DtoType.Processing;
+                        else
+                        {
+                            Thread.Sleep(500);
+                            continue;
+                        }
                     }
 
-                    if (procType != DtoType.Sleep && procType != DtoType.Processing)
+                    // 3. 공정 데이터 생성
+                    bodyMs.SetLength(0); // 버퍼 초기화
+                    DtoType procType = DtoType.Processing;
+                    bool isArrayPacket = false;
+
+                    switch (step)
                     {
-                        // 패킷 조립 및 전송 (공통 로직)
+                        case 2: // Dicing
+                            procType = DtoType.Dicing;
+                            ProcessDicing(writer);
+                            break;
+
+                        case 3: // Dicing Inspection
+                            procType = DtoType.DicingInspection;
+                            ProcessDicingInspection(writer);
+                            break;
+
+                        case 5: // Die Bonding
+                            procType = DtoType.DieBonding;
+                            ProcessDieBonding(writer);
+                            break;
+
+                        case 6: // Die Bonding Inspection
+                            procType = DtoType.DieBondingInspection;
+                            ProcessDieBondingInspection(writer);
+                            break;
+
+                        case 8: // Wire Bonding
+                            procType = DtoType.WireBonding;
+                            ProcessWireBonding(writer);
+                            break;
+
+                        case 9: // Wire Bonding Inspection
+                            procType = DtoType.WireBondingInspection;
+                            ProcessWireBondingInspection(writer);
+                            break;
+
+                        case 11: // Molding
+                            procType = DtoType.Molding;
+                            ProcessMolding(writer);
+                            break;
+
+                        case 12: // Molding Inspection
+                            procType = DtoType.MoldingInspection;
+                            ProcessMoldingInspection(writer);
+                            break;
+
+                        case 14: // Final Inspection (Array)
+                            procType = DtoType.FinalInspection;
+                            isArrayPacket = true;
+                            ProcessFinalInspectionArray(writer);
+
+                            // 사이클 종료 및 초기화
+                            step = -1;
+                            remain = 0;
+                            break;
+
+                        default:
+                            // 이동 중(Processing)
+                            procType = DtoType.Processing;
+                            break;
+                    }
+
+                    // 4. 패킷 전송 (데이터가 있을 때만)
+                    if (procType != DtoType.Processing)
+                    {
                         byte[] bodyBytes = bodyMs.ToArray();
-
-                        if (isArray)
+                        if (isArrayPacket)
                             SendDtoArrayPacket(stream, bodyBytes);
                         else
                             SendDtoPacket(stream, procType, bodyBytes);
-
-                        if (!string.IsNullOrEmpty(logMessage))
-                            Console.WriteLine(logMessage);
                     }
 
-                    if (step > 0) step++;
+                    step++;
+                    Thread.Sleep(100);
                 }
             }
+        }
+
+        private static void ProcessDicing(BinaryWriter writer)
+        {
+            Device.DicWear = Math.Round(Device.DicWear + 0.05, 2);
+            double flow = Math.Round(2.5 + (Device.Rand.NextDouble() * 0.2 - 0.1), 2);
+
+            int spindleSpeed = (int)(30000 + Device.Rand.Next(-300, 300));
+            double feedRate = Math.Round(5.0 + (Device.Rand.NextDouble() * 0.4 - 0.2), 2);
+
+            writer.Write(spindleSpeed);
+            writer.Write(feedRate);
+            writer.Write(Device.DicWear);
+            writer.Write(flow);
+
+            Console.WriteLine($"[Dicing] 마모율: {Device.DicWear}%, 유량: {flow}L");
+        }
+
+        private static void ProcessDicingInspection(BinaryWriter writer)
+        {
+            int sampleSize = 50;
+            string criteria = Device.LotId + "-DIC";
+            double overallPass = 97.0;
+
+            writer.Write(sampleSize);
+            WritePacketString(writer, criteria);
+            writer.Write(96.0);
+            writer.Write(98.0);
+            writer.Write(overallPass);
+
+            Console.WriteLine($"[Dicing Insp] 검사 완료 (합격률: {overallPass}%)");
+        }
+
+        private static void ProcessDieBonding(BinaryWriter writer)
+        {
+            double force = Math.Round(1.5 + (Device.Rand.NextDouble() * 0.2 - 0.1), 2);
+            double accuracy = Math.Round(0.05 + (Device.Rand.NextDouble() * 0.01 - 0.005), 3);
+            double epoxy = Math.Round(0.8 + (Device.Rand.NextDouble() * 0.1 - 0.05), 2);
+            double temp = Math.Round(150.0 + (Device.Rand.NextDouble() * 5 - 2.5), 1);
+
+            writer.Write(force);
+            writer.Write(accuracy);
+            writer.Write(epoxy);
+            writer.Write(temp);
+
+            Console.WriteLine($"[DieBonding] 픽업:{force}, 정확도:{accuracy}, 도포:{epoxy}, 온도:{temp}℃");
+        }
+
+        private static void ProcessDieBondingInspection(BinaryWriter writer)
+        {
+            int sampleSize = 40;
+            string criteria = Device.LotId + "-DIE";
+            double overallPass = 93.0;
+
+            writer.Write(sampleSize);
+            WritePacketString(writer, criteria);
+            writer.Write(94.0);
+            writer.Write(92.0);
+            writer.Write(overallPass);
+
+            Console.WriteLine($"[DieBond Insp] 검사 완료 (합격률: {overallPass}%)");
+        }
+
+        private static void ProcessWireBonding(BinaryWriter writer)
+        {
+            double temp = Math.Round(250.0 + (Device.Rand.NextDouble() * 10 - 5), 1);
+            double force = Math.Round(0.5 + (Device.Rand.NextDouble() * 0.1 - 0.05), 3);
+            double power = Math.Round(2.0 + (Device.Rand.NextDouble() * 0.2 - 0.1), 2);
+            double time = Math.Round(0.02 + (Device.Rand.NextDouble() * 0.005 - 0.0025), 4);
+            double loop = Math.Round(0.15 + (Device.Rand.NextDouble() * 0.02 - 0.01), 3);
+            double ball = Math.Round(0.025 + (Device.Rand.NextDouble() * 0.005 - 0.0025), 4);
+
+            writer.Write(temp);
+            writer.Write(force);
+            writer.Write(power);
+            writer.Write(time);
+            writer.Write(loop);
+            writer.Write(ball);
+
+            Console.WriteLine($"[WireBonding] 온도:{temp}℃, 힘:{force}N, 시간:{time}s");
+        }
+
+        private static void ProcessWireBondingInspection(BinaryWriter writer)
+        {
+            int sampleSize = 30;
+            string criteria = Device.LotId + "-WB";
+            double overallPass = 97.0;
+
+            writer.Write(sampleSize);
+            WritePacketString(writer, criteria);
+            writer.Write(95.0);
+            writer.Write(96.0);
+            writer.Write(98.0);
+            writer.Write(overallPass);
+
+            Console.WriteLine($"[WireBond Insp] 검사 완료 (합격률: {overallPass}%)");
+        }
+
+        private static void ProcessMolding(BinaryWriter writer)
+        {
+            double temp = Math.Round(175.0 + (Device.Rand.NextDouble() * 5 - 2.5), 1);
+            double pressure = Math.Round(80.0 + (Device.Rand.NextDouble() * 10 - 5), 1);
+            double time = Math.Round(30.0 + (Device.Rand.NextDouble() * 2 - 1), 1);
+            double clamp = Math.Round(90.0 + (Device.Rand.NextDouble() * 5 - 2.5), 1);
+
+            writer.Write(temp);
+            writer.Write(pressure);
+            writer.Write(time);
+            writer.Write(clamp);
+
+            Console.WriteLine($"[Molding] 온도:{temp}℃, 압력:{pressure}bar");
+        }
+
+        private static void ProcessMoldingInspection(BinaryWriter writer)
+        {
+            int sampleSize = 30;
+            string criteria = Device.LotId + "-MOL";
+            double overallPass = 96.0;
+
+            writer.Write(sampleSize);
+            WritePacketString(writer, criteria);
+            writer.Write(95.0);
+            writer.Write(96.0);
+            writer.Write(97.0);
+            writer.Write(overallPass);
+
+            Console.WriteLine($"[Molding Insp] 검사 완료 (합격률: {overallPass}%)");
+        }
+
+        private static void ProcessFinalInspectionArray(BinaryWriter writer)
+        {
+            short arrayLength = (short)Device.Rand.Next(1, 6);
+            string[] elecOpts = { "Normal", "Abnormal" };
+            string[] relOpts = { "Pass", "Fail" };
+            string[] visOpts = { "Good", "Defect", "Average" };
+            string[] passOpts = { "Pass", "Fail" };
+
+            using (MemoryStream itemMs = new MemoryStream())
+            using (BinaryWriter itemWriter = new BinaryWriter(itemMs))
+            {
+                for (int i = 0; i < arrayLength; i++)
+                {
+                    string serial = Guid.NewGuid().ToString();
+                    string electrical = elecOpts[Device.Rand.Next(elecOpts.Length)];
+                    string reliability = relOpts[Device.Rand.Next(relOpts.Length)];
+                    string visual = visOpts[Device.Rand.Next(visOpts.Length)];
+                    string finalPass = passOpts[Device.Rand.Next(passOpts.Length)];
+
+                    // Item Packet
+                    itemMs.SetLength(0);
+                    WritePacketString(itemWriter, serial);
+                    WritePacketString(itemWriter, finalPass);
+                    byte[] itemBody = itemMs.ToArray();
+
+                    writer.Write((short)itemBody.Length);
+                    writer.Write((byte)DtoType.Item);
+                    writer.Write(itemBody);
+
+                    // FinalInspection Packet
+                    itemMs.SetLength(0);
+                    WritePacketString(itemWriter, electrical);
+                    WritePacketString(itemWriter, reliability);
+                    WritePacketString(itemWriter, visual);
+                    WritePacketString(itemWriter, finalPass);
+                    byte[] finalBody = itemMs.ToArray();
+
+                    writer.Write((short)finalBody.Length);
+                    writer.Write((byte)DtoType.FinalInspection);
+                    writer.Write(finalBody);
+                }
+            }
+
+            Console.WriteLine($"[★FINAL] 최종검사 배열 Data 전송 완료 (수량: {arrayLength})");
         }
 
         // --- 헬퍼 메서드: 문자열 쓰기 (길이 + 본문) ---
