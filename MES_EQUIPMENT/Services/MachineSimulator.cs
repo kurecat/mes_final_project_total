@@ -263,11 +263,6 @@ public class MachineSimulator
             return;
         }
 
-        // string serialNo =
-        //     $"{_currentWorkOrder.ProductCode}-" +
-        //     $"{DateTime.Now:yyyyMMdd}-" +
-        //     $"{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
-
         var report = new ProductionReportDto
         {
             WorkOrderId = _currentWorkOrder.Id,
@@ -303,7 +298,7 @@ public class MachineSimulator
         byte[] packet = new byte[7];
         packet[0] = 0x01;  // STX
         packet[1] = 0x20;  // 생산 작업 지시
-        Array.Copy(BitConverter.GetBytes(order.TargetQty), 0, packet, 2, 4);
+        Array.Copy(BitConverter.GetBytes(order.TargetQty), 0, packet, 2, 4);    // 남은수량
         packet[6] = 0x03;
         await _tcpService.SendAsync(packet);
 
