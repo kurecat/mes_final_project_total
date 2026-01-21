@@ -10,8 +10,11 @@ import lombok.*;
 @Builder
 public class EquipmentMonitorResDto {
 
-    // 프론트에서 쓰는 id (UI에서 EQ-PHO-01 같은 값)
-    private String id;
+    // ⭐ DB PK (삭제에 사용)
+    private Long id;
+
+    // ⭐ 설비 코드 (화면 표시/검색용)
+    private String code;
 
     private String name;
     private String type;
@@ -28,9 +31,9 @@ public class EquipmentMonitorResDto {
     private String errorCode;
 
     public static EquipmentMonitorResDto fromEntity(Equipment e) {
-        // 기본값은 일단 임시로 생성 (나중에 production_log에서 가져오게 개선 가능)
         return EquipmentMonitorResDto.builder()
-                .id(e.getCode())
+                .id(e.getId())          // ✅ Long id
+                .code(e.getCode())      // ✅ String code
                 .name(e.getName())
                 .type(e.getType())
                 .status(e.getStatus())

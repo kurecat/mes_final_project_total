@@ -1,8 +1,6 @@
 package com.hm.mes_final_260106.service;
 
-import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
-import com.hm.mes_final_260106.dto.EquipmentDetailResDto;
-import com.hm.mes_final_260106.dto.EquipmentMonitorResDto;
+import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Equipment;
 import com.hm.mes_final_260106.entity.ProductionLog;
 import com.hm.mes_final_260106.repository.EquipmentRepository;
@@ -111,4 +109,32 @@ public class EquipmentService {
 
         equipmentRepo.save(eq);
     }
+    @Transactional
+    public void deleteEquipment(Long id) {
+        if (!equipmentRepo.existsById(id)) {
+            throw new RuntimeException("해당 설비가 존재하지 않습니다. id=" + id);
+        }
+        equipmentRepo.deleteById(id);
+    }
+
+    @Transactional
+    public EquipmentResDto updateEquipment(Long id, EquipmentReqDto dto) {
+
+        Equipment equipment = equipmentRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Equipment not found : " + id));
+
+        equipment.setName(dto.getName());
+        equipment.setType(dto.getType());
+        equipment.setStatus(dto.getStatus());
+//        equipment.setLotId(dto.getLotId());
+//        equipment.setUph(dto.getUph());
+//        equipment.setTemperature(dto.getTemperature());
+//        equipment.setParam(dto.getParam());
+
+        // JPA 더티체킹으로 자동 UPDATE 반영됨
+        return new EquipmentResDto(equipment);
+    }
+
+
+
 }

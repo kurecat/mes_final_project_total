@@ -1,9 +1,8 @@
-// src/components/admin/AdminHeader.js
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
-import { IoMdClose } from "react-icons/io";
-import { FaHome, FaSignOutAlt, FaUserCircle, FaClock } from "react-icons/fa";
+import { IoMdClose, IoIosHome } from "react-icons/io"; // ★ IoIosHome 추가
+import { FaSignOutAlt, FaClock } from "react-icons/fa";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
@@ -11,10 +10,10 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const location = useLocation();
   const [currentTime, setCurrentTime] = useState(new Date());
 
-  const homeTab = tabs.find((tab) => tab.path === "/");
-  const otherTabs = tabs.filter((tab) => tab.path !== "/");
+  const HOME_PATH = "/admin";
+  const homeTab = tabs.find((tab) => tab.path === HOME_PATH);
+  const otherTabs = tabs.filter((tab) => tab.path !== HOME_PATH);
 
-  // --- 실시간 시계 로직 ---
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -22,50 +21,27 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
     return () => clearInterval(timer);
   }, []);
 
-  // --- 드래그 앤 드롭 핸들러 ---
   const handleDragEnd = (result) => {
     if (!result.destination) return;
-    const adjustedResult = {
-      ...result,
-      source: { ...result.source, index: result.source.index + 1 },
-      destination: {
-        ...result.destination,
-        index: result.destination.index + 1,
-      },
-    };
-    onDragEnd(adjustedResult);
+    onDragEnd(result);
   };
 
-  // --- 로그아웃 핸들러 ---
   const handleLogout = () => {
-    // 여기에 실제 로그아웃 로직 (토큰 삭제 등) 추가 가능
-    // alert("Logged out successfully.");
-    navigate("/"); // 로그인 페이지 경로에 맞게 수정하세요
+    if (window.confirm("로그아웃 하시겠습니까?")) {
+      navigate("/");
+    }
   };
 
   return (
     <Container>
-      {/* 1. 상단 메뉴바 (브레드크럼 + 우측 정보) */}
       <Menubar>
         <Breadcrumb>MES System Management</Breadcrumb>
-
         <RightSection>
-          {/* 시계 */}
           <ClockItem>
             <FaClock size={14} style={{ marginRight: 6 }} />
             {currentTime.toLocaleTimeString()}
           </ClockItem>
-
-          {/* 구분선 */}
           <Divider />
-
-          {/* 마이페이지 */}
-          <HeaderBtn onClick={() => navigate("/mypage")} title="My Page">
-            <FaUserCircle size={18} />
-            <span>My Page</span>
-          </HeaderBtn>
-
-          {/* 로그아웃 */}
           <HeaderBtn onClick={handleLogout} title="Logout" $logout>
             <FaSignOutAlt size={16} />
             <span>Logout</span>
@@ -73,19 +49,18 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
         </RightSection>
       </Menubar>
 
-      {/* 2. 탭 툴바 (드래그 가능한 탭 목록) */}
       <Toolbar>
-        {/* Home 탭 (고정) */}
-        {homeTab && (
+        {/* ★ Home 탭: 아이콘 변경 (IoIosHome) */}
+        {homeTab ? (
           <HomeTabItem
-            $active={location.pathname === "/admin/dashboard"}
-            onClick={() => navigate("/admin/dashboard")}
+            $active={location.pathname === HOME_PATH}
+            onClick={() => navigate(HOME_PATH)}
+            title="Dashboard"
           >
-            <FaHome size={18} />
+            <IoIosHome size={18} />
           </HomeTabItem>
-        )}
+        ) : null}
 
-        {/* 나머지 탭들 (스크롤 가능 영역) */}
         <ScrollContainer>
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="tabs" direction="horizontal">
@@ -139,11 +114,10 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
 
 export default AdminHeader;
 
-// --- 스타일링 ---
-
+// --- Styled Components (기존 코드 유지) ---
 const Container = styled.div`
   height: 100px;
-  background-color: #cdd2d9; /* 헤더 배경색 */
+  background-color: #cdd2d9;
   display: flex;
   flex-direction: column;
 `;
@@ -156,7 +130,7 @@ const Menubar = styled.div`
   justify-content: space-between;
   padding: 0 20px;
   box-sizing: border-box;
-  background-color: #2c3e50; /* 상단 메뉴바 어두운 배경 */
+  background-color: #2c3e50;
   color: white;
 `;
 
@@ -167,7 +141,6 @@ const Breadcrumb = styled.div`
   letter-spacing: 0.5px;
 `;
 
-// 우측 영역 (시계, 버튼들)
 const RightSection = styled.div`
   display: flex;
   align-items: center;
@@ -178,7 +151,7 @@ const RightSection = styled.div`
 const ClockItem = styled.div`
   display: flex;
   align-items: center;
-  font-family: monospace; /* 숫자가 튀지 않게 고정폭 폰트 */
+  font-family: monospace;
   font-size: 15px;
   color: #bdc3c7;
   background: rgba(0, 0, 0, 0.2);
@@ -199,8 +172,7 @@ const HeaderBtn = styled.button`
   gap: 6px;
   background: transparent;
   border: none;
-  color: ${(props) =>
-    props.$logout ? "#e74c3c" : "#ecf0f1"}; /* 로그아웃은 빨간색 강조 */
+  color: ${(props) => (props.$logout ? "#e74c3c" : "#ecf0f1")};
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -214,14 +186,13 @@ const HeaderBtn = styled.button`
   }
 `;
 
-// --- 탭 툴바 영역 (기존 스타일 유지 및 보완) ---
 const Toolbar = styled.div`
   width: 100%;
   height: 40px;
   background-color: #e9ecef;
   display: flex;
   align-items: flex-end;
-  padding-left: 20px;
+  padding-left: 10px;
   border-bottom: 1px solid #ccc;
   overflow: hidden;
 `;
@@ -251,7 +222,6 @@ const DraggableArea = styled.div`
   align-items: flex-end;
   height: 100%;
   margin-left: -1px;
-  min-width: max-content;
 `;
 
 const BaseTabItem = styled.div`
@@ -265,10 +235,11 @@ const BaseTabItem = styled.div`
     props.$active ? "1px solid white" : "1px solid #ccc"};
   display: flex;
   align-items: center;
-  font-size: 14px;
+  font-size: 13px;
   margin-bottom: -1px;
   margin-left: -1px;
   transition: background-color 0.2s;
+  cursor: pointer;
 
   &:hover {
     background-color: ${(props) => (props.$active ? "#ffffff" : "#e2e6ea")};
@@ -276,20 +247,23 @@ const BaseTabItem = styled.div`
 `;
 
 const HomeTabItem = styled(BaseTabItem)`
-  min-width: 50px;
-  padding: 0 10px;
+  min-width: 40px;
+  padding: 0 15px;
   justify-content: center;
-  cursor: pointer;
   flex-shrink: 0;
   z-index: 10;
+  font-weight: 700;
+  border-right: 1px solid #bbb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 `;
 
 const TabItem = styled(BaseTabItem)`
   max-width: 180px;
   min-width: 120px;
-  padding: 0 10px 0 15px;
+  padding: 0 8px 0 15px;
   justify-content: space-between;
-  cursor: grab;
 
   &:active {
     cursor: grabbing;
@@ -306,7 +280,7 @@ const TabText = styled.span`
 
 const CloseBtn = styled.span`
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: 14px;
   color: #999;
   border-radius: 50%;
   width: 18px;
@@ -314,16 +288,14 @@ const CloseBtn = styled.span`
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
 
   &:hover {
-    color: #333;
-    background-color: rgba(0, 0, 0, 0.1);
+    color: #e74c3c;
+    background-color: rgba(0, 0, 0, 0.05);
   }
 `;
 
 const IconWrapper = styled.div`
-  font-size: 18px;
   display: flex;
   align-items: center;
 `;

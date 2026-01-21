@@ -1,9 +1,7 @@
 // src/main/java/com/hm/mes_final_260106/controller/EquipmentController.java
 package com.hm.mes_final_260106.controller;
 
-import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
-import com.hm.mes_final_260106.dto.EquipmentDetailResDto;
-import com.hm.mes_final_260106.dto.EquipmentMonitorResDto;
+import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.service.EquipmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,17 +29,15 @@ public class EquipmentController {
         return equipmentService.getEquipmentDetail(equipmentCode);
     }
 
-    // =========================
-// Equipment Monitoring
-// =========================
+
+    // 장비 모니터링
     @GetMapping("/monitor")
     public ResponseEntity<List<EquipmentMonitorResDto>> getEquipmentMonitoring() {
         return ResponseEntity.ok(equipmentService.getMonitoringList());
     }
 
-    // =========================
-// Equipment Detail (Modal)
-// =========================
+
+    // 장비 모니터링 세부사항 (Modal)
     @GetMapping("/equipment/{equipmentCode}/detail")
     public ResponseEntity<EquipmentDetailResDto> getEquipmentDetail(
             @PathVariable String equipmentCode
@@ -49,12 +45,29 @@ public class EquipmentController {
         return ResponseEntity.ok(equipmentService.getEquipmentDetail(equipmentCode));
     }
 
-    // 장비생성저장
+    // 장비 생성 및 저장
     @PostMapping("")
     public ResponseEntity<?> createEquipment(@RequestBody EquipmentCreateReqDto dto) {
         equipmentService.createEquipment(dto);
         return ResponseEntity.ok().build();
     }
+    // 장비 삭제
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteEquipment(@PathVariable Long id) {
+        equipmentService.deleteEquipment(id);
+        return ResponseEntity.ok().build();
+    }
+    // 장비 수정 및 저장
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateEquipment(
+            @PathVariable Long id,
+            @RequestBody EquipmentReqDto dto
+    ) {
+        EquipmentResDto res = equipmentService.updateEquipment(id, dto);
+        return ResponseEntity.ok(res);
+    }
+
+
 
 
 }
