@@ -1,45 +1,74 @@
-// src/pages/production/BarcodePage.js
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import Barcode from "react-barcode"; // 바코드 생성 라이브러리
+import Barcode from "react-barcode";
 import {
   FaBarcode,
   FaBoxOpen,
   FaSearch,
   FaTimes,
   FaPrint,
+  FaCamera, // 카메라 아이콘 추가
 } from "react-icons/fa";
+
+// ★ MobileScanner 컴포넌트 import (경로 확인 필요)
+import MobileScanner from "../../common/MobileScanner";
 
 const BarcodePage = () => {
   // --- State ---
   const [products, setProducts] = useState([]);
-  const [scannedProduct, setScannedProduct] = useState(null); // 모달에 띄울 제품
-  const [inputBuffer, setInputBuffer] = useState(""); // 스캔 입력 버퍼
-  const [lastScannedCode, setLastScannedCode] = useState(""); // 마지막 스캔 기록
+  const [scannedProduct, setScannedProduct] = useState(null);
+  const [inputBuffer, setInputBuffer] = useState("");
+  const [lastScannedCode, setLastScannedCode] = useState("");
+
+  // ★ 카메라 스캐너 상태 추가
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // --- Data Fetching ---
   useEffect(() => {
-    fetch("http://localhost:3001/products")
-      .then((res) => res.json())
-      .then((data) => setProducts(data))
-      .catch((err) => console.error("Error fetching products:", err));
+    // MOCK 데이터 사용 (테스트용)
+    // 실제 서버가 있다면 fetch 로직 유지
+    const mockProducts = [
+      {
+        id: 1,
+        name: "DDR5 16GB RAM",
+        barcode: "8801234567891",
+        category: "Memory",
+        stock: 150,
+        price: 85000,
+        location: "A-01",
+        description: "High performance memory",
+      },
+      {
+        id: 2,
+        name: "NAND Flash 1TB",
+        barcode: "8801234567892",
+        category: "Storage",
+        stock: 50,
+        price: 120000,
+        location: "B-05",
+        description: "SSD Storage controller",
+      },
+    ];
+    setProducts(mockProducts);
+
+    // fetch("http://localhost:3001/products")
+    //   .then((res) => res.json())
+    //   .then((data) => setProducts(data))
+    //   .catch((err) => console.error("Error fetching products:", err));
   }, []);
 
   // --- Barcode Scanner Logic (Global Listener) ---
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // 모달이 열려있다면 스캔 로직 중단 (옵션)
-      // if (scannedProduct) return;
+      // 모달이나 스캐너가 열려있으면 키보드 리스너 중단
+      if (scannedProduct || isScannerOpen) return;
 
       if (e.key === "Enter") {
-        // 엔터키가 입력되면 버퍼에 있는 바코드로 제품 검색
         if (inputBuffer.length > 0) {
           handleScan(inputBuffer);
-          setInputBuffer(""); // 버퍼 초기화
+          setInputBuffer("");
         }
       } else {
-        // 일반 문자는 버퍼에 쌓음 (스캐너가 빠르게 입력함)
-        // Shift, Control 등 특수키 제외하고 문자/숫자만 처리
         if (e.key.length === 1) {
           setInputBuffer((prev) => prev + e.key);
         }
@@ -50,7 +79,7 @@ const BarcodePage = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [inputBuffer, products]); // products 의존성 추가하여 최신 데이터 참조
+  }, [inputBuffer, products, scannedProduct, isScannerOpen]);
 
   // --- Handlers ---
   const handleScan = (code) => {
@@ -58,23 +87,26 @@ const BarcodePage = () => {
     setLastScannedCode(code);
 
     const found = products.find(
-      (p) => p.barcode.toLowerCase() === code.toLowerCase()
+      (p) => p.barcode.toLowerCase() === code.toLowerCase(),
     );
 
     if (found) {
       setScannedProduct(found);
-      // 성공 효과음 재생 (선택 사항)
-      // new Audio('/beep.mp3').play();
     } else {
       alert(`Product not found for barcode: ${code}`);
     }
   };
 
-  // 수동 테스트용 핸들러
   const handleManualSubmit = (e) => {
     e.preventDefault();
     handleScan(lastScannedCode);
-    setLastScannedCode("");
+    setLastScannedCode(""); // 검색 후 입력창 초기화 선택사항
+  };
+
+  // ★ 카메라 스캔 성공 핸들러
+  const handleCameraScan = (decodedText) => {
+    handleScan(decodedText);
+    setIsScannerOpen(false); // 스캔 성공 시 카메라 닫기
   };
 
   return (
@@ -85,20 +117,26 @@ const BarcodePage = () => {
           <h1>Barcode System</h1>
         </TitleGroup>
 
-        {/* 수동 테스트 입력창 (스캐너 없을 때 테스트용) */}
-        <TestBox onSubmit={handleManualSubmit}>
-          <input
-            placeholder="Click here & Scan or Type..."
-            value={lastScannedCode}
-            onChange={(e) => setLastScannedCode(e.target.value)}
-            autoFocus
-          />
-          <button type="submit">Check</button>
-        </TestBox>
+        <ControlGroup>
+          {/* ★ 카메라 버튼 추가 */}
+          <ScanBtn type="button" onClick={() => setIsScannerOpen(true)}>
+            <FaCamera /> Mobile Scan
+          </ScanBtn>
+
+          {/* 수동 테스트 입력창 */}
+          <TestBox onSubmit={handleManualSubmit}>
+            <input
+              placeholder="Click here & Scan or Type..."
+              value={lastScannedCode}
+              onChange={(e) => setLastScannedCode(e.target.value)}
+              // autoFocus // 모바일에서 키패드 자동 올라옴 방지 위해 주석 처리 가능
+            />
+            <button type="submit">Check</button>
+          </TestBox>
+        </ControlGroup>
       </Header>
 
       <Content>
-        {/* 제품 리스트 (바코드 라벨 출력용) */}
         <ProductGrid>
           {products.map((product) => (
             <ProductCard key={product.id}>
@@ -176,6 +214,14 @@ const BarcodePage = () => {
           </ModalContent>
         </Overlay>
       )}
+
+      {/* ★ 카메라 스캐너 모달 (조건부 렌더링) */}
+      {isScannerOpen && (
+        <MobileScanner
+          onScan={handleCameraScan}
+          onClose={() => setIsScannerOpen(false)}
+        />
+      )}
     </Container>
   );
 };
@@ -214,6 +260,31 @@ const TitleGroup = styled.div`
   }
 `;
 
+const ControlGroup = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+`;
+
+// ★ 스캔 버튼 스타일 추가
+const ScanBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #2ecc71;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  height: 40px; /* 인풋창과 높이 맞춤 */
+
+  &:hover {
+    background-color: #27ae60;
+  }
+`;
+
 const TestBox = styled.form`
   display: flex;
   gap: 10px;
@@ -221,8 +292,10 @@ const TestBox = styled.form`
     padding: 8px 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    width: 250px;
+    width: 200px;
     outline: none;
+    height: 40px; /* 버튼과 높이 맞춤 */
+    box-sizing: border-box;
     &:focus {
       border-color: #3498db;
     }
@@ -234,6 +307,7 @@ const TestBox = styled.form`
     padding: 0 15px;
     border-radius: 4px;
     cursor: pointer;
+    height: 40px;
     &:hover {
       background: #2980b9;
     }
