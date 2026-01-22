@@ -1,10 +1,9 @@
 // src/pages/dashboard/KpiPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-import axios from "axios";
+// import axios from "axios";
 import {
   FaChartPie,
-  FaCalendarAlt,
   FaDownload,
   FaSync,
   FaPercentage,
@@ -33,20 +32,18 @@ const MOCK_KPI_DATA = {
   summary: {
     avgYield: 94.5,
     yieldTarget: 96.0,
-    totalOutput: 15400, // Weekly Wafer
-    cycleTime: 45.2, // Days (Fab In -> Out)
+    totalOutput: 15400,
+    cycleTime: 45.2,
     avgOee: 88.2,
   },
-  // 1. 주간 수율 트렌드 (Prime vs Final)
   yieldTrend: [
     { date: "W20", prime: 88.5, final: 93.2, target: 95 },
     { date: "W21", prime: 89.1, final: 93.8, target: 95 },
-    { date: "W22", prime: 88.0, final: 92.5, target: 95 }, // 이슈 발생
+    { date: "W22", prime: 88.0, final: 92.5, target: 95 },
     { date: "W23", prime: 90.2, final: 94.5, target: 95 },
     { date: "W24", prime: 91.5, final: 95.8, target: 95 },
-    { date: "W25", prime: 92.0, final: 96.2, target: 95 }, // 목표 달성
+    { date: "W25", prime: 92.0, final: 96.2, target: 95 },
   ],
-  // 2. EDS Bin Loss Pareto (불량 원인 분석)
   binLoss: [
     { type: "Single Bit", count: 1250, desc: "Repairable" },
     { type: "Multi Bit", count: 850, desc: "Non-Repair" },
@@ -54,7 +51,6 @@ const MOCK_KPI_DATA = {
     { type: "Func Fail", count: 450, desc: "Logic Error" },
     { type: "Leakage", count: 300, desc: "Power Spec" },
   ],
-  // 3. 설비 종합 효율 (OEE) - 공정별
   equipmentOee: [
     {
       group: "Photo",
@@ -81,15 +77,181 @@ const MOCK_KPI_DATA = {
   ],
 };
 
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Summary Section
+const SummaryBoard = React.memo(({ summary }) => {
+  return (
+    <SummaryGrid>
+      <SummaryCard>
+        <IconWrapper $color="#2ecc71">
+          <FaPercentage />
+        </IconWrapper>
+        <CardContent>
+          <Label>Final Yield (Avg)</Label>
+          <BigValue>{summary.avgYield}%</BigValue>
+          <SubValue>Target: {summary.yieldTarget}%</SubValue>
+        </CardContent>
+      </SummaryCard>
+
+      <SummaryCard>
+        <IconWrapper $color="#3498db">
+          <FaIndustry />
+        </IconWrapper>
+        <CardContent>
+          <Label>Total Output</Label>
+          <BigValue>{summary.totalOutput.toLocaleString()}</BigValue>
+          <SubValue>Wafer / Week</SubValue>
+        </CardContent>
+      </SummaryCard>
+
+      <SummaryCard>
+        <IconWrapper $color="#e67e22">
+          <FaStopwatch />
+        </IconWrapper>
+        <CardContent>
+          <Label>Fab Cycle Time</Label>
+          <BigValue>{summary.cycleTime}</BigValue>
+          <SubValue>Days (Avg)</SubValue>
+        </CardContent>
+      </SummaryCard>
+
+      <SummaryCard>
+        <IconWrapper $color="#9b59b6">
+          <FaChartLine />
+        </IconWrapper>
+        <CardContent>
+          <Label>Overall OEE</Label>
+          <BigValue>{summary.avgOee}%</BigValue>
+          <SubValue>Equipment Efficiency</SubValue>
+        </CardContent>
+      </SummaryCard>
+    </SummaryGrid>
+  );
+});
+
+// 2. Yield Trend Chart
+const YieldTrendChart = React.memo(({ data }) => {
+  return (
+    <ChartCard className="wide">
+      <CardHeader>
+        <CardTitle>Yield Trend (Prime vs Final)</CardTitle>
+      </CardHeader>
+      <ResponsiveContainer width="100%" height={300}>
+        <ComposedChart
+          data={data}
+          margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
+        >
+          <CartesianGrid stroke="#f5f5f5" />
+          <XAxis dataKey="date" />
+          <YAxis domain={[80, 100]} />
+          <Tooltip />
+          <Legend />
+          <Area
+            type="monotone"
+            dataKey="prime"
+            name="Prime Yield"
+            fill="#dcedc8"
+            stroke="#8bc34a"
+          />
+          <Line
+            type="monotone"
+            dataKey="final"
+            name="Final Yield (w/ Repair)"
+            stroke="#1a4f8b"
+            strokeWidth={3}
+          />
+          <Line
+            type="monotone"
+            dataKey="target"
+            name="Target"
+            stroke="#e74c3c"
+            strokeDasharray="5 5"
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </ChartCard>
+  );
+});
+
+// 3. OEE Breakdown Chart
+const OeeBreakdownChart = React.memo(({ data }) => {
+  return (
+    <ChartCard className="wide">
+      <CardHeader>
+        <CardTitle>Equipment OEE Breakdown</CardTitle>
+      </CardHeader>
+      <ResponsiveContainer width="100%" height={280}>
+        <BarChart
+          data={data}
+          margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
+        >
+          <CartesianGrid stroke="#f5f5f5" vertical={false} />
+          <XAxis
+            dataKey="group"
+            tick={{ fontSize: 12, fill: "#666" }}
+            dy={10}
+          />
+          <YAxis domain={[0, 100]} />
+          <Tooltip />
+          <Legend verticalAlign="bottom" height={36} />
+
+          <Bar dataKey="availability" name="Availability" fill="#42a5f5" />
+          <Bar dataKey="performance" name="Performance" fill="#66bb6a" />
+          <Bar dataKey="quality" name="Quality" fill="#ffa726" />
+          <Line
+            type="monotone"
+            dataKey="oee"
+            name="OEE Score"
+            stroke="#333"
+            strokeWidth={2}
+            dot={{ r: 4 }}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartCard>
+  );
+});
+
+// 4. Bin Loss Chart
+const BinLossAnalysisChart = React.memo(({ data }) => {
+  return (
+    <ChartCard>
+      <CardHeader>
+        <CardTitle>EDS Bin Loss Analysis</CardTitle>
+      </CardHeader>
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ top: 0, right: 30, left: 40, bottom: 0 }}
+        >
+          <CartesianGrid stroke="#f5f5f5" horizontal={false} />
+          <XAxis type="number" />
+          <YAxis dataKey="type" type="category" />
+          <Tooltip />
+          <Bar
+            dataKey="count"
+            name="Defect Count"
+            fill="#ff7043"
+            radius={[0, 4, 4, 0]}
+            barSize={20}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </ChartCard>
+  );
+});
+
 const KpiPage = () => {
   const [kpiData, setKpiData] = useState(MOCK_KPI_DATA);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("WEEKLY");
 
-  const fetchData = async () => {
+  // [Optimization] fetchData with useCallback
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // ★ 실제 API 연동 시: http://localhost:3001/kpi
       // const res = await axios.get("http://localhost:3001/kpi");
       // setKpiData(res.data);
 
@@ -101,15 +263,21 @@ const KpiPage = () => {
       console.error(err);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  // [Optimization] Memoize data slices
+  const summaryData = useMemo(() => kpiData.summary, [kpiData.summary]);
+  const yieldData = useMemo(() => kpiData.yieldTrend, [kpiData.yieldTrend]);
+  const oeeData = useMemo(() => kpiData.equipmentOee, [kpiData.equipmentOee]);
+  const binLossData = useMemo(() => kpiData.binLoss, [kpiData.binLoss]);
 
   return (
     <Container>
-      {/* 1. 헤더 컨트롤 */}
+      {/* 1. Header Control */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -147,157 +315,19 @@ const KpiPage = () => {
         </ControlGroup>
       </Header>
 
-      {/* 2. KPI 요약 카드 */}
-      <SummaryGrid>
-        <SummaryCard>
-          <IconWrapper $color="#2ecc71">
-            <FaPercentage />
-          </IconWrapper>
-          <CardContent>
-            <Label>Final Yield (Avg)</Label>
-            <BigValue>{kpiData.summary.avgYield}%</BigValue>
-            <SubValue>Target: {kpiData.summary.yieldTarget}%</SubValue>
-          </CardContent>
-        </SummaryCard>
+      {/* 2. Summary Section (Memoized) */}
+      <SummaryBoard summary={summaryData} />
 
-        <SummaryCard>
-          <IconWrapper $color="#3498db">
-            <FaIndustry />
-          </IconWrapper>
-          <CardContent>
-            <Label>Total Output</Label>
-            <BigValue>{kpiData.summary.totalOutput.toLocaleString()}</BigValue>
-            <SubValue>Wafer / Week</SubValue>
-          </CardContent>
-        </SummaryCard>
-
-        <SummaryCard>
-          <IconWrapper $color="#e67e22">
-            <FaStopwatch />
-          </IconWrapper>
-          <CardContent>
-            <Label>Fab Cycle Time</Label>
-            <BigValue>{kpiData.summary.cycleTime}</BigValue>
-            <SubValue>Days (Avg)</SubValue>
-          </CardContent>
-        </SummaryCard>
-
-        <SummaryCard>
-          <IconWrapper $color="#9b59b6">
-            <FaChartLine />
-          </IconWrapper>
-          <CardContent>
-            <Label>Overall OEE</Label>
-            <BigValue>{kpiData.summary.avgOee}%</BigValue>
-            <SubValue>Equipment Efficiency</SubValue>
-          </CardContent>
-        </SummaryCard>
-      </SummaryGrid>
-
-      {/* 3. 차트 섹션 */}
+      {/* 3. Chart Section (Memoized Components) */}
       <ChartGrid>
-        {/* A. 수율 트렌드 (Line Chart) */}
-        <ChartCard className="wide">
-          <CardHeader>
-            <CardTitle>Yield Trend (Prime vs Final)</CardTitle>
-          </CardHeader>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart
-              data={kpiData.yieldTrend}
-              margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
-            >
-              <CartesianGrid stroke="#f5f5f5" />
-              <XAxis dataKey="date" />
-              <YAxis domain={[80, 100]} />
-              <Tooltip />
-              <Legend />
-              <Area
-                type="monotone"
-                dataKey="prime"
-                name="Prime Yield"
-                fill="#dcedc8"
-                stroke="#8bc34a"
-              />
-              <Line
-                type="monotone"
-                dataKey="final"
-                name="Final Yield (w/ Repair)"
-                stroke="#1a4f8b"
-                strokeWidth={3}
-              />
-              <Line
-                type="monotone"
-                dataKey="target"
-                name="Target"
-                stroke="#e74c3c"
-                strokeDasharray="5 5"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        {/* A. Yield Trend */}
+        <YieldTrendChart data={yieldData} />
 
-        {/* B. Bin Loss Pareto (Bar Chart) */}
-        <ChartCard>
-          <CardHeader>
-            <CardTitle>EDS Bin Loss Analysis</CardTitle>
-          </CardHeader>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={kpiData.binLoss}
-              layout="vertical"
-              margin={{ top: 0, right: 30, left: 40, bottom: 0 }}
-            >
-              <CartesianGrid stroke="#f5f5f5" horizontal={false} />
-              <XAxis type="number" />
-              <YAxis dataKey="type" type="category" />
-              <Tooltip />
-              <Bar
-                dataKey="count"
-                name="Defect Count"
-                fill="#ff7043"
-                radius={[0, 4, 4, 0]}
-                barSize={20}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        {/* C. Equipment OEE */}
+        <OeeBreakdownChart data={oeeData} />
 
-        {/* C. 설비 OEE 분석 (Multi Bar) */}
-        <ChartCard className="wide">
-          <CardHeader>
-            <CardTitle>Equipment OEE Breakdown</CardTitle>
-          </CardHeader>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart
-              data={kpiData.equipmentOee}
-              // ▼▼▼ 여기를 수정하세요 (bottom: 40 -> bottom: 60) ▼▼▼
-              margin={{ top: 20, right: 20, bottom: 60, left: 0 }}
-            >
-              <CartesianGrid stroke="#f5f5f5" vertical={false} />
-              <XAxis
-                dataKey="group"
-                tick={{ fontSize: 12, fill: "#666" }} // 폰트 스타일 추가 (선택사항)
-                dy={10} // 텍스트를 살짝 아래로 내리기 (선택사항)
-              />
-              <YAxis domain={[0, 100]} />
-              <Tooltip />
-              {/* 범례 위치 조정 (선택사항: 차트 아래 공간 활용) */}
-              <Legend verticalAlign="bottom" height={36} />
-
-              <Bar dataKey="availability" name="Availability" fill="#42a5f5" />
-              <Bar dataKey="performance" name="Performance" fill="#66bb6a" />
-              <Bar dataKey="quality" name="Quality" fill="#ffa726" />
-              <Line
-                type="monotone"
-                dataKey="oee"
-                name="OEE Score"
-                stroke="#333"
-                strokeWidth={2}
-                dot={{ r: 4 }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        {/* B. Bin Loss Pareto */}
+        <BinLossAnalysisChart data={binLossData} />
       </ChartGrid>
     </Container>
   );
@@ -317,6 +347,7 @@ const Container = styled.div`
   gap: 20px;
   box-sizing: border-box;
   overflow-y: auto;
+  padding-bottom: 100px;
 `;
 
 const Header = styled.div`

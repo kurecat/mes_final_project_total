@@ -1,26 +1,168 @@
 // src/pages/admin/CodesPage.js
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
+// import axios from "axios";
 import {
   FaFolder,
   FaFolderOpen,
-  FaTag,
   FaPlus,
   FaSearch,
   FaEdit,
   FaTrashAlt,
-  FaCheck,
   FaDatabase,
 } from "react-icons/fa";
 
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Group List Item
+const GroupListItem = React.memo(({ group, isActive, onSelect }) => {
+  return (
+    <GroupItem $active={isActive} onClick={() => onSelect(group)}>
+      <IconWrapper>
+        {isActive ? (
+          <FaFolderOpen color="#3498db" />
+        ) : (
+          <FaFolder color="#95a5a6" />
+        )}
+      </IconWrapper>
+      <GroupInfo>
+        <GroupName>{group.name}</GroupName>
+        <GroupDesc>{group.id}</GroupDesc>
+      </GroupInfo>
+      {group.isSystem && <SystemBadge>Sys</SystemBadge>}
+    </GroupItem>
+  );
+});
+
+// 2. Group List Panel
+const GroupListPanel = React.memo(
+  ({ groups, selectedGroupId, onSelectGroup }) => {
+    return (
+      <LeftPanel>
+        <PanelHeader>
+          <h3>Code Groups</h3>
+          <IconButton>
+            <FaPlus />
+          </IconButton>
+        </PanelHeader>
+        <GroupList>
+          {groups.map((group) => (
+            <GroupListItem
+              key={group.id}
+              group={group}
+              isActive={selectedGroupId === group.id}
+              onSelect={onSelectGroup}
+            />
+          ))}
+        </GroupList>
+      </LeftPanel>
+    );
+  },
+);
+
+// 3. Code Table Row
+const CodeTableRow = React.memo(({ code, isSystemGroup, onToggleActive }) => {
+  return (
+    <tr className={!code.isActive ? "inactive" : ""}>
+      <td align="center">
+        <ToggleSwitch
+          $active={code.isActive}
+          onClick={() => onToggleActive(code.id)}
+        >
+          <div className="knob" />
+        </ToggleSwitch>
+      </td>
+      <td>
+        <CodeTag>{code.code}</CodeTag>
+      </td>
+      <td>{code.name}</td>
+      <td align="center">{code.sortOrder}</td>
+      <td>
+        <ActionBtnGroup>
+          <ActionBtn>
+            <FaEdit />
+          </ActionBtn>
+          {!isSystemGroup && (
+            <ActionBtn className="delete">
+              <FaTrashAlt />
+            </ActionBtn>
+          )}
+        </ActionBtnGroup>
+      </td>
+    </tr>
+  );
+});
+
+// 4. Code Detail Panel
+const CodeDetailPanel = React.memo(
+  ({ selectedGroup, codes, searchTerm, onSearchChange, onToggleActive }) => {
+    return (
+      <RightPanel>
+        <PanelHeader>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <h3>{selectedGroup ? selectedGroup.name : "Select Group"}</h3>
+            <SubText>{selectedGroup?.description}</SubText>
+          </div>
+          <ActionArea>
+            <SearchBox>
+              <FaSearch color="#aaa" />
+              <input
+                placeholder="Search code..."
+                value={searchTerm}
+                onChange={onSearchChange}
+              />
+            </SearchBox>
+            <PrimaryBtn>
+              <FaPlus /> Add Code
+            </PrimaryBtn>
+          </ActionArea>
+        </PanelHeader>
+
+        <TableContainer>
+          <Table>
+            <thead>
+              <tr>
+                <th width="60">Active</th>
+                <th width="120">Code</th>
+                <th>Code Name</th>
+                <th width="80">Sort</th>
+                <th width="100">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {codes.length > 0 ? (
+                codes.map((code) => (
+                  <CodeTableRow
+                    key={code.id}
+                    code={code}
+                    isSystemGroup={selectedGroup?.isSystem}
+                    onToggleActive={onToggleActive}
+                  />
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5" className="empty">
+                    No codes found in this group.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </TableContainer>
+      </RightPanel>
+    );
+  },
+);
+
+// --- Main Component ---
+
 const CodesPage = () => {
-  // --- State ---
   const [groups, setGroups] = useState([]);
   const [allCodes, setAllCodes] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // --- Data Fetching ---
+  // Data Fetching
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -36,7 +178,6 @@ const CodesPage = () => {
         setGroups(grpData);
         setAllCodes(codeData);
 
-        // Default selection
         if (grpData.length > 0) setSelectedGroup(grpData[0]);
       } catch (err) {
         console.error("Failed to load codes:", err);
@@ -45,35 +186,41 @@ const CodesPage = () => {
     fetchData();
   }, []);
 
-  // --- Filtering Logic ---
+  // Filtering Logic (useMemo)
   const currentCodes = useMemo(() => {
     if (!selectedGroup) return [];
 
-    // 1. Filter by Group
     let filtered = allCodes.filter((c) => c.groupId === selectedGroup.id);
 
-    // 2. Filter by Search
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (c) =>
           c.code.toLowerCase().includes(lower) ||
-          c.name.toLowerCase().includes(lower)
+          c.name.toLowerCase().includes(lower),
       );
     }
 
-    // 3. Sort by SortOrder
     return filtered.sort((a, b) => a.sortOrder - b.sortOrder);
   }, [selectedGroup, allCodes, searchTerm]);
 
-  // --- Handlers (Mock UI Only) ---
-  const handleToggleActive = (codeId) => {
-    // In real app: PUT API request here
-    const updated = allCodes.map((c) =>
-      c.id === codeId ? { ...c, isActive: !c.isActive } : c
+  // Handlers (useCallback)
+  const handleGroupSelect = useCallback((group) => {
+    setSelectedGroup(group);
+    setSearchTerm("");
+  }, []);
+
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleToggleActive = useCallback((codeId) => {
+    setAllCodes((prevCodes) =>
+      prevCodes.map((c) =>
+        c.id === codeId ? { ...c, isActive: !c.isActive } : c,
+      ),
     );
-    setAllCodes(updated);
-  };
+  }, []);
 
   return (
     <Container>
@@ -85,119 +232,21 @@ const CodesPage = () => {
       </Header>
 
       <SplitView>
-        {/* Left Panel: Code Groups */}
-        <LeftPanel>
-          <PanelHeader>
-            <h3>Code Groups</h3>
-            <IconButton>
-              <FaPlus />
-            </IconButton>
-          </PanelHeader>
-          <GroupList>
-            {groups.map((group) => (
-              <GroupItem
-                key={group.id}
-                $active={selectedGroup?.id === group.id}
-                onClick={() => {
-                  setSelectedGroup(group);
-                  setSearchTerm(""); // Reset search on group change
-                }}
-              >
-                <IconWrapper>
-                  {selectedGroup?.id === group.id ? (
-                    <FaFolderOpen color="#3498db" />
-                  ) : (
-                    <FaFolder color="#95a5a6" />
-                  )}
-                </IconWrapper>
-                <GroupInfo>
-                  <GroupName>{group.name}</GroupName>
-                  <GroupDesc>{group.id}</GroupDesc>
-                </GroupInfo>
-                {group.isSystem && <SystemBadge>Sys</SystemBadge>}
-              </GroupItem>
-            ))}
-          </GroupList>
-        </LeftPanel>
+        {/* Left Panel (Memoized) */}
+        <GroupListPanel
+          groups={groups}
+          selectedGroupId={selectedGroup?.id}
+          onSelectGroup={handleGroupSelect}
+        />
 
-        {/* Right Panel: Detail Codes */}
-        <RightPanel>
-          <PanelHeader>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <h3>{selectedGroup ? selectedGroup.name : "Select Group"}</h3>
-              <SubText>{selectedGroup?.description}</SubText>
-            </div>
-            <ActionArea>
-              <SearchBox>
-                <FaSearch color="#aaa" />
-                <input
-                  placeholder="Search code..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </SearchBox>
-              <PrimaryBtn>
-                <FaPlus /> Add Code
-              </PrimaryBtn>
-            </ActionArea>
-          </PanelHeader>
-
-          <TableContainer>
-            <Table>
-              <thead>
-                <tr>
-                  <th width="60">Active</th>
-                  <th width="120">Code</th>
-                  <th>Code Name</th>
-                  <th width="80">Sort</th>
-                  <th width="100">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentCodes.length > 0 ? (
-                  currentCodes.map((code) => (
-                    <tr
-                      key={code.id}
-                      className={!code.isActive ? "inactive" : ""}
-                    >
-                      <td align="center">
-                        <ToggleSwitch
-                          $active={code.isActive}
-                          onClick={() => handleToggleActive(code.id)}
-                        >
-                          <div className="knob" />
-                        </ToggleSwitch>
-                      </td>
-                      <td>
-                        <CodeTag>{code.code}</CodeTag>
-                      </td>
-                      <td>{code.name}</td>
-                      <td align="center">{code.sortOrder}</td>
-                      <td>
-                        <ActionBtnGroup>
-                          <ActionBtn>
-                            <FaEdit />
-                          </ActionBtn>
-                          {!selectedGroup?.isSystem && (
-                            <ActionBtn className="delete">
-                              <FaTrashAlt />
-                            </ActionBtn>
-                          )}
-                        </ActionBtnGroup>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="empty">
-                      No codes found in this group.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </Table>
-          </TableContainer>
-        </RightPanel>
+        {/* Right Panel (Memoized) */}
+        <CodeDetailPanel
+          selectedGroup={selectedGroup}
+          codes={currentCodes}
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
+          onToggleActive={handleToggleActive}
+        />
       </SplitView>
     </Container>
   );
@@ -207,7 +256,6 @@ export default CodesPage;
 
 // --- Styled Components ---
 
-// 1. 컨테이너: 부모 높이(100%)에 맞추고 외부 스크롤 방지
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -235,16 +283,14 @@ const TitleGroup = styled.div`
   }
 `;
 
-// 2. 분할 뷰: 남은 높이를 모두 차지하며, 내부 스크롤을 위해 overflow 제어
 const SplitView = styled.div`
   display: flex;
   gap: 20px;
   flex: 1;
   overflow: hidden;
-  min-height: 0; /* Flex 자식 요소 스크롤 버그 방지 */
+  min-height: 0;
 `;
 
-// Left Panel
 const LeftPanel = styled.div`
   width: 300px;
   background: white;
@@ -252,7 +298,7 @@ const LeftPanel = styled.div`
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 패널 자체는 스크롤 안 됨 */
+  overflow: hidden;
 `;
 
 const PanelHeader = styled.div`
@@ -271,7 +317,7 @@ const PanelHeader = styled.div`
 
 const GroupList = styled.div`
   flex: 1;
-  overflow-y: auto; /* 리스트만 스크롤 */
+  overflow-y: auto;
   padding: 10px;
 `;
 
@@ -326,7 +372,6 @@ const SystemBadge = styled.span`
   font-weight: bold;
 `;
 
-// Right Panel
 const RightPanel = styled.div`
   flex: 1;
   background: white;
@@ -334,7 +379,7 @@ const RightPanel = styled.div`
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 패널 자체 스크롤 방지 */
+  overflow: hidden;
 `;
 
 const SubText = styled.span`
@@ -370,17 +415,17 @@ const SearchBox = styled.div`
 
 const TableContainer = styled.div`
   flex: 1;
-  overflow: auto; /* 테이블 영역만 스크롤 */
+  overflow: auto;
   padding: 0;
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  white-space: nowrap; /* 줄바꿈 방지 */
+  white-space: nowrap;
 
   thead {
-    position: sticky; /* 헤더 고정 */
+    position: sticky;
     top: 0;
     z-index: 5;
     background: #fcfcfc;

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+// src/pages/resource/MachinePage.js
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled, { keyframes, css } from "styled-components";
 import axios from "axios";
 import {
@@ -20,6 +21,418 @@ import {
 } from "react-icons/fa";
 
 const API_BASE = "http://localhost:8111/api/mes";
+
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Summary Section
+const SummaryBoard = React.memo(({ counts, filterStatus, onFilterChange }) => {
+  return (
+    <SummaryBar>
+      <SummaryItem
+        onClick={() => onFilterChange("ALL")}
+        $active={filterStatus === "ALL"}
+      >
+        <Label>Total Equipments</Label>
+        <Value>{counts.TOTAL}</Value>
+      </SummaryItem>
+
+      <SummaryItem
+        onClick={() => onFilterChange("RUN")}
+        $active={filterStatus === "RUN"}
+        $color="#2ecc71"
+      >
+        <Label>Running (Prod)</Label>
+        <Value>{counts.RUN}</Value>
+      </SummaryItem>
+
+      <SummaryItem
+        onClick={() => onFilterChange("IDLE")}
+        $active={filterStatus === "IDLE"}
+        $color="#f1c40f"
+      >
+        <Label>Idle / Standby</Label>
+        <Value>{counts.IDLE}</Value>
+      </SummaryItem>
+
+      <SummaryItem
+        onClick={() => onFilterChange("DOWN")}
+        $active={filterStatus === "DOWN"}
+        $color="#e74c3c"
+      >
+        <Label>Down / Trouble</Label>
+        <Value>{counts.DOWN}</Value>
+      </SummaryItem>
+    </SummaryBar>
+  );
+});
+
+// 2. Control Bar Section
+const ControlBar = React.memo(
+  ({ loading, searchTerm, onSearchChange, onRefresh, onAddClick }) => {
+    return (
+      <ControlSection>
+        <Title>
+          Fab Equipment Monitoring
+          {loading && (
+            <LoadingSpinner>
+              <FaSync className="spin" />
+            </LoadingSpinner>
+          )}
+        </Title>
+
+        <FilterGroup>
+          <AddButton onClick={onAddClick}>
+            <FaPlus /> Add Equipment
+          </AddButton>
+
+          <SearchBox>
+            <FaSearch color="#999" />
+            <input
+              placeholder="Search EQ ID..."
+              value={searchTerm}
+              onChange={onSearchChange}
+            />
+          </SearchBox>
+
+          <RefreshBtn onClick={onRefresh} title="Refresh">
+            <FaSync />
+          </RefreshBtn>
+        </FilterGroup>
+      </ControlSection>
+    );
+  },
+);
+
+// 3. Machine Card Item
+const MachineCardItem = React.memo(
+  ({ machine, onEdit, onDelete, onDetail }) => {
+    return (
+      <MachineCard $status={machine.status}>
+        <CardHeader $status={machine.status}>
+          <MachineName>
+            <FaMicrochip /> {machine.name}
+          </MachineName>
+
+          <HeaderActions>
+            <StatusBadge $status={machine.status}>
+              {machine.status === "RUN" && <FaPlay size={10} />}
+              {machine.status === "IDLE" && <FaStop size={10} />}
+              {machine.status === "DOWN" && <FaExclamationTriangle size={10} />}
+              {machine.status === "PM" && <FaTools size={10} />}
+              <span>{machine.status}</span>
+            </StatusBadge>
+
+            <ActionIcon onClick={() => onEdit(machine)} title="Edit">
+              <FaEdit />
+            </ActionIcon>
+
+            <ActionIcon
+              className="del"
+              onClick={() => onDelete(machine.id)}
+              title="Delete"
+            >
+              <FaTrash />
+            </ActionIcon>
+          </HeaderActions>
+        </CardHeader>
+
+        <CardBody>
+          <InfoRow>
+            <InfoLabel>Current Lot</InfoLabel>
+            <InfoValue className="lot">{machine.lotId ?? "-"}</InfoValue>
+          </InfoRow>
+
+          <MetricGrid>
+            <MetricItem>
+              <FaBolt color="#f1c40f" />
+              <span>{machine.uph ?? 0} WPH</span>
+            </MetricItem>
+            <MetricItem>
+              <FaThermometerHalf color="#e74c3c" />
+              <span>{machine.temperature ?? 0}°C</span>
+            </MetricItem>
+          </MetricGrid>
+
+          <ParamRow>
+            <ParamLabel>Main Param:</ParamLabel>
+            <ParamValue>{machine.param ?? "-"}</ParamValue>
+          </ParamRow>
+
+          {machine.status === "DOWN" ? (
+            <ErrorBox>
+              <FaExclamationTriangle />
+              {machine.errorCode || "Unknown Error"}
+            </ErrorBox>
+          ) : (
+            <ProgressWrapper>
+              <ProgressLabel>
+                <span>Process Progress</span>
+                <span>{machine.progress ?? 0}%</span>
+              </ProgressLabel>
+              <ProgressBar>
+                <ProgressFill
+                  $percent={machine.progress ?? 0}
+                  $status={machine.status}
+                />
+              </ProgressBar>
+            </ProgressWrapper>
+          )}
+        </CardBody>
+
+        <CardFooter>
+          <DetailButton onClick={() => onDetail(machine)}>
+            View Detail / Log
+          </DetailButton>
+        </CardFooter>
+      </MachineCard>
+    );
+  },
+);
+
+// 4. Machine Grid
+const MachineGrid = React.memo(({ machines, onEdit, onDelete, onDetail }) => {
+  return (
+    <GridContainer>
+      {machines.map((machine) => (
+        <MachineCardItem
+          key={machine.id}
+          machine={machine}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onDetail={onDetail}
+        />
+      ))}
+    </GridContainer>
+  );
+});
+
+// 5. Detail Modal
+const DetailModal = React.memo(({ target, logs, onClose }) => {
+  if (!target) return null;
+
+  return (
+    <ModalOverlay onClick={onClose}>
+      <ModalBox onClick={(e) => e.stopPropagation()}>
+        <ModalHeader>
+          <ModalTitle>
+            <FaInfoCircle /> {target.name}
+          </ModalTitle>
+          <CloseBtn onClick={onClose}>
+            <FaTimes />
+          </CloseBtn>
+        </ModalHeader>
+
+        <ModalBody>
+          <SectionTitle>
+            <FaMicrochip /> Equipment Detail
+          </SectionTitle>
+
+          <InfoGrid>
+            <InfoItem>
+              <InfoKey>Equipment ID</InfoKey>
+              <InfoValueText>{target.id}</InfoValueText>
+            </InfoItem>
+
+            <InfoItem>
+              <InfoKey>Status</InfoKey>
+              <StatusChip $status={target.status}>{target.status}</StatusChip>
+            </InfoItem>
+
+            <InfoItem>
+              <InfoKey>Type</InfoKey>
+              <InfoValueText>{target.type ?? "-"}</InfoValueText>
+            </InfoItem>
+
+            <InfoItem>
+              <InfoKey>Current Lot</InfoKey>
+              <InfoValueText className="mono">
+                {target.lotId ?? "-"}
+              </InfoValueText>
+            </InfoItem>
+
+            <InfoItem>
+              <InfoKey>UPH</InfoKey>
+              <InfoValueText>{target.uph ?? 0}</InfoValueText>
+            </InfoItem>
+
+            <InfoItem>
+              <InfoKey>Temperature</InfoKey>
+              <InfoValueText>{target.temperature ?? 0}°C</InfoValueText>
+            </InfoItem>
+
+            <InfoItem style={{ gridColumn: "1 / -1" }}>
+              <InfoKey>Main Param</InfoKey>
+              <InfoValueText>{target.param ?? "-"}</InfoValueText>
+            </InfoItem>
+          </InfoGrid>
+
+          {target.status === "DOWN" && (
+            <DownAlarmBox>
+              <FaExclamationTriangle />
+              <span>{target.errorCode ?? "Trouble Detected"}</span>
+            </DownAlarmBox>
+          )}
+
+          <SectionTitle style={{ marginTop: 18 }}>
+            <FaClipboardList /> Recent Logs
+          </SectionTitle>
+
+          <LogTable>
+            <thead>
+              <tr>
+                <th width="170">Time</th>
+                <th width="90">Type</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.length > 0 ? (
+                logs.map((log, idx) => (
+                  <tr key={idx}>
+                    <td className="mono">{log.time}</td>
+                    <td>
+                      <LogTypeBadge $type={log.type}>{log.type}</LogTypeBadge>
+                    </td>
+                    <td>{log.message}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan="3"
+                    style={{ textAlign: "center", color: "#999" }}
+                  >
+                    No logs found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </LogTable>
+        </ModalBody>
+
+        <ModalFooter>
+          <ModalBtn className="close" onClick={onClose}>
+            Close
+          </ModalBtn>
+        </ModalFooter>
+      </ModalBox>
+    </ModalOverlay>
+  );
+});
+
+// 6. CRUD Modal
+const CrudModal = React.memo(
+  ({ isEdit, formData, onChange, onSave, onClose }) => {
+    return (
+      <ModalOverlay onClick={onClose}>
+        <ModalBox onClick={(e) => e.stopPropagation()}>
+          <ModalHeader>
+            <ModalTitle>
+              <FaTools />
+              {isEdit ? "Edit Equipment" : "Add Equipment"}
+            </ModalTitle>
+            <CloseBtn onClick={onClose}>
+              <FaTimes />
+            </CloseBtn>
+          </ModalHeader>
+
+          <ModalBody>
+            <SectionTitle>
+              <FaMicrochip /> Equipment Form
+            </SectionTitle>
+
+            <FormGrid>
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormInput
+                  name="name"
+                  value={formData.name}
+                  onChange={onChange}
+                  placeholder="Equipment name"
+                />
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Type</FormLabel>
+                <FormSelect
+                  name="type"
+                  value={formData.type}
+                  onChange={onChange}
+                >
+                  <option value="Photo">Photo</option>
+                  <option value="Etch">Etch</option>
+                  <option value="Diffusion">Diffusion</option>
+                  <option value="CMP">CMP</option>
+                  <option value="Test">Test</option>
+                </FormSelect>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <FormSelect
+                  name="status"
+                  value={formData.status}
+                  onChange={onChange}
+                >
+                  <option value="RUN">RUN</option>
+                  <option value="IDLE">IDLE</option>
+                  <option value="DOWN">DOWN</option>
+                  <option value="PM">PM</option>
+                </FormSelect>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Lot ID</FormLabel>
+                <FormInput
+                  name="lotId"
+                  value={formData.lotId}
+                  onChange={onChange}
+                  placeholder="LOT-..."
+                />
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>UPH</FormLabel>
+                <FormInput
+                  type="number"
+                  name="uph"
+                  value={formData.uph}
+                  onChange={onChange}
+                />
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Temperature</FormLabel>
+                <FormInput
+                  type="number"
+                  name="temperature"
+                  value={formData.temperature}
+                  onChange={onChange}
+                />
+              </FormItem>
+
+              <FormItem style={{ gridColumn: "1 / -1" }}>
+                <FormLabel>Main Param</FormLabel>
+                <FormInput
+                  name="param"
+                  value={formData.param}
+                  onChange={onChange}
+                  placeholder="ex) Pressure=3.2Torr"
+                />
+              </FormItem>
+            </FormGrid>
+          </ModalBody>
+
+          <ModalFooter>
+            <ModalBtn className="close" onClick={onSave}>
+              Save
+            </ModalBtn>
+          </ModalFooter>
+        </ModalBox>
+      </ModalOverlay>
+    );
+  },
+);
 
 const MachinePage = () => {
   const [machines, setMachines] = useState([]);
@@ -54,34 +467,40 @@ const MachinePage = () => {
   // ============================
   // 데이터 가져오기 (DB)
   // ============================
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/equipment/monitor`);
       setMachines(res.data ?? []);
     } catch (err) {
       console.error("설비 조회 실패:", err);
-      alert("설비 데이터를 불러오지 못했습니다. (서버/포트 확인)");
+      // alert("설비 데이터를 불러오지 못했습니다. (서버/포트 확인)"); // 반복 호출 시 알림 방지
       setMachines([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // 최초 로딩 + 10초마다 자동 갱신
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchData]);
+
+  // ============================
+  // Handlers (useCallback)
+  // ============================
+
+  const handleFilterChange = useCallback((status) => {
+    setFilterStatus(status);
   }, []);
 
-  // ============================
-  // CRUD Handlers (현재는 프론트 상태만 변경)
-  // DB 연동하려면 API 연결하면 됨
-  // ============================
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
 
-  const handleAddClick = () => {
+  const handleAddClick = useCallback(() => {
     setEditingMachine(null);
     setFormData({
       id: "",
@@ -96,39 +515,40 @@ const MachinePage = () => {
       errorCode: null,
     });
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleEditClick = (machine) => {
+  const handleEditClick = useCallback((machine) => {
     setEditingMachine(machine);
     setFormData({ ...machine });
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleDeleteClick = async (id) => {
-    console.log("삭제 클릭 값 =", id, "type =", typeof id);
-    if (!window.confirm("Are you sure you want to delete this equipment?"))
-      return;
+  const handleDeleteClick = useCallback(
+    async (id) => {
+      if (!window.confirm("Are you sure you want to delete this equipment?"))
+        return;
 
-    try {
-      await axios.delete(`${API_BASE}/equipment/${id}`);
-      alert("설비가 삭제되었습니다.");
-      await fetchData(); // DB 기준으로 다시 조회해서 화면 갱신
-    } catch (err) {
-      console.error("설비 삭제 실패:", err);
-      alert("삭제 실패! (백엔드 DELETE API 확인)");
-    }
-  };
+      try {
+        await axios.delete(`${API_BASE}/equipment/${id}`);
+        alert("설비가 삭제되었습니다.");
+        await fetchData();
+      } catch (err) {
+        console.error("설비 삭제 실패:", err);
+        alert("삭제 실패! (백엔드 DELETE API 확인)");
+      }
+    },
+    [fetchData],
+  );
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!formData.name) {
       alert("Please enter machine name.");
       return;
     }
 
     try {
-      // 신규 등록일 때만 code 생성
       const newCode = editingMachine?.id
-        ? (formData.code ?? editingMachine.code) // 수정이면 기존 code 유지
+        ? (formData.code ?? editingMachine.code)
         : `EQ-${formData.type.substring(0, 3).toUpperCase()}-${Math.floor(
             Math.random() * 1000,
           )}`;
@@ -144,25 +564,23 @@ const MachinePage = () => {
         param: formData.param,
       };
 
-      // ✅ 신규 추가
       if (!editingMachine) {
         await axios.post(`${API_BASE}/equipment`, payload);
         alert("설비가 DB에 저장되었습니다.");
       } else {
-        // ✅ 수정 저장 (PUT API 호출)
         await axios.put(`${API_BASE}/equipment/${editingMachine.id}`, payload);
         alert("설비 정보가 수정되어 DB에 저장되었습니다.");
       }
 
       setIsModalOpen(false);
-      await fetchData(); // 저장 후 DB 다시 조회해서 카드 갱신
+      await fetchData();
     } catch (err) {
       console.error("설비 저장 실패:", err);
       alert("DB 저장 실패! (백엔드 API 확인)");
     }
-  };
+  }, [formData, editingMachine, fetchData]);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = useCallback((e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -171,35 +589,13 @@ const MachinePage = () => {
           ? Number(value)
           : value,
     }));
-  };
+  }, []);
 
-  // ============================
-  // 필터링
-  // ============================
-  const filteredData = machines.filter((item) => {
-    const matchStatus = filterStatus === "ALL" || item.status === filterStatus;
-    const matchSearch =
-      (item.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.code ?? "").toLowerCase().includes(searchTerm.toLowerCase());
-    return matchStatus && matchSearch;
-  });
-
-  // 상태 카운트
-  const statusCounts = {
-    TOTAL: machines.length,
-    RUN: machines.filter((m) => m.status === "RUN").length,
-    DOWN: machines.filter((m) => m.status === "DOWN").length,
-    IDLE: machines.filter((m) => m.status === "IDLE").length,
-  };
-
-  // ============================
-  // 상세/로그 모달
-  // ============================
-  const openDetailModal = async (machine) => {
+  // Detail / Log Handlers
+  const openDetailModal = useCallback((machine) => {
     setDetailTarget(machine);
     setDetailOpen(true);
 
-    // 임시 로그
     const dummyLogs = [
       {
         time: "2026-01-20 10:22:11",
@@ -222,416 +618,85 @@ const MachinePage = () => {
     ];
 
     setLogs(dummyLogs);
-  };
+  }, []);
 
-  const closeDetailModal = () => {
+  const closeDetailModal = useCallback(() => {
     setDetailOpen(false);
     setDetailTarget(null);
     setLogs([]);
-  };
+  }, []);
 
-  const closeCrudModal = () => {
+  const closeCrudModal = useCallback(() => {
     setIsModalOpen(false);
     setEditingMachine(null);
-  };
+  }, []);
+
+  // ============================
+  // Memoized Data
+  // ============================
+  const filteredData = useMemo(() => {
+    return machines.filter((item) => {
+      const matchStatus =
+        filterStatus === "ALL" || item.status === filterStatus;
+      const matchSearch =
+        (item.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.code ?? "").toLowerCase().includes(searchTerm.toLowerCase());
+      return matchStatus && matchSearch;
+    });
+  }, [machines, filterStatus, searchTerm]);
+
+  const statusCounts = useMemo(() => {
+    return {
+      TOTAL: machines.length,
+      RUN: machines.filter((m) => m.status === "RUN").length,
+      DOWN: machines.filter((m) => m.status === "DOWN").length,
+      IDLE: machines.filter((m) => m.status === "IDLE").length,
+    };
+  }, [machines]);
 
   return (
     <Container>
-      {/* 1. 상단 요약 바 */}
-      <SummaryBar>
-        <SummaryItem
-          onClick={() => setFilterStatus("ALL")}
-          $active={filterStatus === "ALL"}
-        >
-          <Label>Total Equipments</Label>
-          <Value>{statusCounts.TOTAL}</Value>
-        </SummaryItem>
+      {/* 1. Summary Bar */}
+      <SummaryBoard
+        counts={statusCounts}
+        filterStatus={filterStatus}
+        onFilterChange={handleFilterChange}
+      />
 
-        <SummaryItem
-          onClick={() => setFilterStatus("RUN")}
-          $active={filterStatus === "RUN"}
-          $color="#2ecc71"
-        >
-          <Label>Running (Prod)</Label>
-          <Value>{statusCounts.RUN}</Value>
-        </SummaryItem>
+      {/* 2. Control Section */}
+      <ControlBar
+        loading={loading}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+        onRefresh={fetchData}
+        onAddClick={handleAddClick}
+      />
 
-        <SummaryItem
-          onClick={() => setFilterStatus("IDLE")}
-          $active={filterStatus === "IDLE"}
-          $color="#f1c40f"
-        >
-          <Label>Idle / Standby</Label>
-          <Value>{statusCounts.IDLE}</Value>
-        </SummaryItem>
+      {/* 3. Machine Grid */}
+      <MachineGrid
+        machines={filteredData}
+        onEdit={handleEditClick}
+        onDelete={handleDeleteClick}
+        onDetail={openDetailModal}
+      />
 
-        <SummaryItem
-          onClick={() => setFilterStatus("DOWN")}
-          $active={filterStatus === "DOWN"}
-          $color="#e74c3c"
-        >
-          <Label>Down / Trouble</Label>
-          <Value>{statusCounts.DOWN}</Value>
-        </SummaryItem>
-      </SummaryBar>
-
-      {/* 2. 컨트롤 영역 */}
-      <ControlSection>
-        <Title>
-          Fab Equipment Monitoring
-          {loading && (
-            <LoadingSpinner>
-              <FaSync className="spin" />
-            </LoadingSpinner>
-          )}
-        </Title>
-
-        <FilterGroup>
-          <AddButton onClick={handleAddClick}>
-            <FaPlus /> Add Equipment
-          </AddButton>
-
-          <SearchBox>
-            <FaSearch color="#999" />
-            <input
-              placeholder="Search EQ ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </SearchBox>
-
-          <RefreshBtn onClick={fetchData} title="Refresh">
-            <FaSync />
-          </RefreshBtn>
-        </FilterGroup>
-      </ControlSection>
-
-      {/* 3. 설비 카드 그리드 */}
-      <GridContainer>
-        {filteredData.map((machine) => (
-          <MachineCard key={machine.id} $status={machine.status}>
-            <CardHeader $status={machine.status}>
-              <MachineName>
-                <FaMicrochip /> {machine.name}
-              </MachineName>
-
-              <HeaderActions>
-                <StatusBadge $status={machine.status}>
-                  {machine.status === "RUN" && <FaPlay size={10} />}
-                  {machine.status === "IDLE" && <FaStop size={10} />}
-                  {machine.status === "DOWN" && (
-                    <FaExclamationTriangle size={10} />
-                  )}
-                  {machine.status === "PM" && <FaTools size={10} />}
-                  <span>{machine.status}</span>
-                </StatusBadge>
-
-                <ActionIcon
-                  onClick={() => handleEditClick(machine)}
-                  title="Edit"
-                >
-                  <FaEdit />
-                </ActionIcon>
-
-                <ActionIcon
-                  className="del"
-                  onClick={() => {
-                    console.log("machine 객체 =", machine);
-                    console.log("machine.id =", machine.id, typeof machine.id);
-                    console.log(
-                      "machine.code =",
-                      machine.code,
-                      typeof machine.code,
-                    );
-                    handleDeleteClick(machine.id);
-                  }}
-                  title="Delete"
-                >
-                  <FaTrash />
-                </ActionIcon>
-              </HeaderActions>
-            </CardHeader>
-
-            <CardBody>
-              <InfoRow>
-                <InfoLabel>Current Lot</InfoLabel>
-                <InfoValue className="lot">{machine.lotId ?? "-"}</InfoValue>
-              </InfoRow>
-
-              <MetricGrid>
-                <MetricItem>
-                  <FaBolt color="#f1c40f" />
-                  <span>{machine.uph ?? 0} WPH</span>
-                </MetricItem>
-                <MetricItem>
-                  <FaThermometerHalf color="#e74c3c" />
-                  <span>{machine.temperature ?? 0}°C</span>
-                </MetricItem>
-              </MetricGrid>
-
-              <ParamRow>
-                <ParamLabel>Main Param:</ParamLabel>
-                <ParamValue>{machine.param ?? "-"}</ParamValue>
-              </ParamRow>
-
-              {machine.status === "DOWN" ? (
-                <ErrorBox>
-                  <FaExclamationTriangle />
-                  {machine.errorCode || "Unknown Error"}
-                </ErrorBox>
-              ) : (
-                <ProgressWrapper>
-                  <ProgressLabel>
-                    <span>Process Progress</span>
-                    <span>{machine.progress ?? 0}%</span>
-                  </ProgressLabel>
-                  <ProgressBar>
-                    <ProgressFill
-                      $percent={machine.progress ?? 0}
-                      $status={machine.status}
-                    />
-                  </ProgressBar>
-                </ProgressWrapper>
-              )}
-            </CardBody>
-
-            <CardFooter>
-              <DetailButton onClick={() => openDetailModal(machine)}>
-                View Detail / Log
-              </DetailButton>
-            </CardFooter>
-          </MachineCard>
-        ))}
-      </GridContainer>
-
-      {/* ============================
-          상세/로그 모달
-         ============================ */}
-      {detailOpen && detailTarget && (
-        <ModalOverlay onClick={closeDetailModal}>
-          <ModalBox onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>
-                <FaInfoCircle /> {detailTarget.name}
-              </ModalTitle>
-              <CloseBtn onClick={closeDetailModal}>
-                <FaTimes />
-              </CloseBtn>
-            </ModalHeader>
-
-            <ModalBody>
-              <SectionTitle>
-                <FaMicrochip /> Equipment Detail
-              </SectionTitle>
-
-              <InfoGrid>
-                <InfoItem>
-                  <InfoKey>Equipment ID</InfoKey>
-                  <InfoValueText>{detailTarget.id}</InfoValueText>
-                </InfoItem>
-
-                <InfoItem>
-                  <InfoKey>Status</InfoKey>
-                  <StatusChip $status={detailTarget.status}>
-                    {detailTarget.status}
-                  </StatusChip>
-                </InfoItem>
-
-                <InfoItem>
-                  <InfoKey>Type</InfoKey>
-                  <InfoValueText>{detailTarget.type ?? "-"}</InfoValueText>
-                </InfoItem>
-
-                <InfoItem>
-                  <InfoKey>Current Lot</InfoKey>
-                  <InfoValueText className="mono">
-                    {detailTarget.lotId ?? "-"}
-                  </InfoValueText>
-                </InfoItem>
-
-                <InfoItem>
-                  <InfoKey>UPH</InfoKey>
-                  <InfoValueText>{detailTarget.uph ?? 0}</InfoValueText>
-                </InfoItem>
-
-                <InfoItem>
-                  <InfoKey>Temperature</InfoKey>
-                  <InfoValueText>
-                    {detailTarget.temperature ?? 0}°C
-                  </InfoValueText>
-                </InfoItem>
-
-                <InfoItem style={{ gridColumn: "1 / -1" }}>
-                  <InfoKey>Main Param</InfoKey>
-                  <InfoValueText>{detailTarget.param ?? "-"}</InfoValueText>
-                </InfoItem>
-              </InfoGrid>
-
-              {detailTarget.status === "DOWN" && (
-                <DownAlarmBox>
-                  <FaExclamationTriangle />
-                  <span>{detailTarget.errorCode ?? "Trouble Detected"}</span>
-                </DownAlarmBox>
-              )}
-
-              <SectionTitle style={{ marginTop: 18 }}>
-                <FaClipboardList /> Recent Logs
-              </SectionTitle>
-
-              <LogTable>
-                <thead>
-                  <tr>
-                    <th width="170">Time</th>
-                    <th width="90">Type</th>
-                    <th>Message</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {logs.length > 0 ? (
-                    logs.map((log, idx) => (
-                      <tr key={idx}>
-                        <td className="mono">{log.time}</td>
-                        <td>
-                          <LogTypeBadge $type={log.type}>
-                            {log.type}
-                          </LogTypeBadge>
-                        </td>
-                        <td>{log.message}</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan="3"
-                        style={{ textAlign: "center", color: "#999" }}
-                      >
-                        No logs found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </LogTable>
-            </ModalBody>
-
-            <ModalFooter>
-              <ModalBtn className="close" onClick={closeDetailModal}>
-                Close
-              </ModalBtn>
-            </ModalFooter>
-          </ModalBox>
-        </ModalOverlay>
+      {/* 4. Modals */}
+      {detailOpen && (
+        <DetailModal
+          target={detailTarget}
+          logs={logs}
+          onClose={closeDetailModal}
+        />
       )}
 
-      {/* ============================
-          Add/Edit 모달
-         ============================ */}
       {isModalOpen && (
-        <ModalOverlay onClick={closeCrudModal}>
-          <ModalBox onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <ModalTitle>
-                <FaTools />
-                {editingMachine ? "Edit Equipment" : "Add Equipment"}
-              </ModalTitle>
-              <CloseBtn onClick={closeCrudModal}>
-                <FaTimes />
-              </CloseBtn>
-            </ModalHeader>
-
-            <ModalBody>
-              <SectionTitle>
-                <FaMicrochip /> Equipment Form
-              </SectionTitle>
-
-              <FormGrid>
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormInput
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Equipment name"
-                  />
-                </FormItem>
-
-                <FormItem>
-                  <FormLabel>Type</FormLabel>
-                  <FormSelect
-                    name="type"
-                    value={formData.type}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Photo">Photo</option>
-                    <option value="Etch">Etch</option>
-                    <option value="Diffusion">Diffusion</option>
-                    <option value="CMP">CMP</option>
-                    <option value="Test">Test</option>
-                  </FormSelect>
-                </FormItem>
-
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <FormSelect
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                  >
-                    <option value="RUN">RUN</option>
-                    <option value="IDLE">IDLE</option>
-                    <option value="DOWN">DOWN</option>
-                    <option value="PM">PM</option>
-                  </FormSelect>
-                </FormItem>
-
-                <FormItem>
-                  <FormLabel>Lot ID</FormLabel>
-                  <FormInput
-                    name="lotId"
-                    value={formData.lotId}
-                    onChange={handleInputChange}
-                    placeholder="LOT-..."
-                  />
-                </FormItem>
-
-                <FormItem>
-                  <FormLabel>UPH</FormLabel>
-                  <FormInput
-                    type="number"
-                    name="uph"
-                    value={formData.uph}
-                    onChange={handleInputChange}
-                  />
-                </FormItem>
-
-                <FormItem>
-                  <FormLabel>Temperature</FormLabel>
-                  <FormInput
-                    type="number"
-                    name="temperature"
-                    value={formData.temperature}
-                    onChange={handleInputChange}
-                  />
-                </FormItem>
-
-                <FormItem style={{ gridColumn: "1 / -1" }}>
-                  <FormLabel>Main Param</FormLabel>
-                  <FormInput
-                    name="param"
-                    value={formData.param}
-                    onChange={handleInputChange}
-                    placeholder="ex) Pressure=3.2Torr"
-                  />
-                </FormItem>
-              </FormGrid>
-            </ModalBody>
-
-            <ModalFooter>
-              <ModalBtn className="close" onClick={handleSave}>
-                Save
-              </ModalBtn>
-            </ModalFooter>
-          </ModalBox>
-        </ModalOverlay>
+        <CrudModal
+          isEdit={!!editingMachine}
+          formData={formData}
+          onChange={handleInputChange}
+          onSave={handleSave}
+          onClose={closeCrudModal}
+        />
       )}
     </Container>
   );
@@ -640,7 +705,7 @@ const MachinePage = () => {
 export default MachinePage;
 
 /* ===========================
-   Styled Components
+   Styled Components (No Changes)
 =========================== */
 
 const Container = styled.div`
@@ -1009,10 +1074,7 @@ const DetailButton = styled.button`
   }
 `;
 
-/* ===========================
-   Modal
-=========================== */
-
+/* Modal Styles */
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;

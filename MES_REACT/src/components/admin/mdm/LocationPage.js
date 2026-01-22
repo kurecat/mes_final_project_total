@@ -1,7 +1,7 @@
 // src/pages/mdm/LocationPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-import axios from "axios";
+// import axios from "axios";
 import {
   FaWarehouse,
   FaSearch,
@@ -63,17 +63,115 @@ const MOCK_LOCATIONS = [
   },
 ];
 
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Control Bar Component
+const ControlBarSection = React.memo(
+  ({ filterType, onFilterChange, searchTerm, onSearchChange }) => {
+    return (
+      <ControlBar>
+        <FilterGroup>
+          {["ALL", "RAW", "WIP", "FG"].map((type) => (
+            <FilterBtn
+              key={type}
+              $active={filterType === type}
+              onClick={() => onFilterChange(type)}
+            >
+              {type === "ALL"
+                ? "All"
+                : type === "RAW"
+                  ? "Raw Material"
+                  : type === "WIP"
+                    ? "WIP (Stocker)"
+                    : "Finished Goods"}
+            </FilterBtn>
+          ))}
+        </FilterGroup>
+        <SearchBox>
+          <FaSearch color="#999" />
+          <input
+            placeholder="Search Location..."
+            value={searchTerm}
+            onChange={onSearchChange}
+          />
+        </SearchBox>
+      </ControlBar>
+    );
+  },
+);
+
+// 2. Location Card Item Component
+const LocationCardItem = React.memo(({ loc, onDelete, onEdit }) => {
+  const percent = Math.round((loc.current / loc.capacity) * 100);
+  const isFull = percent >= 95;
+
+  return (
+    <LocationCard $isFull={isFull}>
+      <CardHeader>
+        <LocType $type={loc.type}>{loc.type}</LocType>
+        <LocId>{loc.id}</LocId>
+        <EditIcon onClick={() => onEdit(loc.id)}>
+          <FaEdit />
+        </EditIcon>
+      </CardHeader>
+
+      <CardBody>
+        <LocName>{loc.name}</LocName>
+        <ConditionInfo>
+          {loc.condition.includes("Cold") ? (
+            <FaThermometerHalf color="#3498db" />
+          ) : loc.condition.includes("Dry") ? (
+            <FaBox color="#e67e22" />
+          ) : (
+            <FaWarehouse color="#999" />
+          )}
+          {loc.condition}
+        </ConditionInfo>
+
+        <CapacityWrapper>
+          <CapLabel>
+            <span>Occupancy</span>
+            <span className={isFull ? "full" : ""}>
+              {percent}% ({loc.current}/{loc.capacity})
+            </span>
+          </CapLabel>
+          <ProgressBar>
+            <ProgressFill $width={percent} $isFull={isFull} />
+          </ProgressBar>
+        </CapacityWrapper>
+      </CardBody>
+
+      <CardFooter>
+        <StatusText $status={loc.status}>
+          {isFull ? (
+            <>
+              <FaExclamationTriangle /> FULL
+            </>
+          ) : (
+            "● AVAILABLE"
+          )}
+        </StatusText>
+        <DeleteBtn onClick={() => onDelete(loc.id)}>
+          <FaTrash />
+        </DeleteBtn>
+      </CardFooter>
+    </LocationCard>
+  );
+});
+
+// --- Main Component ---
+
 const LocationPage = () => {
   const [locations, setLocations] = useState(MOCK_LOCATIONS);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("ALL");
 
-  // 1. 데이터 조회 (READ)
-  const fetchData = async () => {
+  // 1. 데이터 조회 (READ) - useCallback
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // ★ 실제 API: http://localhost:3001/locations
+      // API call logic...
       // const res = await axios.get("http://localhost:3001/locations");
       // setLocations(res.data);
 
@@ -85,14 +183,14 @@ const LocationPage = () => {
       console.error(err);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  // 2. 삭제 (DELETE)
-  const handleDelete = async (id) => {
+  // 2. Handlers - useCallback
+  const handleDelete = useCallback(async (id) => {
     if (!window.confirm("이 위치 정보를 삭제하시겠습니까?")) return;
     try {
       // await axios.delete(`http://localhost:3001/locations/${id}`);
@@ -100,16 +198,34 @@ const LocationPage = () => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
-  // 필터링
-  const filteredList = locations.filter((loc) => {
-    const matchType = filterType === "ALL" || loc.type === filterType;
-    const matchSearch =
-      loc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      loc.id.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchType && matchSearch;
-  });
+  const handleEdit = useCallback((id) => {
+    alert(`Edit Modal Open for ${id}`);
+  }, []);
+
+  const handleAdd = useCallback(() => {
+    alert("Add Modal Open");
+  }, []);
+
+  const handleFilterChange = useCallback((type) => {
+    setFilterType(type);
+  }, []);
+
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  // 3. Filtering - useMemo
+  const filteredList = useMemo(() => {
+    return locations.filter((loc) => {
+      const matchType = filterType === "ALL" || loc.type === filterType;
+      const matchSearch =
+        loc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        loc.id.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchType && matchSearch;
+    });
+  }, [locations, filterType, searchTerm]);
 
   return (
     <Container>
@@ -128,109 +244,30 @@ const LocationPage = () => {
           <SubTitle>Manage Storage Zones & Capacity</SubTitle>
         </TitleArea>
         <ActionGroup>
-          <AddButton>
+          <AddButton onClick={handleAdd}>
             <FaPlus /> Add Location
           </AddButton>
         </ActionGroup>
       </Header>
 
-      {/* 컨트롤 바 */}
-      <ControlBar>
-        <FilterGroup>
-          <FilterBtn
-            $active={filterType === "ALL"}
-            onClick={() => setFilterType("ALL")}
-          >
-            All
-          </FilterBtn>
-          <FilterBtn
-            $active={filterType === "RAW"}
-            onClick={() => setFilterType("RAW")}
-          >
-            Raw Material
-          </FilterBtn>
-          <FilterBtn
-            $active={filterType === "WIP"}
-            onClick={() => setFilterType("WIP")}
-          >
-            WIP (Stocker)
-          </FilterBtn>
-          <FilterBtn
-            $active={filterType === "FG"}
-            onClick={() => setFilterType("FG")}
-          >
-            Finished Goods
-          </FilterBtn>
-        </FilterGroup>
-        <SearchBox>
-          <FaSearch color="#999" />
-          <input
-            placeholder="Search Location..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </SearchBox>
-      </ControlBar>
+      {/* 컨트롤 바 (Memoized) */}
+      <ControlBarSection
+        filterType={filterType}
+        onFilterChange={handleFilterChange}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+      />
 
       {/* 위치 카드 그리드 */}
       <GridContainer>
-        {filteredList.map((loc) => {
-          const percent = Math.round((loc.current / loc.capacity) * 100);
-          const isFull = percent >= 95;
-
-          return (
-            <LocationCard key={loc.id} $isFull={isFull}>
-              <CardHeader>
-                <LocType $type={loc.type}>{loc.type}</LocType>
-                <LocId>{loc.id}</LocId>
-                <EditIcon onClick={() => alert("Edit Modal Open")}>
-                  <FaEdit />
-                </EditIcon>
-              </CardHeader>
-
-              <CardBody>
-                <LocName>{loc.name}</LocName>
-                <ConditionInfo>
-                  {loc.condition.includes("Cold") ? (
-                    <FaThermometerHalf color="#3498db" />
-                  ) : loc.condition.includes("Dry") ? (
-                    <FaBox color="#e67e22" />
-                  ) : (
-                    <FaWarehouse color="#999" />
-                  )}
-                  {loc.condition}
-                </ConditionInfo>
-
-                <CapacityWrapper>
-                  <CapLabel>
-                    <span>Occupancy</span>
-                    <span className={isFull ? "full" : ""}>
-                      {percent}% ({loc.current}/{loc.capacity})
-                    </span>
-                  </CapLabel>
-                  <ProgressBar>
-                    <ProgressFill $width={percent} $isFull={isFull} />
-                  </ProgressBar>
-                </CapacityWrapper>
-              </CardBody>
-
-              <CardFooter>
-                <StatusText $status={loc.status}>
-                  {isFull ? (
-                    <>
-                      <FaExclamationTriangle /> FULL
-                    </>
-                  ) : (
-                    "● AVAILABLE"
-                  )}
-                </StatusText>
-                <DeleteBtn onClick={() => handleDelete(loc.id)}>
-                  <FaTrash />
-                </DeleteBtn>
-              </CardFooter>
-            </LocationCard>
-          );
-        })}
+        {filteredList.map((loc) => (
+          <LocationCardItem
+            key={loc.id}
+            loc={loc}
+            onDelete={handleDelete}
+            onEdit={handleEdit}
+          />
+        ))}
       </GridContainer>
     </Container>
   );
@@ -387,14 +424,14 @@ const LocType = styled.span`
     props.$type === "RAW"
       ? "#e8f5e9"
       : props.$type === "WIP"
-      ? "#fff3e0"
-      : "#e3f2fd"};
+        ? "#fff3e0"
+        : "#e3f2fd"};
   color: ${(props) =>
     props.$type === "RAW"
       ? "#2e7d32"
       : props.$type === "WIP"
-      ? "#e67e22"
-      : "#1976d2"};
+        ? "#e67e22"
+        : "#1976d2"};
 `;
 const LocId = styled.span`
   font-weight: 700;

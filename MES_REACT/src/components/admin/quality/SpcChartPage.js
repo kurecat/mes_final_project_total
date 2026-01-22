@@ -1,5 +1,5 @@
 // src/pages/quality/SpcChartPage.js
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import {
   LineChart,
@@ -18,6 +18,169 @@ import {
   FaExclamationCircle,
   FaCalculator,
 } from "react-icons/fa";
+
+// --- Custom Dot for Chart ---
+const CustomDot = (props) => {
+  const { cx, cy, value, ucl, lcl } = props;
+  const isOOC = value > ucl || value < lcl;
+
+  if (!cx || !cy) return null;
+
+  return (
+    <Dot
+      cx={cx}
+      cy={cy}
+      r={isOOC ? 6 : 4}
+      stroke={isOOC ? "#c0392b" : "#3498db"}
+      strokeWidth={2}
+      fill={isOOC ? "#e74c3c" : "white"}
+    />
+  );
+};
+
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Header Component
+const SpcHeader = React.memo(
+  ({ parameters, selectedParamId, onParamChange }) => {
+    return (
+      <Header>
+        <TitleGroup>
+          <FaChartLine size={24} color="#3498db" />
+          <h1>SPC Monitoring</h1>
+        </TitleGroup>
+        <Controls>
+          <FilterLabel>
+            <FaFilter /> Parameter:
+          </FilterLabel>
+          <Select value={selectedParamId} onChange={onParamChange}>
+            {parameters.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.step})
+              </option>
+            ))}
+          </Select>
+        </Controls>
+      </Header>
+    );
+  },
+);
+
+// 2. Chart Panel Component
+const SpcChartPanel = React.memo(({ chartData, currentParam }) => {
+  return (
+    <ChartPanel>
+      <PanelHeader>
+        <h3>X-bar Control Chart</h3>
+        <UnitBadge>Unit: {currentParam.unit}</UnitBadge>
+      </PanelHeader>
+      <ChartContainer>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chartData}
+            margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="time" />
+            <YAxis domain={["auto", "auto"]} />
+            <Tooltip
+              contentStyle={{
+                borderRadius: "8px",
+                border: "none",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              }}
+            />
+
+            {/* Control Limits */}
+            <ReferenceLine
+              y={currentParam.ucl}
+              label="UCL"
+              stroke="#e74c3c"
+              strokeDasharray="5 5"
+            />
+            <ReferenceLine
+              y={currentParam.target}
+              label="Target"
+              stroke="#2ecc71"
+              strokeDasharray="3 3"
+            />
+            <ReferenceLine
+              y={currentParam.lcl}
+              label="LCL"
+              stroke="#e74c3c"
+              strokeDasharray="5 5"
+            />
+
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke="#3498db"
+              strokeWidth={2}
+              dot={<CustomDot ucl={currentParam.ucl} lcl={currentParam.lcl} />}
+              activeDot={{ r: 8 }}
+              isAnimationActive={true}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartContainer>
+    </ChartPanel>
+  );
+});
+
+// 3. Stat Panel Component
+const SpcStatPanel = React.memo(({ stats, violations }) => {
+  return (
+    <SidePanel>
+      <StatCard>
+        <CardTitle>
+          <FaCalculator /> Process Capability
+        </CardTitle>
+        <StatGrid>
+          <StatItem>
+            <Label>Cpk</Label>
+            <Value $good={stats.cpk >= 1.33}>{stats.cpk}</Value>
+          </StatItem>
+          <StatItem>
+            <Label>Cp</Label>
+            <Value $good={stats.cp >= 1.33}>{stats.cp}</Value>
+          </StatItem>
+          <StatItem>
+            <Label>Mean</Label>
+            <Value>{stats.mean}</Value>
+          </StatItem>
+          <StatItem>
+            <Label>Std Dev</Label>
+            <Value>{stats.stdDev}</Value>
+          </StatItem>
+        </StatGrid>
+      </StatCard>
+
+      <AlertCard>
+        <CardTitle>
+          <FaExclamationCircle /> OOC Alerts ({violations.length})
+        </CardTitle>
+        <AlertList>
+          {violations.length > 0 ? (
+            violations.map((v) => (
+              <AlertItem key={v.id}>
+                <AlertIcon>!</AlertIcon>
+                <AlertText>
+                  <div className="lot">{v.lotId}</div>
+                  <div className="desc">Value {v.value} (Limit Exceeded)</div>
+                </AlertText>
+                <AlertTime>{v.time}</AlertTime>
+              </AlertItem>
+            ))
+          ) : (
+            <EmptyAlert>No OOC detected.</EmptyAlert>
+          )}
+        </AlertList>
+      </AlertCard>
+    </SidePanel>
+  );
+});
+
+// --- Main Component ---
 
 const SpcChartPage = () => {
   // --- State ---
@@ -48,8 +211,16 @@ const SpcChartPage = () => {
     fetchData();
   }, []);
 
-  // --- Derived State (Filtering & Calculation) ---
-  const currentParam = parameters.find((p) => p.id === selectedParamId) || {};
+  // --- Handlers (useCallback) ---
+  const handleParamChange = useCallback((e) => {
+    setSelectedParamId(e.target.value);
+  }, []);
+
+  // --- Derived State (useMemo) ---
+  const currentParam = useMemo(
+    () => parameters.find((p) => p.id === selectedParamId) || {},
+    [parameters, selectedParamId],
+  );
 
   const chartData = useMemo(() => {
     return allData.filter((d) => d.paramId === selectedParamId);
@@ -85,162 +256,28 @@ const SpcChartPage = () => {
     };
   }, [chartData, currentParam]);
 
-  // Violation Check (Rule 1: Point outside limits)
-  const violations = chartData.filter(
-    (d) => d.value > currentParam.ucl || d.value < currentParam.lcl
-  );
-
-  // Custom Dot for Chart (Red if OOC)
-  const CustomDot = (props) => {
-    const { cx, cy, value } = props;
-    const isOOC = value > currentParam.ucl || value < currentParam.lcl;
-
-    if (!cx || !cy) return null;
-
-    return (
-      <Dot
-        cx={cx}
-        cy={cy}
-        r={isOOC ? 6 : 4}
-        stroke={isOOC ? "#c0392b" : "#3498db"}
-        strokeWidth={2}
-        fill={isOOC ? "#e74c3c" : "white"}
-      />
+  // Violation Check
+  const violations = useMemo(() => {
+    return chartData.filter(
+      (d) => d.value > currentParam.ucl || d.value < currentParam.lcl,
     );
-  };
+  }, [chartData, currentParam]);
 
   return (
     <Container>
-      <Header>
-        <TitleGroup>
-          <FaChartLine size={24} color="#3498db" />
-          <h1>SPC Monitoring</h1>
-        </TitleGroup>
-        <Controls>
-          <FilterLabel>
-            <FaFilter /> Parameter:
-          </FilterLabel>
-          <Select
-            value={selectedParamId}
-            onChange={(e) => setSelectedParamId(e.target.value)}
-          >
-            {parameters.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.step})
-              </option>
-            ))}
-          </Select>
-        </Controls>
-      </Header>
+      {/* Header (Memoized) */}
+      <SpcHeader
+        parameters={parameters}
+        selectedParamId={selectedParamId}
+        onParamChange={handleParamChange}
+      />
 
       <ContentRow>
-        {/* Left: Chart Area */}
-        <ChartPanel>
-          <PanelHeader>
-            <h3>X-bar Control Chart</h3>
-            <UnitBadge>Unit: {currentParam.unit}</UnitBadge>
-          </PanelHeader>
-          <ChartContainer>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={chartData}
-                margin={{ top: 20, right: 30, left: 0, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="time" />
-                <YAxis domain={["auto", "auto"]} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "none",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-                  }}
-                />
+        {/* Left: Chart Area (Memoized) */}
+        <SpcChartPanel chartData={chartData} currentParam={currentParam} />
 
-                {/* Control Limits */}
-                <ReferenceLine
-                  y={currentParam.ucl}
-                  label="UCL"
-                  stroke="#e74c3c"
-                  strokeDasharray="5 5"
-                />
-                <ReferenceLine
-                  y={currentParam.target}
-                  label="Target"
-                  stroke="#2ecc71"
-                  strokeDasharray="3 3"
-                />
-                <ReferenceLine
-                  y={currentParam.lcl}
-                  label="LCL"
-                  stroke="#e74c3c"
-                  strokeDasharray="5 5"
-                />
-
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#3498db"
-                  strokeWidth={2}
-                  dot={<CustomDot />}
-                  activeDot={{ r: 8 }}
-                  isAnimationActive={true}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-        </ChartPanel>
-
-        {/* Right: Stats & Alerts */}
-        <SidePanel>
-          <StatCard>
-            <CardTitle>
-              <FaCalculator /> Process Capability
-            </CardTitle>
-            <StatGrid>
-              <StatItem>
-                <Label>Cpk</Label>
-                <Value $good={stats.cpk >= 1.33}>{stats.cpk}</Value>
-              </StatItem>
-              <StatItem>
-                <Label>Cp</Label>
-                <Value $good={stats.cp >= 1.33}>{stats.cp}</Value>
-              </StatItem>
-              <StatItem>
-                <Label>Mean</Label>
-                <Value>{stats.mean}</Value>
-              </StatItem>
-              <StatItem>
-                <Label>Std Dev</Label>
-                <Value>{stats.stdDev}</Value>
-              </StatItem>
-            </StatGrid>
-          </StatCard>
-
-          <AlertCard>
-            <CardTitle>
-              <FaExclamationCircle /> OOC Alerts ({violations.length})
-            </CardTitle>
-            <AlertList>
-              {violations.length > 0 ? (
-                violations.map((v) => (
-                  <AlertItem key={v.id}>
-                    <AlertIcon>!</AlertIcon>
-                    <AlertText>
-                      <div className="lot">{v.lotId}</div>
-                      <div className="desc">
-                        Value {v.value} (Limit Exceeded)
-                      </div>
-                    </AlertText>
-                    <AlertTime>{v.time}</AlertTime>
-                  </AlertItem>
-                ))
-              ) : (
-                <EmptyAlert>No OOC detected.</EmptyAlert>
-              )}
-            </AlertList>
-          </AlertCard>
-        </SidePanel>
+        {/* Right: Stats & Alerts (Memoized) */}
+        <SpcStatPanel stats={stats} violations={violations} />
       </ContentRow>
     </Container>
   );
@@ -248,10 +285,8 @@ const SpcChartPage = () => {
 
 export default SpcChartPage;
 
-// --- Styled Components ---
-// --- Styled Components ---
+// --- Styled Components (No Changes) ---
 
-// 1. 컨테이너: 화면 꽉 채움 & 외부 스크롤 방지
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -408,8 +443,8 @@ const Value = styled.div`
     props.$good === false
       ? "#e74c3c"
       : props.$good === true
-      ? "#2ecc71"
-      : "#2c3e50"};
+        ? "#2ecc71"
+        : "#2c3e50"};
 `;
 
 // 3. 알림 카드: 남은 공간 차지 + 내부 스크롤

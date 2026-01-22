@@ -1,45 +1,232 @@
-// src/pages/production/BarcodePage.js
-import React, { useState, useEffect, useRef } from "react";
+// src/components/admin/production/BarcodePage.js
+import React, { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
-import Barcode from "react-barcode"; // 바코드 생성 라이브러리
+import Barcode from "react-barcode";
 import {
   FaBarcode,
   FaBoxOpen,
-  FaSearch,
   FaTimes,
   FaPrint,
+  FaCamera,
 } from "react-icons/fa";
+
+// ★ MobileScanner 컴포넌트 import (경로 확인 필요)
+import MobileScanner from "../../common/MobileScanner";
+
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Header Component
+const BarcodeHeader = React.memo(
+  ({ onScanClick, manualCode, onManualChange, onManualSubmit }) => {
+    return (
+      <Header>
+        <TitleGroup>
+          <FaBarcode size={24} color="#34495e" />
+          <h1>Barcode System</h1>
+        </TitleGroup>
+
+        <ControlGroup>
+          <ScanBtn type="button" onClick={onScanClick}>
+            <FaCamera /> Barcode Scan
+          </ScanBtn>
+
+          <TestBox onSubmit={onManualSubmit}>
+            <input
+              placeholder="Click here & Scan or Type..."
+              value={manualCode}
+              onChange={onManualChange}
+            />
+            <button type="submit">Check</button>
+          </TestBox>
+        </ControlGroup>
+      </Header>
+    );
+  },
+);
+
+// 2. Product Card Component
+const ProductItem = React.memo(({ product }) => {
+  return (
+    <ProductCard>
+      <CardHeader>
+        <ProductName>{product.name}</ProductName>
+        <CategoryBadge>{product.category}</CategoryBadge>
+      </CardHeader>
+      <BarcodeWrapper>
+        <Barcode
+          value={product.barcode}
+          width={1.5}
+          height={50}
+          fontSize={14}
+        />
+      </BarcodeWrapper>
+      <CardFooter>
+        <span>Stock: {product.stock}</span>
+        <PrintBtn onClick={() => alert(`Print label for ${product.name}`)}>
+          <FaPrint /> Print
+        </PrintBtn>
+      </CardFooter>
+    </ProductCard>
+  );
+});
+
+// 3. Result Modal Component
+const ScanResultModal = React.memo(({ product, onClose }) => {
+  if (!product) return null;
+
+  return (
+    <Overlay onClick={onClose}>
+      <ModalContent onClick={(e) => e.stopPropagation()}>
+        <ModalHeader>
+          <h2>Scan Result</h2>
+          <CloseBtn onClick={onClose}>
+            <FaTimes />
+          </CloseBtn>
+        </ModalHeader>
+        <ModalBody>
+          <ResultIcon>
+            <FaBoxOpen size={60} color="#2ecc71" />
+          </ResultIcon>
+          <ResultTitle>{product.name}</ResultTitle>
+          <ResultBarcode>{product.barcode}</ResultBarcode>
+
+          <InfoGrid>
+            <InfoItem>
+              <label>Category</label>
+              <span>{product.category}</span>
+            </InfoItem>
+            <InfoItem>
+              <label>Location</label>
+              <span>{product.location}</span>
+            </InfoItem>
+            <InfoItem>
+              <label>Price</label>
+              <span>${product.price.toLocaleString()}</span>
+            </InfoItem>
+            <InfoItem>
+              <label>Current Stock</label>
+              <StockValue>{product.stock} ea</StockValue>
+            </InfoItem>
+          </InfoGrid>
+
+          <DescBox>
+            <h4>Description</h4>
+            <p>{product.description}</p>
+          </DescBox>
+        </ModalBody>
+        <ModalFooter>
+          <ActionBtn onClick={onClose}>Close</ActionBtn>
+        </ModalFooter>
+      </ModalContent>
+    </Overlay>
+  );
+});
+
+// --- Main Component ---
 
 const BarcodePage = () => {
   // --- State ---
   const [products, setProducts] = useState([]);
-  const [scannedProduct, setScannedProduct] = useState(null); // 모달에 띄울 제품
-  const [inputBuffer, setInputBuffer] = useState(""); // 스캔 입력 버퍼
-  const [lastScannedCode, setLastScannedCode] = useState(""); // 마지막 스캔 기록
+  const [scannedProduct, setScannedProduct] = useState(null);
+  const [inputBuffer, setInputBuffer] = useState("");
+  const [lastScannedCode, setLastScannedCode] = useState("");
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // --- Data Fetching ---
   useEffect(() => {
-    fetch("http://localhost:3001/products")
-      .then((res) => res.json())
-      .then((data) => setProducts(data))
-      .catch((err) => console.error("Error fetching products:", err));
+    // MOCK 데이터
+    const mockProducts = [
+      {
+        id: 1,
+        name: "DDR5 16GB RAM",
+        barcode: "8801234567891",
+        category: "Memory",
+        stock: 150,
+        price: 85000,
+        location: "A-01",
+        description: "High performance memory",
+      },
+      {
+        id: 2,
+        name: "NAND Flash 1TB",
+        barcode: "8801234567892",
+        category: "Storage",
+        stock: 50,
+        price: 120000,
+        location: "B-05",
+        description: "SSD Storage controller",
+      },
+    ];
+    setProducts(mockProducts);
+  }, []);
+
+  // --- Handlers (useCallback) ---
+
+  const handleScan = useCallback(
+    (code) => {
+      console.log("Scanned Code:", code);
+      setLastScannedCode(code);
+
+      const found = products.find(
+        (p) => p.barcode.toLowerCase() === code.toLowerCase(),
+      );
+
+      if (found) {
+        setScannedProduct(found);
+      } else {
+        alert(`Product not found for barcode: ${code}`);
+      }
+    },
+    [products],
+  );
+
+  const handleManualSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+      if (lastScannedCode) {
+        handleScan(lastScannedCode);
+        // setLastScannedCode(""); // 선택사항: 검색 후 초기화
+      }
+    },
+    [lastScannedCode, handleScan],
+  );
+
+  const handleManualChange = useCallback((e) => {
+    setLastScannedCode(e.target.value);
+  }, []);
+
+  const handleCameraScan = useCallback(
+    (decodedText) => {
+      handleScan(decodedText);
+      setIsScannerOpen(false);
+    },
+    [handleScan],
+  );
+
+  const handleCloseScanner = useCallback(() => {
+    setIsScannerOpen(false);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setScannedProduct(null);
+  }, []);
+
+  const handleOpenScanner = useCallback(() => {
+    setIsScannerOpen(true);
   }, []);
 
   // --- Barcode Scanner Logic (Global Listener) ---
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // 모달이 열려있다면 스캔 로직 중단 (옵션)
-      // if (scannedProduct) return;
+      // 모달이나 스캐너가 열려있으면 키보드 리스너 중단
+      if (scannedProduct || isScannerOpen) return;
 
       if (e.key === "Enter") {
-        // 엔터키가 입력되면 버퍼에 있는 바코드로 제품 검색
         if (inputBuffer.length > 0) {
           handleScan(inputBuffer);
-          setInputBuffer(""); // 버퍼 초기화
+          setInputBuffer("");
         }
       } else {
-        // 일반 문자는 버퍼에 쌓음 (스캐너가 빠르게 입력함)
-        // Shift, Control 등 특수키 제외하고 문자/숫자만 처리
         if (e.key.length === 1) {
           setInputBuffer((prev) => prev + e.key);
         }
@@ -50,131 +237,31 @@ const BarcodePage = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [inputBuffer, products]); // products 의존성 추가하여 최신 데이터 참조
-
-  // --- Handlers ---
-  const handleScan = (code) => {
-    console.log("Scanned Code:", code);
-    setLastScannedCode(code);
-
-    const found = products.find(
-      (p) => p.barcode.toLowerCase() === code.toLowerCase()
-    );
-
-    if (found) {
-      setScannedProduct(found);
-      // 성공 효과음 재생 (선택 사항)
-      // new Audio('/beep.mp3').play();
-    } else {
-      alert(`Product not found for barcode: ${code}`);
-    }
-  };
-
-  // 수동 테스트용 핸들러
-  const handleManualSubmit = (e) => {
-    e.preventDefault();
-    handleScan(lastScannedCode);
-    setLastScannedCode("");
-  };
+  }, [inputBuffer, scannedProduct, isScannerOpen, handleScan]);
 
   return (
     <Container>
-      <Header>
-        <TitleGroup>
-          <FaBarcode size={24} color="#34495e" />
-          <h1>Barcode System</h1>
-        </TitleGroup>
-
-        {/* 수동 테스트 입력창 (스캐너 없을 때 테스트용) */}
-        <TestBox onSubmit={handleManualSubmit}>
-          <input
-            placeholder="Click here & Scan or Type..."
-            value={lastScannedCode}
-            onChange={(e) => setLastScannedCode(e.target.value)}
-            autoFocus
-          />
-          <button type="submit">Check</button>
-        </TestBox>
-      </Header>
+      <BarcodeHeader
+        onScanClick={handleOpenScanner}
+        manualCode={lastScannedCode}
+        onManualChange={handleManualChange}
+        onManualSubmit={handleManualSubmit}
+      />
 
       <Content>
-        {/* 제품 리스트 (바코드 라벨 출력용) */}
         <ProductGrid>
           {products.map((product) => (
-            <ProductCard key={product.id}>
-              <CardHeader>
-                <ProductName>{product.name}</ProductName>
-                <CategoryBadge>{product.category}</CategoryBadge>
-              </CardHeader>
-              <BarcodeWrapper>
-                <Barcode
-                  value={product.barcode}
-                  width={1.5}
-                  height={50}
-                  fontSize={14}
-                />
-              </BarcodeWrapper>
-              <CardFooter>
-                <span>Stock: {product.stock}</span>
-                <PrintBtn
-                  onClick={() => alert(`Print label for ${product.name}`)}
-                >
-                  <FaPrint /> Print
-                </PrintBtn>
-              </CardFooter>
-            </ProductCard>
+            <ProductItem key={product.id} product={product} />
           ))}
         </ProductGrid>
       </Content>
 
       {/* --- Scan Result Modal --- */}
-      {scannedProduct && (
-        <Overlay onClick={() => setScannedProduct(null)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <h2>Scan Result</h2>
-              <CloseBtn onClick={() => setScannedProduct(null)}>
-                <FaTimes />
-              </CloseBtn>
-            </ModalHeader>
-            <ModalBody>
-              <ResultIcon>
-                <FaBoxOpen size={60} color="#2ecc71" />
-              </ResultIcon>
-              <ResultTitle>{scannedProduct.name}</ResultTitle>
-              <ResultBarcode>{scannedProduct.barcode}</ResultBarcode>
+      <ScanResultModal product={scannedProduct} onClose={handleCloseModal} />
 
-              <InfoGrid>
-                <InfoItem>
-                  <label>Category</label>
-                  <span>{scannedProduct.category}</span>
-                </InfoItem>
-                <InfoItem>
-                  <label>Location</label>
-                  <span>{scannedProduct.location}</span>
-                </InfoItem>
-                <InfoItem>
-                  <label>Price</label>
-                  <span>${scannedProduct.price.toLocaleString()}</span>
-                </InfoItem>
-                <InfoItem>
-                  <label>Current Stock</label>
-                  <StockValue>{scannedProduct.stock} ea</StockValue>
-                </InfoItem>
-              </InfoGrid>
-
-              <DescBox>
-                <h4>Description</h4>
-                <p>{scannedProduct.description}</p>
-              </DescBox>
-            </ModalBody>
-            <ModalFooter>
-              <ActionBtn onClick={() => setScannedProduct(null)}>
-                Close
-              </ActionBtn>
-            </ModalFooter>
-          </ModalContent>
-        </Overlay>
+      {/* --- Camera Scanner Modal --- */}
+      {isScannerOpen && (
+        <MobileScanner onScan={handleCameraScan} onClose={handleCloseScanner} />
       )}
     </Container>
   );
@@ -214,6 +301,30 @@ const TitleGroup = styled.div`
   }
 `;
 
+const ControlGroup = styled.div`
+  display: flex;
+  gap: 10px;
+  align-items: center;
+`;
+
+const ScanBtn = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #2ecc71;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  height: 40px;
+
+  &:hover {
+    background-color: #27ae60;
+  }
+`;
+
 const TestBox = styled.form`
   display: flex;
   gap: 10px;
@@ -221,8 +332,10 @@ const TestBox = styled.form`
     padding: 8px 12px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    width: 250px;
+    width: 200px;
     outline: none;
+    height: 40px;
+    box-sizing: border-box;
     &:focus {
       border-color: #3498db;
     }
@@ -234,6 +347,7 @@ const TestBox = styled.form`
     padding: 0 15px;
     border-radius: 4px;
     cursor: pointer;
+    height: 40px;
     &:hover {
       background: #2980b9;
     }
@@ -273,6 +387,7 @@ const CardHeader = styled.div`
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 15px;
+  min-height: 40px;
 `;
 
 const ProductName = styled.div`
@@ -280,6 +395,7 @@ const ProductName = styled.div`
   color: #333;
   font-size: 15px;
   line-height: 1.4;
+  flex: 1;
 `;
 
 const CategoryBadge = styled.span`
@@ -290,12 +406,15 @@ const CategoryBadge = styled.span`
   border-radius: 4px;
   white-space: nowrap;
   margin-left: 10px;
+  height: fit-content;
 `;
 
 const BarcodeWrapper = styled.div`
   margin: 10px 0;
   display: flex;
   justify-content: center;
+  width: 100%;
+  overflow: hidden;
 `;
 
 const CardFooter = styled.div`
