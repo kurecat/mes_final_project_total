@@ -13,7 +13,8 @@ namespace L1_MachineSim
     {
         Temperature = 0x31,
         SingleData = 0x32,
-        ArrayData = 0x33
+        ArrayData = 0x33,
+        ProductionEnd = 0x34
     }
 
     public enum DtoType : byte
@@ -32,6 +33,7 @@ namespace L1_MachineSim
 
         Item = 0x3A,
         FinalInspection = 0x3B,
+        InputLot = 0x3C,
     }
 
     class Program
@@ -43,12 +45,11 @@ namespace L1_MachineSim
             public static double DbTemp = 150.0;
             public static double WbTemp = 250.0;
             public static double MolTemp = 175.0;
-            public static string LotId = "LOT-INIT";
             public static Random Rand = new Random();
+            public static string? ProductCode = "";
 
-            public static void Reset(string newLotId)
+            public static void Reset()
             {
-                LotId = newLotId;
                 DicWear = 12.0;
             }
         }
@@ -85,8 +86,8 @@ namespace L1_MachineSim
             using (MemoryStream bodyMs = new MemoryStream())
             using (BinaryWriter writer = new BinaryWriter(bodyMs))
             {
+
                 int step = 0;
-                int remain = 0;
 
                 while (client.Connected)
                 {
@@ -104,13 +105,22 @@ namespace L1_MachineSim
                     {
                         if (client.Client.Available > 0)
                         {
-                            byte[] readBuffer = new byte[7];
+                            // 작업지시 바이트 배열 받기
+                            byte[] readBuffer = new byte[4];
                             int size = stream.Read(readBuffer, 0, readBuffer.Length);
 
                             if (size == readBuffer.Length && readBuffer[0] == 0x01)
                             {
-                                remain = BitConverter.ToInt32(readBuffer, 2);
-                                step = 1;
+                                if (readBuffer[1] == 0x31)
+                                {
+                                    int len = BitConverter.ToInt16(readBuffer, 2);
+
+                                    readBuffer = new byte[len];
+                                    size = stream.Read(readBuffer, 0, readBuffer.Length);
+
+                                    Device.ProductCode = System.Text.Encoding.UTF8.GetString(readBuffer, 0, size);
+                                    step = 1;
+                                }
                             }
                         }
                         else
@@ -171,10 +181,22 @@ namespace L1_MachineSim
                             procType = DtoType.FinalInspection;
                             isArrayPacket = true;
                             ProcessFinalInspectionArray(writer);
+                            break;
 
-                            // 사이클 종료 및 초기화
+                        case 15: // InputLot 정리 (Array)
+                            procType = DtoType.InputLot;
+                            isArrayPacket = true;
+                            ProcessInputLotSummary(writer);
+                            break;
+
+                        case 16: // 사이클 종료 및 초기화
+                            procType = DtoType.Sleep;
+                            byte[] packet = [
+                                0x01,                          // Header
+                                (byte)MsgType.ProductionEnd    // Message Type
+                            ];
+                            stream.Write(packet, 0, packet.Length);
                             step = -1;
-                            remain = 0;
                             break;
 
                         default:
@@ -184,7 +206,8 @@ namespace L1_MachineSim
                     }
 
                     // 4. 패킷 전송 (데이터가 있을 때만)
-                    if (procType != DtoType.Processing)
+
+                    if (procType != DtoType.Processing && procType != DtoType.Sleep)
                     {
                         byte[] bodyBytes = bodyMs.ToArray();
                         if (isArrayPacket)
@@ -218,7 +241,7 @@ namespace L1_MachineSim
         private static void ProcessDicingInspection(BinaryWriter writer)
         {
             int sampleSize = 50;
-            string criteria = Device.LotId + "-DIC";
+            string criteria = Device.ProductCode + "-DIC";
             double overallPass = 97.0;
 
             writer.Write(sampleSize);
@@ -248,7 +271,7 @@ namespace L1_MachineSim
         private static void ProcessDieBondingInspection(BinaryWriter writer)
         {
             int sampleSize = 40;
-            string criteria = Device.LotId + "-DIE";
+            string criteria = Device.ProductCode + "-DIE";
             double overallPass = 93.0;
 
             writer.Write(sampleSize);
@@ -282,7 +305,7 @@ namespace L1_MachineSim
         private static void ProcessWireBondingInspection(BinaryWriter writer)
         {
             int sampleSize = 30;
-            string criteria = Device.LotId + "-WB";
+            string criteria = Device.ProductCode + "-WB";
             double overallPass = 97.0;
 
             writer.Write(sampleSize);
@@ -313,7 +336,7 @@ namespace L1_MachineSim
         private static void ProcessMoldingInspection(BinaryWriter writer)
         {
             int sampleSize = 30;
-            string criteria = Device.LotId + "-MOL";
+            string criteria = Device.ProductCode + "-MOL";
             double overallPass = 96.0;
 
             writer.Write(sampleSize);
@@ -369,7 +392,31 @@ namespace L1_MachineSim
                 }
             }
 
-            Console.WriteLine($"[★FINAL] 최종검사 배열 Data 전송 완료 (수량: {arrayLength})");
+            Console.WriteLine($"[Final Insp] 최종검사 배열 Data 전송 완료 (수량: {arrayLength})");
+        }
+
+        private static void ProcessInputLotSummary(BinaryWriter writer)
+        {
+            string[] inputLots = {
+                "LOT-20260122-01", // 웨이퍼
+                "LOT-20260122-02", // 패키지 기판
+                "LOT-20260122-03", // 언더필 수지
+                "LOT-20260122-04", // 금 와이어
+                "LOT-20260122-05", // 리드프레임
+                "LOT-20260122-06", // 솔더 볼
+                "LOT-20260122-07", // 몰딩 컴파운드
+                "LOT-20260122-08"  // 에폭시 봉지재
+            };
+
+            foreach (string inputLot in inputLots)
+            {
+                byte[] body = System.Text.Encoding.UTF8.GetBytes(inputLot);
+                writer.Write((short)body.Length);
+                writer.Write((byte)DtoType.InputLot);
+                writer.Write(body);
+            }
+
+            Console.WriteLine($"[★] InputLotSummary 배열 Data 전송 완료");
         }
 
         // --- 헬퍼 메서드: 문자열 쓰기 (길이 + 본문) ---
@@ -433,6 +480,7 @@ namespace L1_MachineSim
             byte[] finalPacket = packet.ToArray();
             stream.Write(finalPacket, 0, finalPacket.Length);
         }
+
         public static void PrintByteLog(byte[] data)
         {
             // 각 바이트를 16진수 두 자리로 변환해서 공백으로 구분
