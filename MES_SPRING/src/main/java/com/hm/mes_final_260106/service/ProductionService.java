@@ -52,8 +52,8 @@ public class ProductionService {
     private final ItemRepository itemRepo;
     private final FinalInspectionLogRepository finalInspectionLRepo;
     private final ProductionResultRepository productionResultRepo;
-
-
+    private final EquipmentRepository equipmentRepo;
+    private final InspectionStandardRepository standardRepo;
     private final Mapper mapper;
 
     // =========================
@@ -373,6 +373,15 @@ public class ProductionService {
                 order.getProductId(), order.getStatus(), order.getCurrentQty(), order.getTargetQty());
 
         orderRepo.save(order);
+        // ============================================================
+        // 대시보드용 실시간 실적 집계 업데이트
+        // ============================================================
+        int good = "NONE".equals(dto.getDefectCode()) ? 1 : 0;
+        int defect = "NONE".equals(dto.getDefectCode()) ? 0 : 1;
+
+        updateProductionResult(order, product, good, defect);
+
+        log.info("[집계 완료] 제품:{} 양품:{} 불량:{}", product.getName(), good, defect);
     }
 
     // =========================
@@ -539,6 +548,95 @@ public class ProductionService {
         // ⭐ Worker만 삭제 (Member는 유지)
         workerRepo.delete(worker);
     }
+    // ==========================================
+    //  8. 기준 정보 조회 (Frontend 연동용) - [추가됨]
+    // ==========================================
 
+    // 1) 설비 목록 조회
+    public List<Equipment> getAllEquipments() {
+        return equipmentRepo.findAll();
+    }
+
+    // 2) 자재 목록 조회
+    public List<Material> getAllMaterials() {
+        return matRepo.findAll();
+    }
+
+    // 3) 품목(제품) 목록 조회
+    public List<Product> getAllProducts() {
+        return productRepo.findAll();
+    }
+
+    // ==========================================
+    //  11. 품질(Quality) 및 BOM API 로직 - [추가됨]
+    // ==========================================
+
+    // 1) BOM 목록 조회
+    public List<Bom> getAllBoms() {
+        return bomRepo.findAll();
+    }
+
+    // 2) 불량 현황 조회 (DefectPage용)
+    public List<FinalInspection> getAllDefectLogs() {
+        return finalInspectionLRepo.findAll(); // 변수명 finalInspectionLRepo 주의
+    }
+
+    // 3) SPC 차트 데이터 (DieBonding 온도/압력 등)
+    public List<DieBonding> getAllDieBondingLogs() {
+        return dieBondingRepo.findAll();
+    }
+
+    // (선택사항) Molding SPC 데이터도 필요하다면 추가
+    public List<Molding> getAllMoldingLogs() {
+        return moldingRepo.findAll();
+    }
+    // ==========================================
+    //  12. 실시간 실적 집계 (Dashboard용) - [추가됨]
+    // ==========================================
+    private void updateProductionResult(WorkOrder order, Product product, int goodQty, int defectQty) {
+        LocalDate today = LocalDate.now();
+        int currentHour = LocalDateTime.now().getHour();
+        String line = order.getTargetLine(); // 작업지시의 라인 정보 사용
+
+        // 1. 해당 시간대의 실적 데이터가 있는지 확인
+        ProductionResult result = productionResultRepo
+                .findByResultDateAndResultHourAndLineAndProduct(today, currentHour, line, product)
+                .orElseGet(() -> {
+                    // 없으면 새로 생성
+                    ProductionResult newResult = new ProductionResult();
+                    newResult.setResultDate(today);
+                    newResult.setResultHour(currentHour);
+                    newResult.setLine(line);
+                    newResult.setProduct(product);
+                    newResult.setPlanQty(0); // 계획 수량은 별도 로직이나 0으로 시작
+                    newResult.setGoodQty(0);
+                    newResult.setDefectQty(0);
+                    newResult.setCreatedAt(LocalDateTime.now());
+                    return newResult;
+                });
+
+        // 2. 수량 누적
+        result.setGoodQty(result.getGoodQty() + goodQty);
+        result.setDefectQty(result.getDefectQty() + defectQty);
+
+        // 3. 저장
+        productionResultRepo.save(result);
+    }
+    // ==========================================
+    //  14. 품질 검사 기준 조회 (Quality Standard)
+    // ==========================================
+    public List<InspectionStandard> getInspectionStandards(String processName) {
+        // 데이터가 하나도 없으면 테스트용 더미 데이터 자동 생성 (편의상)
+        if (standardRepo.count() == 0) {
+            standardRepo.save(InspectionStandard.builder().processName("DieBonding").checkItem("Bonding Temp").lsl(150.0).usl(180.0).unit("°C").description("접합 온도 기준").build());
+            standardRepo.save(InspectionStandard.builder().processName("WireBonding").checkItem("Tensile Strength").lsl(50.0).usl(100.0).unit("N").description("와이어 인장 강도").build());
+            standardRepo.save(InspectionStandard.builder().processName("Molding").checkItem("Pressure").lsl(10.0).usl(20.0).unit("Bar").description("몰딩 압력 기준").build());
+        }
+
+        if (processName == null || "ALL".equals(processName)) {
+            return standardRepo.findAll();
+        }
+        return standardRepo.findByProcessName(processName);
+    }
 }
 

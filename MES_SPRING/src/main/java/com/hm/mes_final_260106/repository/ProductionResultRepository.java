@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductionResultRepository extends JpaRepository<ProductionResult, Long> {
 
@@ -43,6 +44,15 @@ public interface ProductionResultRepository extends JpaRepository<ProductionResu
             "GROUP BY pr.result_hour " +
             "ORDER BY pr.result_hour", nativeQuery = true)
     List<Object[]> getHourlyNative(@Param("date") LocalDate date, @Param("line") String line);
+
+    // 🚨 [추가] 실시간 실적 집계 업데이트를 위한 조회 메서드
+    // (날짜, 시간, 라인, 제품) 조건으로 기존 실적 데이터 찾기
+    Optional<ProductionResult> findByResultDateAndResultHourAndLineAndProduct(
+            LocalDate resultDate,
+            Integer resultHour,
+            String line,
+            com.hm.mes_final_260106.entity.Product product
+    );
 }
 
 

@@ -1,7 +1,9 @@
 package com.hm.mes_final_260106.controller;
 
 import com.hm.mes_final_260106.dto.*;
+import com.hm.mes_final_260106.entity.Equipment;
 import com.hm.mes_final_260106.entity.Material;
+import com.hm.mes_final_260106.entity.Product;
 import com.hm.mes_final_260106.entity.WorkOrder;
 import com.hm.mes_final_260106.service.ProductionService;
 import lombok.RequiredArgsConstructor;
@@ -190,25 +192,45 @@ public class MesController {
                 productionService.getWorkOrderPerformanceList(date, line)
         );
     }
-// 작업자 등록
-@PostMapping("/worker/register")
-public ResponseEntity<WorkerResDto> registerWorker(@RequestBody WorkerCreateReqDto dto) {
-    return ResponseEntity.ok(productionService.registerWorker(dto));
-}
-// 작업자 수정
-@PatchMapping("/worker/{id}")
-public ResponseEntity<WorkerResDto> updateWorker(
+    // 작업자 등록
+    @PostMapping("/worker/register")
+    public ResponseEntity<WorkerResDto> registerWorker(@RequestBody WorkerCreateReqDto dto) {
+        return ResponseEntity.ok(productionService.registerWorker(dto));
+    }
+    // 작업자 수정
+    @PatchMapping("/worker/{id}")
+    public ResponseEntity<WorkerResDto> updateWorker(
         @PathVariable("id") Long id,
         @RequestBody WorkerUpdateReqDto dto
-) {
+    ) {
     return ResponseEntity.ok(productionService.updateWorker(id, dto));
-}
-// 작업자 삭제
-@DeleteMapping("/worker/{id}")
-public ResponseEntity<String> deleteWorker(@PathVariable("id") Long id) {
-    productionService.deleteWorker(id);
-    return ResponseEntity.ok("삭제 완료");
-}
+    }
+    // 작업자 삭제
+    @DeleteMapping("/worker/{id}")
+    public ResponseEntity<String> deleteWorker(@PathVariable("id") Long id) {
+        productionService.deleteWorker(id);
+        return ResponseEntity.ok("삭제 완료");
+    }
+    // MesController.java 내부
+
+    // 1. 설비 목록 조회 API
+    @GetMapping("/equipment")
+    public ResponseEntity<List<Equipment>> getEquipmentList() {
+        // ✅ 수정 완료: getAllEquipments() 호출
+        return ResponseEntity.ok(productionService.getAllEquipments());
+    }
+
+    // 2. 자재 목록 조회 (MaterialPage.js 연동)
+    @GetMapping("/material")
+    public ResponseEntity<List<Material>> getMaterialList() {
+        return ResponseEntity.ok(productionService.getAllMaterials());
+    }
+
+    // 3. 제품 목록 조회 (ItemPage.js 연동)
+    @GetMapping("/item")
+    public ResponseEntity<List<Product>> getProductList() {
+        return ResponseEntity.ok(productionService.getAllProducts());
+    }
 
 
 
