@@ -1,9 +1,9 @@
 // src/pages/dashboard/DashboardPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-import axios from "axios"; // API 호출용
+// axios import removed if not strictly needed for this snippet, but kept as per request
+// import axios from "axios";
 import {
-  FaChartLine,
   FaIndustry,
   FaExclamationCircle,
   FaCheckCircle,
@@ -22,12 +22,11 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   Cell,
 } from "recharts";
 
-// --- Fallback Mock Data (서버 연결 실패 시 보여줄 기본 데이터) ---
+// --- Fallback Mock Data ---
 const MOCK_DATA = {
   stats: {
     waferOut: 2510,
@@ -49,7 +48,7 @@ const MOCK_DATA = {
   ],
   wipBalance: [
     { step: "Clean", count: 1200 },
-    { step: "Photo", count: 2600 }, // 병목 (Overload)
+    { step: "Photo", count: 2600 },
     { step: "Etch", count: 1800 },
     { step: "Depo", count: 1500 },
     { step: "CMP", count: 800 },
@@ -88,51 +87,257 @@ const MOCK_DATA = {
   ],
 };
 
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. KPI Section Component
+const KpiBoard = React.memo(({ stats }) => {
+  return (
+    <KpiSection>
+      <KpiCard>
+        <CardHeader>
+          <IconBox $color="#1a4f8b">
+            <FaMicrochip />
+          </IconBox>
+          <TrendBadge $up={stats.waferOutTrend > 0}>
+            {stats.waferOutTrend > 0 ? <FaArrowUp /> : <FaArrowDown />}
+            {Math.abs(stats.waferOutTrend)}%
+          </TrendBadge>
+        </CardHeader>
+        <KpiValue>
+          {stats.waferOut.toLocaleString()} <small>wfrs</small>
+        </KpiValue>
+        <KpiLabel>Today's Wafer Out</KpiLabel>
+        <ProgressBar $percent={92} $color="#1a4f8b" />
+      </KpiCard>
+
+      <KpiCard>
+        <CardHeader>
+          <IconBox $color="#2ecc71">
+            <FaCheckCircle />
+          </IconBox>
+          <TrendBadge $up={stats.yieldTrend > 0}>
+            {stats.yieldTrend > 0 ? <FaArrowUp /> : <FaArrowDown />}
+            {Math.abs(stats.yieldTrend)}%
+          </TrendBadge>
+        </CardHeader>
+        <KpiValue>
+          {stats.yield} <small>%</small>
+        </KpiValue>
+        <KpiLabel>Prime Yield (Avg)</KpiLabel>
+        <ProgressBar $percent={stats.yield} $color="#2ecc71" />
+      </KpiCard>
+
+      <KpiCard>
+        <CardHeader>
+          <IconBox $color="#f39c12">
+            <FaTools />
+          </IconBox>
+          <TrendBadge
+            $up={stats.utilizationTrend > 0}
+            $down={stats.utilizationTrend < 0}
+          >
+            {stats.utilizationTrend > 0 ? <FaArrowUp /> : <FaArrowDown />}
+            {Math.abs(stats.utilizationTrend)}%
+          </TrendBadge>
+        </CardHeader>
+        <KpiValue>
+          {stats.utilization} <small>%</small>
+        </KpiValue>
+        <KpiLabel>Fab Utilization (OEE)</KpiLabel>
+        <ProgressBar $percent={stats.utilization} $color="#f39c12" />
+      </KpiCard>
+
+      <KpiCard>
+        <CardHeader>
+          <IconBox $color="#e74c3c">
+            <FaExclamationCircle />
+          </IconBox>
+          <span style={{ fontSize: 12, color: "#e74c3c", fontWeight: "bold" }}>
+            Action Req.
+          </span>
+        </CardHeader>
+        <KpiValue>
+          {stats.issues} <small>cases</small>
+        </KpiValue>
+        <KpiLabel>Equipment Trouble</KpiLabel>
+        <ProgressBar $percent={(stats.issues / 10) * 100} $color="#e74c3c" />
+      </KpiCard>
+    </KpiSection>
+  );
+});
+
+// 2. Chart Section Component
+const ChartsBoard = React.memo(({ productionTrend, wipBalance }) => {
+  return (
+    <MainChartSection>
+      {/* Left: Production Trend */}
+      <ChartCard style={{ flex: 1.5 }}>
+        <SectionHeader>
+          <SectionTitle>Hourly Wafer Output Trend</SectionTitle>
+          <LegendGroup>
+            <LegendItem color="#e0e0e0">Plan</LegendItem>
+            <LegendItem color="#1a4f8b">Actual</LegendItem>
+          </LegendGroup>
+        </SectionHeader>
+        <ResponsiveContainer width="100%" height={280}>
+          <ComposedChart
+            data={productionTrend}
+            margin={{ top: 20, right: 20, bottom: 20, left: 0 }}
+          >
+            <CartesianGrid stroke="#f5f5f5" vertical={false} />
+            <XAxis dataKey="time" axisLine={false} tickLine={false} />
+            <YAxis axisLine={false} tickLine={false} />
+            <Tooltip
+              contentStyle={{
+                borderRadius: 8,
+                border: "none",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+              }}
+            />
+            <Bar
+              dataKey="plan"
+              barSize={20}
+              fill="#e0e0e0"
+              radius={[4, 4, 0, 0]}
+            />
+            <Line
+              type="monotone"
+              dataKey="actual"
+              stroke="#1a4f8b"
+              strokeWidth={3}
+              dot={{ r: 4 }}
+              activeDot={{ r: 6 }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </ChartCard>
+
+      {/* Right: WIP Balance */}
+      <ChartCard style={{ flex: 1 }}>
+        <SectionHeader>
+          <SectionTitle>WIP Balance (Bottleneck)</SectionTitle>
+        </SectionHeader>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart
+            data={wipBalance}
+            layout="vertical"
+            margin={{ top: 0, right: 30, left: 20, bottom: 0 }}
+          >
+            <CartesianGrid stroke="#f5f5f5" horizontal={false} />
+            <XAxis type="number" hide />
+            <YAxis
+              dataKey="step"
+              type="category"
+              width={60}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip cursor={{ fill: "transparent" }} />
+            <Bar dataKey="count" barSize={15} radius={[0, 4, 4, 0]}>
+              {wipBalance.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.count > 2500 ? "#e74c3c" : "#3498db"}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        <WipLegend>
+          <small style={{ color: "#e74c3c" }}>● Overload ({">"}2500)</small>
+          <small style={{ color: "#3498db" }}>● Normal</small>
+        </WipLegend>
+      </ChartCard>
+    </MainChartSection>
+  );
+});
+
+// 3. Alert Section Component
+const AlertBoard = React.memo(({ alerts }) => {
+  return (
+    <BottomSection>
+      <SectionHeader>
+        <SectionTitle>
+          <FaExclamationCircle color="#e74c3c" /> Real-time Equipment Alerts
+        </SectionTitle>
+      </SectionHeader>
+      <AlertTable>
+        <thead>
+          <tr>
+            <th width="10%">Time</th>
+            <th width="15%">Equipment ID</th>
+            <th width="10%">Level</th>
+            <th>Message</th>
+            <th width="10%">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {alerts.map((alert) => (
+            <tr key={alert.id}>
+              <td style={{ color: "#666" }}>{alert.time}</td>
+              <td style={{ fontWeight: "bold" }}>{alert.equip}</td>
+              <td>
+                <AlertBadge $level={alert.level}>{alert.level}</AlertBadge>
+              </td>
+              <td>{alert.msg}</td>
+              <td>
+                <ActionBtn>Ack</ActionBtn>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </AlertTable>
+    </BottomSection>
+  );
+});
+
 const DashboardPage = () => {
   // 상태 관리
   const [data, setData] = useState(MOCK_DATA);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
-  // 데이터 가져오기 (json-server 연동)
-  const fetchData = async () => {
+  // [Optimization] fetchData with useCallback
+  // This prevents the function from being recreated on every render
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // ★ 실제 사용 시: http://localhost:3001/dashboardData
-      // 현재는 db.json 구조에 따라 엔드포인트를 맞춰야 함
-      // 여기서는 예시로 MOCK 데이터를 그대로 씀 (서버 연결 시 axios.get 사용)
-
+      // API call logic would go here
       // const res = await axios.get("http://localhost:3001/dashboard");
       // setData(res.data);
 
-      // (테스트용) 0.5초 딜레이 후 Mock Data 세팅
       setTimeout(() => {
         setData(MOCK_DATA);
         setLastUpdated(new Date());
         setLoading(false);
       }, 500);
     } catch (error) {
-      console.error("Dashboard Data Fetch Error:", error);
-      // 에러 시 기존 Mock Data 유지
+      console.error("Fetch Error:", error);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-    // 30초마다 자동 갱신 (실시간 모니터링 느낌)
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchData]); // Added dependency
 
-  // 새로고침 핸들러
-  const handleRefresh = () => {
+  // [Optimization] handleRefresh with useCallback
+  const handleRefresh = useCallback(() => {
     fetchData();
-  };
+  }, [fetchData]);
+
+  // [Optimization] Memoize data slices to prevent unnecessary re-renders of child components
+  // if other unrelated state (like UI flags) were to change.
+  const statsData = useMemo(() => data.stats, [data.stats]);
+  const trendData = useMemo(() => data.productionTrend, [data.productionTrend]);
+  const wipData = useMemo(() => data.wipBalance, [data.wipBalance]);
+  const alertsData = useMemo(() => data.alerts, [data.alerts]);
 
   return (
     <Container>
-      {/* 1. 헤더 */}
+      {/* 1. Header */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -153,204 +358,14 @@ const DashboardPage = () => {
         </HeaderRight>
       </Header>
 
-      {/* 2. KPI 요약 카드 */}
-      <KpiSection>
-        <KpiCard>
-          <CardHeader>
-            <IconBox $color="#1a4f8b">
-              <FaMicrochip />
-            </IconBox>
-            <TrendBadge $up={data.stats.waferOutTrend > 0}>
-              {data.stats.waferOutTrend > 0 ? <FaArrowUp /> : <FaArrowDown />}
-              {Math.abs(data.stats.waferOutTrend)}%
-            </TrendBadge>
-          </CardHeader>
-          <KpiValue>
-            {data.stats.waferOut.toLocaleString()} <small>wfrs</small>
-          </KpiValue>
-          <KpiLabel>Today's Wafer Out</KpiLabel>
-          <ProgressBar $percent={92} $color="#1a4f8b" />
-        </KpiCard>
+      {/* 2. KPI Section (Memoized) */}
+      <KpiBoard stats={statsData} />
 
-        <KpiCard>
-          <CardHeader>
-            <IconBox $color="#2ecc71">
-              <FaCheckCircle />
-            </IconBox>
-            <TrendBadge $up={data.stats.yieldTrend > 0}>
-              {data.stats.yieldTrend > 0 ? <FaArrowUp /> : <FaArrowDown />}
-              {Math.abs(data.stats.yieldTrend)}%
-            </TrendBadge>
-          </CardHeader>
-          <KpiValue>
-            {data.stats.yield} <small>%</small>
-          </KpiValue>
-          <KpiLabel>Prime Yield (Avg)</KpiLabel>
-          <ProgressBar $percent={data.stats.yield} $color="#2ecc71" />
-        </KpiCard>
+      {/* 3. Charts Section (Memoized) */}
+      <ChartsBoard productionTrend={trendData} wipBalance={wipData} />
 
-        <KpiCard>
-          <CardHeader>
-            <IconBox $color="#f39c12">
-              <FaTools />
-            </IconBox>
-            <TrendBadge
-              $up={data.stats.utilizationTrend > 0}
-              $down={data.stats.utilizationTrend < 0}
-            >
-              {data.stats.utilizationTrend > 0 ? (
-                <FaArrowUp />
-              ) : (
-                <FaArrowDown />
-              )}
-              {Math.abs(data.stats.utilizationTrend)}%
-            </TrendBadge>
-          </CardHeader>
-          <KpiValue>
-            {data.stats.utilization} <small>%</small>
-          </KpiValue>
-          <KpiLabel>Fab Utilization (OEE)</KpiLabel>
-          <ProgressBar $percent={data.stats.utilization} $color="#f39c12" />
-        </KpiCard>
-
-        <KpiCard>
-          <CardHeader>
-            <IconBox $color="#e74c3c">
-              <FaExclamationCircle />
-            </IconBox>
-            <span
-              style={{ fontSize: 12, color: "#e74c3c", fontWeight: "bold" }}
-            >
-              Action Req.
-            </span>
-          </CardHeader>
-          <KpiValue>
-            {data.stats.issues} <small>cases</small>
-          </KpiValue>
-          <KpiLabel>Equipment Trouble</KpiLabel>
-          <ProgressBar
-            $percent={(data.stats.issues / 10) * 100}
-            $color="#e74c3c"
-          />
-        </KpiCard>
-      </KpiSection>
-
-      {/* 3. 차트 섹션 */}
-      <MainChartSection>
-        {/* 좌측: 생산량 추이 */}
-        <ChartCard style={{ flex: 1.5 }}>
-          <SectionHeader>
-            <SectionTitle>Hourly Wafer Output Trend</SectionTitle>
-            <LegendGroup>
-              <LegendItem color="#e0e0e0">Plan</LegendItem>
-              <LegendItem color="#1a4f8b">Actual</LegendItem>
-            </LegendGroup>
-          </SectionHeader>
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart
-              data={data.productionTrend}
-              margin={{ top: 20, right: 20, bottom: 20, left: 0 }}
-            >
-              <CartesianGrid stroke="#f5f5f5" vertical={false} />
-              <XAxis dataKey="time" axisLine={false} tickLine={false} />
-              <YAxis axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "none",
-                  boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-                }}
-              />
-              <Bar
-                dataKey="plan"
-                barSize={20}
-                fill="#e0e0e0"
-                radius={[4, 4, 0, 0]}
-              />
-              <Line
-                type="monotone"
-                dataKey="actual"
-                stroke="#1a4f8b"
-                strokeWidth={3}
-                dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* 우측: WIP 밸런스 (병목 확인) */}
-        <ChartCard style={{ flex: 1 }}>
-          <SectionHeader>
-            <SectionTitle>WIP Balance (Bottleneck)</SectionTitle>
-          </SectionHeader>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart
-              data={data.wipBalance}
-              layout="vertical"
-              margin={{ top: 0, right: 30, left: 20, bottom: 0 }}
-            >
-              <CartesianGrid stroke="#f5f5f5" horizontal={false} />
-              <XAxis type="number" hide />
-              <YAxis
-                dataKey="step"
-                type="category"
-                width={60}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip cursor={{ fill: "transparent" }} />
-              <Bar dataKey="count" barSize={15} radius={[0, 4, 4, 0]}>
-                {data.wipBalance.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={entry.count > 2500 ? "#e74c3c" : "#3498db"}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          <WipLegend>
-            <small style={{ color: "#e74c3c" }}>● Overload ({">"}2500)</small>
-            <small style={{ color: "#3498db" }}>● Normal</small>
-          </WipLegend>
-        </ChartCard>
-      </MainChartSection>
-
-      {/* 4. 알람 리스트 */}
-      <BottomSection>
-        <SectionHeader>
-          <SectionTitle>
-            <FaExclamationCircle color="#e74c3c" /> Real-time Equipment Alerts
-          </SectionTitle>
-        </SectionHeader>
-        <AlertTable>
-          <thead>
-            <tr>
-              <th width="10%">Time</th>
-              <th width="15%">Equipment ID</th>
-              <th width="10%">Level</th>
-              <th>Message</th>
-              <th width="10%">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.alerts.map((alert) => (
-              <tr key={alert.id}>
-                <td style={{ color: "#666" }}>{alert.time}</td>
-                <td style={{ fontWeight: "bold" }}>{alert.equip}</td>
-                <td>
-                  <AlertBadge $level={alert.level}>{alert.level}</AlertBadge>
-                </td>
-                <td>{alert.msg}</td>
-                <td>
-                  <ActionBtn>Ack</ActionBtn>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </AlertTable>
-      </BottomSection>
+      {/* 4. Alerts Section (Memoized) */}
+      <AlertBoard alerts={alertsData} />
     </Container>
   );
 };

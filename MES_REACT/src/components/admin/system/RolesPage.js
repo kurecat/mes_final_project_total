@@ -1,9 +1,8 @@
 // src/pages/admin/RolesPage.js
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import {
   FaUserShield,
-  FaLock,
   FaCheck,
   FaPlus,
   FaTrashAlt,
@@ -11,15 +10,151 @@ import {
   FaUserFriends,
 } from "react-icons/fa";
 
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Role Card Item
+const RoleCardItem = React.memo(({ role, isActive, onSelect }) => {
+  return (
+    <RoleCard $active={isActive} onClick={() => onSelect(role)}>
+      <RoleHeader>
+        <RoleName>{role.name}</RoleName>
+        {role.isSystem && <SystemBadge>System</SystemBadge>}
+      </RoleHeader>
+      <RoleDesc>{role.description}</RoleDesc>
+      <RoleMeta>
+        <FaUserFriends /> {role.userCount} Users assigned
+      </RoleMeta>
+    </RoleCard>
+  );
+});
+
+// 2. Role List Panel
+const RoleListPanel = React.memo(({ roles, selectedRoleId, onSelectRole }) => {
+  return (
+    <RoleListPanelContainer>
+      <PanelHeader>
+        <h3>Roles</h3>
+        <AddButton>
+          <FaPlus />
+        </AddButton>
+      </PanelHeader>
+      <ListContainer>
+        {roles.map((role) => (
+          <RoleCardItem
+            key={role.id}
+            role={role}
+            isActive={selectedRoleId === role.id}
+            onSelect={onSelectRole}
+          />
+        ))}
+      </ListContainer>
+    </RoleListPanelContainer>
+  );
+});
+
+// 3. Permission Item
+const PermissionItem = React.memo(({ perm, isChecked, onToggle }) => {
+  return (
+    <PermCard $checked={isChecked} onClick={() => onToggle(perm.id)}>
+      <Checkbox $checked={isChecked}>
+        {isChecked && <FaCheck size={10} color="white" />}
+      </Checkbox>
+      <PermInfo>
+        <PermName>{perm.name}</PermName>
+        <PermDesc>{perm.description}</PermDesc>
+      </PermInfo>
+    </PermCard>
+  );
+});
+
+// 4. Permission Group Section
+const PermissionGroup = React.memo(
+  ({ groupName, permissions, editedPermissionIds, onToggle }) => {
+    return (
+      <GroupSection>
+        <GroupTitle>{groupName}</GroupTitle>
+        <Grid>
+          {permissions.map((perm) => (
+            <PermissionItem
+              key={perm.id}
+              perm={perm}
+              isChecked={editedPermissionIds.includes(perm.id)}
+              onToggle={onToggle}
+            />
+          ))}
+        </Grid>
+      </GroupSection>
+    );
+  },
+);
+
+// 5. Permission Matrix Panel
+const PermissionMatrix = React.memo(
+  ({
+    selectedRole,
+    groupedPermissions,
+    editedPermissionIds,
+    isDirty,
+    onSave,
+    onTogglePermission,
+  }) => {
+    if (!selectedRole) {
+      return (
+        <PermissionPanel>
+          <EmptyState>Select a role to view permissions</EmptyState>
+        </PermissionPanel>
+      );
+    }
+
+    return (
+      <PermissionPanel>
+        <DetailHeader>
+          <div>
+            <h2 style={{ margin: 0, color: "#333" }}>{selectedRole.name}</h2>
+            <span style={{ fontSize: 13, color: "#666" }}>
+              Manage permissions for this role
+            </span>
+          </div>
+          <ActionGroup>
+            {isDirty && (
+              <SaveBtn onClick={onSave}>
+                <FaSave /> Save Changes
+              </SaveBtn>
+            )}
+            {!selectedRole.isSystem && (
+              <DeleteBtn>
+                <FaTrashAlt />
+              </DeleteBtn>
+            )}
+          </ActionGroup>
+        </DetailHeader>
+
+        <MatrixContainer>
+          {Object.keys(groupedPermissions).map((groupName) => (
+            <PermissionGroup
+              key={groupName}
+              groupName={groupName}
+              permissions={groupedPermissions[groupName]}
+              editedPermissionIds={editedPermissionIds}
+              onToggle={onTogglePermission}
+            />
+          ))}
+        </MatrixContainer>
+      </PermissionPanel>
+    );
+  },
+);
+
+// --- Main Component ---
+
 const RolesPage = () => {
-  // --- State ---
   const [roles, setRoles] = useState([]);
   const [allPermissions, setAllPermissions] = useState([]);
   const [selectedRole, setSelectedRole] = useState(null);
   const [editedPermissionIds, setEditedPermissionIds] = useState([]);
   const [isDirty, setIsDirty] = useState(false);
 
-  // --- Fetch Data ---
+  // Fetch Data
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -35,9 +170,12 @@ const RolesPage = () => {
         setRoles(rolesData);
         setAllPermissions(permsData);
 
-        // Default select first role
         if (rolesData.length > 0) {
-          handleSelectRole(rolesData[0]);
+          // Initial selection logic (can be extracted if complex)
+          const firstRole = rolesData[0];
+          setSelectedRole(firstRole);
+          setEditedPermissionIds([...firstRole.permissionIds]);
+          setIsDirty(false);
         }
       } catch (err) {
         console.error("Error loading roles:", err);
@@ -46,45 +184,53 @@ const RolesPage = () => {
     fetchData();
   }, []);
 
-  // --- Helpers ---
-  const handleSelectRole = (role) => {
-    setSelectedRole(role);
-    setEditedPermissionIds([...role.permissionIds]); // Deep copy for editing
-    setIsDirty(false);
-  };
-
-  const handleTogglePermission = (permId) => {
-    if (selectedRole?.isSystem && selectedRole.id === "ROLE_ADMIN") return; // Protect Admin
-
-    setEditedPermissionIds((prev) => {
-      const exists = prev.includes(permId);
-      if (exists) {
-        return prev.filter((id) => id !== permId);
-      } else {
-        return [...prev, permId];
+  // Handlers (useCallback)
+  const handleSelectRole = useCallback(
+    (role) => {
+      if (isDirty) {
+        alert("Please save changes first.");
+        return;
       }
-    });
-    setIsDirty(true);
-  };
+      setSelectedRole(role);
+      setEditedPermissionIds([...role.permissionIds]);
+      setIsDirty(false);
+    },
+    [isDirty],
+  );
 
-  const handleSave = () => {
-    // In Real App: API PUT request here
+  const handleTogglePermission = useCallback(
+    (permId) => {
+      if (selectedRole?.isSystem && selectedRole.id === "ROLE_ADMIN") return;
+
+      setEditedPermissionIds((prev) => {
+        const exists = prev.includes(permId);
+        if (exists) {
+          return prev.filter((id) => id !== permId);
+        } else {
+          return [...prev, permId];
+        }
+      });
+      setIsDirty(true);
+    },
+    [selectedRole],
+  );
+
+  const handleSave = useCallback(() => {
     const updatedRoles = roles.map((r) =>
       r.id === selectedRole.id
         ? { ...r, permissionIds: editedPermissionIds }
-        : r
+        : r,
     );
     setRoles(updatedRoles);
 
-    // Update selected role ref
     const updatedSelected = updatedRoles.find((r) => r.id === selectedRole.id);
     setSelectedRole(updatedSelected);
     setIsDirty(false);
 
     alert(`Permissions for ${selectedRole.name} saved successfully!`);
-  };
+  }, [roles, selectedRole, editedPermissionIds]);
 
-  // Group permissions by 'group' field for rendering
+  // Derived Data (useMemo)
   const groupedPermissions = useMemo(() => {
     const groups = {};
     allPermissions.forEach((p) => {
@@ -104,106 +250,31 @@ const RolesPage = () => {
       </Header>
 
       <ContentArea>
-        {/* Left Panel: Role List */}
-        <RoleListPanel>
-          <PanelHeader>
-            <h3>Roles</h3>
-            <AddButton>
-              <FaPlus />
-            </AddButton>
-          </PanelHeader>
-          <ListContainer>
-            {roles.map((role) => (
-              <RoleCard
-                key={role.id}
-                $active={selectedRole?.id === role.id}
-                onClick={() =>
-                  isDirty
-                    ? alert("Please save changes first.")
-                    : handleSelectRole(role)
-                }
-              >
-                <RoleHeader>
-                  <RoleName>{role.name}</RoleName>
-                  {role.isSystem && <SystemBadge>System</SystemBadge>}
-                </RoleHeader>
-                <RoleDesc>{role.description}</RoleDesc>
-                <RoleMeta>
-                  <FaUserFriends /> {role.userCount} Users assigned
-                </RoleMeta>
-              </RoleCard>
-            ))}
-          </ListContainer>
-        </RoleListPanel>
+        {/* Left Panel (Memoized) */}
+        <RoleListPanel
+          roles={roles}
+          selectedRoleId={selectedRole?.id}
+          onSelectRole={handleSelectRole}
+        />
 
-        {/* Right Panel: Permission Matrix */}
-        <PermissionPanel>
-          {selectedRole ? (
-            <>
-              <DetailHeader>
-                <div>
-                  <h2 style={{ margin: 0, color: "#333" }}>
-                    {selectedRole.name}
-                  </h2>
-                  <span style={{ fontSize: 13, color: "#666" }}>
-                    Manage permissions for this role
-                  </span>
-                </div>
-                <ActionGroup>
-                  {isDirty && (
-                    <SaveBtn onClick={handleSave}>
-                      <FaSave /> Save Changes
-                    </SaveBtn>
-                  )}
-                  {!selectedRole.isSystem && (
-                    <DeleteBtn>
-                      <FaTrashAlt />
-                    </DeleteBtn>
-                  )}
-                </ActionGroup>
-              </DetailHeader>
-
-              <MatrixContainer>
-                {Object.keys(groupedPermissions).map((groupName) => (
-                  <GroupSection key={groupName}>
-                    <GroupTitle>{groupName}</GroupTitle>
-                    <Grid>
-                      {groupedPermissions[groupName].map((perm) => {
-                        const isChecked = editedPermissionIds.includes(perm.id);
-                        return (
-                          <PermCard
-                            key={perm.id}
-                            $checked={isChecked}
-                            onClick={() => handleTogglePermission(perm.id)}
-                          >
-                            <Checkbox $checked={isChecked}>
-                              {isChecked && <FaCheck size={10} color="white" />}
-                            </Checkbox>
-                            <PermInfo>
-                              <PermName>{perm.name}</PermName>
-                              <PermDesc>{perm.description}</PermDesc>
-                            </PermInfo>
-                          </PermCard>
-                        );
-                      })}
-                    </Grid>
-                  </GroupSection>
-                ))}
-              </MatrixContainer>
-            </>
-          ) : (
-            <EmptyState>Select a role to view permissions</EmptyState>
-          )}
-        </PermissionPanel>
+        {/* Right Panel (Memoized) */}
+        <PermissionMatrix
+          selectedRole={selectedRole}
+          groupedPermissions={groupedPermissions}
+          editedPermissionIds={editedPermissionIds}
+          isDirty={isDirty}
+          onSave={handleSave}
+          onTogglePermission={handleTogglePermission}
+        />
       </ContentArea>
     </Container>
   );
 };
 
 export default RolesPage;
+
 // --- Styled Components ---
 
-// 1. 컨테이너: 부모 높이(100%)에 맞추고 외부 스크롤 방지
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -231,24 +302,22 @@ const TitleGroup = styled.div`
   }
 `;
 
-// 2. 메인 콘텐츠 영역: 남은 높이 차지 및 내부 스크롤 제어
 const ContentArea = styled.div`
   display: flex;
   gap: 20px;
   flex: 1;
   overflow: hidden;
-  min-height: 0; /* Flex 자식 요소 스크롤 버그 방지 */
+  min-height: 0;
 `;
 
-// Left Panel
-const RoleListPanel = styled.div`
+const RoleListPanelContainer = styled.div`
   width: 320px;
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 패널 자체 스크롤 방지 */
+  overflow: hidden;
 `;
 
 const PanelHeader = styled.div`
@@ -282,7 +351,7 @@ const AddButton = styled.button`
 
 const ListContainer = styled.div`
   flex: 1;
-  overflow-y: auto; /* 리스트 내부 스크롤 */
+  overflow-y: auto;
   padding: 10px;
 `;
 
@@ -337,7 +406,6 @@ const RoleMeta = styled.div`
   gap: 5px;
 `;
 
-// Right Panel
 const PermissionPanel = styled.div`
   flex: 1;
   background: white;
@@ -345,7 +413,7 @@ const PermissionPanel = styled.div`
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 패널 자체 스크롤 방지 */
+  overflow: hidden;
 `;
 
 const DetailHeader = styled.div`
@@ -395,7 +463,7 @@ const DeleteBtn = styled.button`
 
 const MatrixContainer = styled.div`
   flex: 1;
-  overflow-y: auto; /* 매트릭스 내부 스크롤 */
+  overflow-y: auto;
   padding: 20px;
 `;
 

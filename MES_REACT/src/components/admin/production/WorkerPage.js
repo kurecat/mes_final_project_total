@@ -1,5 +1,5 @@
 // src/pages/resource/WorkerPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import axios from "axios";
 import {
@@ -17,8 +17,264 @@ import {
 
 const API_BASE = "http://localhost:8111/api/mes";
 
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Stats Component
+const WorkerStats = React.memo(({ total, onDuty, engineers }) => {
+  return (
+    <StatsGrid>
+      <StatCard>
+        <IconBox $color="#1a4f8b">
+          <FaUserTie />
+        </IconBox>
+        <StatInfo>
+          <Label>Total Personnel</Label>
+          <Value>{total}</Value>
+        </StatInfo>
+      </StatCard>
+
+      <StatCard>
+        <IconBox $color="#2ecc71">
+          <FaBriefcase />
+        </IconBox>
+        <StatInfo>
+          <Label>On-Duty (Working)</Label>
+          <Value>{onDuty}</Value>
+        </StatInfo>
+      </StatCard>
+
+      <StatCard>
+        <IconBox $color="#e67e22">
+          <FaCertificate />
+        </IconBox>
+        <StatInfo>
+          <Label>Certified Engineers</Label>
+          <Value>{engineers}</Value>
+        </StatInfo>
+      </StatCard>
+    </StatsGrid>
+  );
+});
+
+// 2. Header & Control Component
+const WorkerHeader = React.memo(
+  ({
+    loading,
+    onAdd,
+    filterRole,
+    onFilterChange,
+    searchTerm,
+    onSearchChange,
+  }) => {
+    return (
+      <>
+        <Header>
+          <TitleArea>
+            <PageTitle>
+              <FaUserTie /> Worker Management
+              {loading && (
+                <FaSync
+                  className="spin"
+                  style={{ fontSize: 14, marginLeft: 10 }}
+                />
+              )}
+            </PageTitle>
+            <SubTitle>Fab Operators & Engineers Certification Status</SubTitle>
+          </TitleArea>
+          <ActionGroup>
+            <AddButton onClick={onAdd}>
+              <FaPlus /> Register Worker
+            </AddButton>
+          </ActionGroup>
+        </Header>
+
+        <ControlBar>
+          <FilterGroup>
+            {["ALL", "Engineer", "Operator", "Manager"].map((role) => (
+              <FilterBtn
+                key={role}
+                $active={filterRole === role}
+                onClick={() => onFilterChange(role)}
+              >
+                {role === "ALL" ? "All" : role + "s"}
+              </FilterBtn>
+            ))}
+          </FilterGroup>
+          <SearchBox>
+            <FaSearch color="#999" />
+            <input
+              placeholder="Search Name or Dept..."
+              value={searchTerm}
+              onChange={onSearchChange}
+            />
+          </SearchBox>
+        </ControlBar>
+      </>
+    );
+  },
+);
+
+// 3. Worker Card Item Component
+const WorkerCardItem = React.memo(({ worker, onEdit, onDelete }) => {
+  return (
+    <WorkerCard $status={worker.status}>
+      <CardHeader>
+        <ProfileSection>
+          <Avatar>{(worker.name ?? "W").charAt(0)}</Avatar>
+          <NameInfo>
+            <Name>{worker.name}</Name>
+            <Role>
+              {worker.authority} | {worker.dept}
+            </Role>
+          </NameInfo>
+        </ProfileSection>
+        <StatusBadge $status={worker.status}>{worker.status}</StatusBadge>
+      </CardHeader>
+
+      <CardBody>
+        <InfoRow>
+          <FaIdBadge color="#aaa" /> <span>ID: {worker.workerId}</span>
+        </InfoRow>
+        <InfoRow>
+          <FaClock color="#aaa" /> <span>Shift: {worker.shift}</span>
+        </InfoRow>
+
+        <CertiSection>
+          <CertiTitle>
+            <FaCertificate size={10} /> Certifications (Skill)
+          </CertiTitle>
+          <TagWrapper>
+            {(worker.certifications ?? []).map((cert, idx) => (
+              <CertTag key={idx}>{cert}</CertTag>
+            ))}
+          </TagWrapper>
+        </CertiSection>
+      </CardBody>
+
+      <CardFooter>
+        <JoinDate>Joined: {worker.joinDate ?? "-"}</JoinDate>
+        <ActionArea>
+          <IconBtn className="edit" onClick={() => onEdit(worker)}>
+            <FaEdit />
+          </IconBtn>
+          <IconBtn className="del" onClick={() => onDelete(worker.workerId)}>
+            <FaTrash />
+          </IconBtn>
+        </ActionArea>
+      </CardFooter>
+    </WorkerCard>
+  );
+});
+
+// 4. Modal Component
+const WorkerModal = React.memo(
+  ({ isOpen, onClose, editForm, setEditForm, onSave, target }) => {
+    if (!isOpen) return null;
+
+    return (
+      <ModalOverlay onClick={onClose}>
+        <ModalBox onClick={(e) => e.stopPropagation()}>
+          <ModalTitle>Worker Edit</ModalTitle>
+
+          <ModalRow>
+            <ModalLabel>Name</ModalLabel>
+            <ModalInput
+              value={editForm.name}
+              onChange={(e) =>
+                setEditForm((prev) => ({ ...prev, name: e.target.value }))
+              }
+            />
+          </ModalRow>
+
+          <ModalRow>
+            <ModalLabel>Role(Authority)</ModalLabel>
+            <ModalSelect
+              value={editForm.authority}
+              onChange={(e) =>
+                setEditForm((prev) => ({ ...prev, authority: e.target.value }))
+              }
+            >
+              <option value="Engineer">Engineer</option>
+              <option value="Operator">Operator</option>
+              <option value="Manager">Manager</option>
+            </ModalSelect>
+          </ModalRow>
+
+          <ModalRow>
+            <ModalLabel>Dept</ModalLabel>
+            <ModalInput
+              value={editForm.dept}
+              onChange={(e) =>
+                setEditForm((prev) => ({ ...prev, dept: e.target.value }))
+              }
+            />
+          </ModalRow>
+
+          <ModalRow>
+            <ModalLabel>Shift</ModalLabel>
+            <ModalSelect
+              value={editForm.shift}
+              onChange={(e) =>
+                setEditForm((prev) => ({ ...prev, shift: e.target.value }))
+              }
+            >
+              <option value="Day">Day</option>
+              <option value="Swing">Swing</option>
+              <option value="Night">Night</option>
+            </ModalSelect>
+          </ModalRow>
+
+          <ModalRow>
+            <ModalLabel>Status</ModalLabel>
+            <ModalSelect
+              value={editForm.status}
+              onChange={(e) =>
+                setEditForm((prev) => ({ ...prev, status: e.target.value }))
+              }
+            >
+              <option value="WORKING">WORKING</option>
+              <option value="OFF">OFF</option>
+              <option value="BREAK">BREAK</option>
+            </ModalSelect>
+          </ModalRow>
+
+          <ModalRow>
+            <ModalLabel>Join Date</ModalLabel>
+            <ModalReadonly>{target?.joinDate ?? "-"}</ModalReadonly>
+          </ModalRow>
+
+          <ModalRow>
+            <ModalLabel>Certifications</ModalLabel>
+            <ModalTextarea
+              placeholder="ex) Basic Safety, ASML Scanner"
+              value={editForm.certificationsText}
+              onChange={(e) =>
+                setEditForm((prev) => ({
+                  ...prev,
+                  certificationsText: e.target.value,
+                }))
+              }
+            />
+          </ModalRow>
+
+          <ModalFooter>
+            <ModalBtn className="cancel" onClick={onClose}>
+              Cancel
+            </ModalBtn>
+            <ModalBtn className="save" onClick={onSave}>
+              Save
+            </ModalBtn>
+          </ModalFooter>
+        </ModalBox>
+      </ModalOverlay>
+    );
+  },
+);
+
+// --- Main Component ---
+
 const WorkerPage = () => {
-  const [workers, setWorkers] = useState([]); // ✅ MOCK 제거
+  const [workers, setWorkers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterRole, setFilterRole] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
@@ -36,10 +292,8 @@ const WorkerPage = () => {
     certificationsText: "",
   });
 
-  // =========================
-  // 1) 데이터 조회 (READ)
-  // =========================
-  const fetchData = async () => {
+  // 1) 데이터 조회 (READ) - useCallback
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/worker/list`);
@@ -50,43 +304,31 @@ const WorkerPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  // =========================
-  // 2) 삭제 (DELETE)
-  // =========================
-  const handleDelete = async (workerId) => {
+  // 2) 삭제 (DELETE) - useCallback
+  const handleDelete = useCallback(async (workerId) => {
     if (!workerId) return;
     if (!window.confirm("해당 작업자를 삭제하시겠습니까?")) return;
 
     try {
       await axios.delete(`${API_BASE}/worker/${workerId}`);
-
-      // 화면에서도 제거
       setWorkers((prev) => prev.filter((w) => w.workerId !== workerId));
-
       alert("삭제 완료");
     } catch (err) {
       console.error("삭제 실패:", err);
-      console.log("status:", err?.response?.status);
-      console.log("data:", err?.response?.data);
       alert("삭제 실패 (콘솔 확인)");
     }
-  };
+  }, []);
 
-  // =========================
-  // 3) 추가 (CREATE)
-  // =========================
-  const handleAdd = async () => {
+  // 3) 추가 (CREATE) - useCallback
+  const handleAdd = useCallback(async () => {
     try {
       const today = new Date().toISOString().split("T")[0];
-
-      // ⚠️ authority 값은 프론트/백엔드에서 통일해야 함
-      // 여기서는 "Operator / Engineer / Manager" 로 통일 (추천)
       const res = await axios.post(`${API_BASE}/worker/register`, {
         email: `worker${Date.now()}@test.com`,
         password: "1234",
@@ -98,23 +340,16 @@ const WorkerPage = () => {
         joinDate: today,
         certifications: ["Basic Safety"],
       });
-
-      // 저장 성공한 데이터 화면에 추가
       setWorkers((prev) => [res.data, ...prev]);
     } catch (err) {
       console.error("작업자 등록 실패:", err);
-      console.log("status:", err?.response?.status);
-      console.log("data:", err?.response?.data);
       alert("작업자 등록 실패 (콘솔 확인)");
     }
-  };
+  }, []);
 
-  // =========================
-  // 4) 수정 모달 열기
-  // =========================
-  const openEditModal = (worker) => {
+  // 4) 수정 모달 열기 - useCallback
+  const openEditModal = useCallback((worker) => {
     setEditTarget(worker);
-
     setEditForm({
       name: worker.name ?? "",
       authority: worker.authority ?? "Operator",
@@ -123,14 +358,11 @@ const WorkerPage = () => {
       status: worker.status ?? "OFF",
       certificationsText: (worker.certifications ?? []).join(", "),
     });
-
     setEditOpen(true);
-  };
+  }, []);
 
-  // =========================
-  // 5) 수정 저장 (UPDATE)
-  // =========================
-  const handleSaveEdit = async () => {
+  // 5) 수정 저장 (UPDATE) - useCallback
+  const handleSaveEdit = useCallback(async () => {
     if (!editTarget?.workerId) return;
 
     try {
@@ -151,301 +383,94 @@ const WorkerPage = () => {
         },
       );
 
-      // 화면 데이터 업데이트
       setWorkers((prev) =>
         prev.map((w) => (w.workerId === editTarget.workerId ? res.data : w)),
       );
 
       setEditOpen(false);
       setEditTarget(null);
-
       alert("수정 완료");
     } catch (err) {
       console.error("수정 실패:", err);
-      console.log("status:", err?.response?.status);
-      console.log("data:", err?.response?.data);
       alert("수정 실패 (콘솔 확인)");
     }
-  };
+  }, [editForm, editTarget]);
 
-  // =========================
-  // 필터링 (authority 기준)
-  // =========================
-  const filteredList = workers.filter((w) => {
-    const matchRole = filterRole === "ALL" || w.authority === filterRole;
-    const matchSearch =
-      (w.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (w.dept ?? "").toLowerCase().includes(searchTerm.toLowerCase());
-    return matchRole && matchSearch;
-  });
+  const handleFilterChange = useCallback((role) => {
+    setFilterRole(role);
+  }, []);
 
-  // =========================
-  // KPI 계산
-  // =========================
-  const total = workers.length;
-  const onDuty = workers.filter((w) => w.status === "WORKING").length;
-  const engineers = workers.filter((w) => w.authority === "Engineer").length;
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setEditOpen(false);
+  }, []);
+
+  // 필터링 - useMemo
+  const filteredList = useMemo(() => {
+    return workers.filter((w) => {
+      const matchRole = filterRole === "ALL" || w.authority === filterRole;
+      const matchSearch =
+        (w.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (w.dept ?? "").toLowerCase().includes(searchTerm.toLowerCase());
+      return matchRole && matchSearch;
+    });
+  }, [workers, filterRole, searchTerm]);
+
+  // KPI 계산 - useMemo
+  const stats = useMemo(() => {
+    return {
+      total: workers.length,
+      onDuty: workers.filter((w) => w.status === "WORKING").length,
+      engineers: workers.filter((w) => w.authority === "Engineer").length,
+    };
+  }, [workers]);
 
   return (
     <Container>
-      {/* 헤더 */}
-      <Header>
-        <TitleArea>
-          <PageTitle>
-            <FaUserTie /> Worker Management
-            {loading && (
-              <FaSync
-                className="spin"
-                style={{ fontSize: 14, marginLeft: 10 }}
-              />
-            )}
-          </PageTitle>
-          <SubTitle>Fab Operators & Engineers Certification Status</SubTitle>
-        </TitleArea>
+      <WorkerHeader
+        loading={loading}
+        onAdd={handleAdd}
+        filterRole={filterRole}
+        onFilterChange={handleFilterChange}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+      />
 
-        <ActionGroup>
-          <AddButton onClick={handleAdd}>
-            <FaPlus /> Register Worker
-          </AddButton>
-        </ActionGroup>
-      </Header>
+      <WorkerStats
+        total={stats.total}
+        onDuty={stats.onDuty}
+        engineers={stats.engineers}
+      />
 
-      {/* KPI 카드 */}
-      <StatsGrid>
-        <StatCard>
-          <IconBox $color="#1a4f8b">
-            <FaUserTie />
-          </IconBox>
-          <StatInfo>
-            <Label>Total Personnel</Label>
-            <Value>{total}</Value>
-          </StatInfo>
-        </StatCard>
-
-        <StatCard>
-          <IconBox $color="#2ecc71">
-            <FaBriefcase />
-          </IconBox>
-          <StatInfo>
-            <Label>On-Duty (Working)</Label>
-            <Value>{onDuty}</Value>
-          </StatInfo>
-        </StatCard>
-
-        <StatCard>
-          <IconBox $color="#e67e22">
-            <FaCertificate />
-          </IconBox>
-          <StatInfo>
-            <Label>Certified Engineers</Label>
-            <Value>{engineers}</Value>
-          </StatInfo>
-        </StatCard>
-      </StatsGrid>
-
-      {/* 컨트롤 바 */}
-      <ControlBar>
-        <FilterGroup>
-          <FilterBtn
-            $active={filterRole === "ALL"}
-            onClick={() => setFilterRole("ALL")}
-          >
-            All
-          </FilterBtn>
-          <FilterBtn
-            $active={filterRole === "Engineer"}
-            onClick={() => setFilterRole("Engineer")}
-          >
-            Engineers
-          </FilterBtn>
-          <FilterBtn
-            $active={filterRole === "Operator"}
-            onClick={() => setFilterRole("Operator")}
-          >
-            Operators
-          </FilterBtn>
-          <FilterBtn
-            $active={filterRole === "Manager"}
-            onClick={() => setFilterRole("Manager")}
-          >
-            Managers
-          </FilterBtn>
-        </FilterGroup>
-
-        <SearchBox>
-          <FaSearch color="#999" />
-          <input
-            placeholder="Search Name or Dept..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </SearchBox>
-      </ControlBar>
-
-      {/* 작업자 카드 그리드 */}
       <GridContainer>
         {filteredList.map((worker) => (
-          <WorkerCard key={worker.workerId} $status={worker.status}>
-            <CardHeader>
-              <ProfileSection>
-                <Avatar>{(worker.name ?? "W").charAt(0)}</Avatar>
-                <NameInfo>
-                  <Name>{worker.name}</Name>
-                  <Role>
-                    {worker.authority} | {worker.dept}
-                  </Role>
-                </NameInfo>
-              </ProfileSection>
-
-              <StatusBadge $status={worker.status}>{worker.status}</StatusBadge>
-            </CardHeader>
-
-            <CardBody>
-              <InfoRow>
-                <FaIdBadge color="#aaa" /> <span>ID: {worker.workerId}</span>
-              </InfoRow>
-              <InfoRow>
-                <FaClock color="#aaa" /> <span>Shift: {worker.shift}</span>
-              </InfoRow>
-
-              <CertiSection>
-                <CertiTitle>
-                  <FaCertificate size={10} /> Certifications (Skill)
-                </CertiTitle>
-                <TagWrapper>
-                  {(worker.certifications ?? []).map((cert, idx) => (
-                    <CertTag key={idx}>{cert}</CertTag>
-                  ))}
-                </TagWrapper>
-              </CertiSection>
-            </CardBody>
-
-            <CardFooter>
-              <JoinDate>Joined: {worker.joinDate ?? "-"}</JoinDate>
-              <ActionArea>
-                <IconBtn className="edit" onClick={() => openEditModal(worker)}>
-                  <FaEdit />
-                </IconBtn>
-                <IconBtn
-                  className="del"
-                  onClick={() => handleDelete(worker.workerId)}
-                >
-                  <FaTrash />
-                </IconBtn>
-              </ActionArea>
-            </CardFooter>
-          </WorkerCard>
+          <WorkerCardItem
+            key={worker.workerId}
+            worker={worker}
+            onEdit={openEditModal}
+            onDelete={handleDelete}
+          />
         ))}
       </GridContainer>
 
-      {/* 수정 모달 */}
-      {editOpen && (
-        <ModalOverlay onClick={() => setEditOpen(false)}>
-          <ModalBox onClick={(e) => e.stopPropagation()}>
-            <ModalTitle>Worker Edit</ModalTitle>
-
-            <ModalRow>
-              <ModalLabel>Name</ModalLabel>
-              <ModalInput
-                value={editForm.name}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, name: e.target.value })
-                }
-              />
-            </ModalRow>
-
-            <ModalRow>
-              <ModalLabel>Role(Authority)</ModalLabel>
-              <ModalSelect
-                value={editForm.authority}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, authority: e.target.value })
-                }
-              >
-                <option value="Engineer">Engineer</option>
-                <option value="Operator">Operator</option>
-                <option value="Manager">Manager</option>
-              </ModalSelect>
-            </ModalRow>
-
-            <ModalRow>
-              <ModalLabel>Dept</ModalLabel>
-              <ModalInput
-                value={editForm.dept}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, dept: e.target.value })
-                }
-              />
-            </ModalRow>
-
-            <ModalRow>
-              <ModalLabel>Shift</ModalLabel>
-              <ModalSelect
-                value={editForm.shift}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, shift: e.target.value })
-                }
-              >
-                <option value="Day">Day</option>
-                <option value="Swing">Swing</option>
-                <option value="Night">Night</option>
-              </ModalSelect>
-            </ModalRow>
-
-            <ModalRow>
-              <ModalLabel>Status</ModalLabel>
-              <ModalSelect
-                value={editForm.status}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, status: e.target.value })
-                }
-              >
-                <option value="WORKING">WORKING</option>
-                <option value="OFF">OFF</option>
-                <option value="BREAK">BREAK</option>
-              </ModalSelect>
-            </ModalRow>
-
-            {/* 가입날짜는 수정 불가 */}
-            <ModalRow>
-              <ModalLabel>Join Date</ModalLabel>
-              <ModalReadonly>{editTarget?.joinDate ?? "-"}</ModalReadonly>
-            </ModalRow>
-
-            <ModalRow>
-              <ModalLabel>Certifications</ModalLabel>
-              <ModalTextarea
-                placeholder="ex) Basic Safety, ASML Scanner"
-                value={editForm.certificationsText}
-                onChange={(e) =>
-                  setEditForm({
-                    ...editForm,
-                    certificationsText: e.target.value,
-                  })
-                }
-              />
-            </ModalRow>
-
-            <ModalFooter>
-              <ModalBtn className="cancel" onClick={() => setEditOpen(false)}>
-                Cancel
-              </ModalBtn>
-              <ModalBtn className="save" onClick={handleSaveEdit}>
-                Save
-              </ModalBtn>
-            </ModalFooter>
-          </ModalBox>
-        </ModalOverlay>
-      )}
+      <WorkerModal
+        isOpen={editOpen}
+        onClose={handleCloseModal}
+        editForm={editForm}
+        setEditForm={setEditForm}
+        onSave={handleSaveEdit}
+        target={editTarget}
+      />
     </Container>
   );
 };
 
 export default WorkerPage;
 
-/* ===========================
-   Styled Components
-=========================== */
+// --- Styled Components (No Changes) ---
 
 const Container = styled.div`
   width: 100%;

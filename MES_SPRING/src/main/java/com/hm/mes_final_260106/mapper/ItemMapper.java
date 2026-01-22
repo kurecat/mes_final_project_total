@@ -11,6 +11,6 @@ import org.mapstruct.Mapping;
 public interface ItemMapper {
 
     @Mapping(target = "product", ignore = true)
-    @Mapping(target = "workOrder", ignore = true)
+    @Mapping(target = "productionLog", ignore = true)
     Item toEntity(ItemDto dto);
 }

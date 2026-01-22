@@ -1,5 +1,5 @@
 // src/pages/production/ProductionPlanPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import axios from "axios";
 import {
@@ -20,7 +20,7 @@ import {
 const API_BASE = "http://localhost:8111/api/mes";
 
 // =============================
-// Dummy Fallback Data (안전하게 product 포함)
+// Dummy Fallback Data
 // =============================
 const MOCK_PLANS = [
   {
@@ -45,6 +45,168 @@ const MOCK_PLANS = [
   },
 ];
 
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Control Bar Component
+const ControlBarSection = React.memo(
+  ({ filterLine, onFilterChange, searchTerm, onSearchChange }) => {
+    return (
+      <ControlBar>
+        <FilterGroup>
+          {["ALL", "FAB", "EDS", "MOD"].map((line) => (
+            <FilterBtn
+              key={line}
+              $active={filterLine === line}
+              onClick={() => onFilterChange(line)}
+            >
+              {line === "ALL"
+                ? "All Lines"
+                : line === "FAB"
+                  ? "Fab (Wafer)"
+                  : line === "EDS"
+                    ? "EDS (Chip)"
+                    : "Module"}
+            </FilterBtn>
+          ))}
+        </FilterGroup>
+
+        <SearchBox>
+          <FaSearch color="#999" />
+          <input
+            placeholder="Search Product or ID..."
+            value={searchTerm}
+            onChange={onSearchChange}
+          />
+        </SearchBox>
+      </ControlBar>
+    );
+  },
+);
+
+// 2. Table Row Component
+const PlanTableRow = React.memo(
+  ({
+    plan,
+    isEditing,
+    editForm,
+    onEditStart,
+    onEditCancel,
+    onEditSave,
+    onEditFormChange,
+    onRelease,
+    onDelete,
+  }) => {
+    return (
+      <tr>
+        <td>
+          <StatusBadge $status={plan.status}>{plan.status}</StatusBadge>
+        </td>
+
+        <td style={{ fontWeight: "bold", color: "#1a4f8b" }}>{plan.id}</td>
+
+        <td>{plan.date}</td>
+
+        <td style={{ fontSize: 13 }}>
+          {isEditing ? (
+            <EditInput
+              value={editForm.targetLine}
+              onChange={(e) => onEditFormChange("targetLine", e.target.value)}
+            />
+          ) : (
+            plan.line
+          )}
+        </td>
+
+        {/* Product */}
+        <td style={{ fontWeight: "600" }}>
+          {isEditing ? (
+            <EditInput
+              value={editForm.product}
+              onChange={(e) => onEditFormChange("product", e.target.value)}
+            />
+          ) : (
+            plan.product
+          )}
+        </td>
+
+        {/* Qty */}
+        <td>
+          {isEditing ? (
+            <EditInput
+              type="number"
+              value={editForm.planQty}
+              onChange={(e) => onEditFormChange("planQty", e.target.value)}
+            />
+          ) : (
+            <>
+              {Number(plan.planQty).toLocaleString()}
+              <Unit>ea</Unit>
+            </>
+          )}
+        </td>
+
+        {/* Action */}
+        <td>
+          <ActionButtons>
+            {/* Release 버튼 */}
+            {plan.status === "WAITING" && !isEditing && (
+              <IconBtn
+                className="confirm"
+                onClick={() => onRelease(plan.id, plan.orderId)}
+                title="Release Plan"
+              >
+                <FaCheckDouble /> Release
+              </IconBtn>
+            )}
+
+            {/* Edit / Save / Cancel */}
+            {!isEditing ? (
+              <IconBtn
+                className="edit"
+                onClick={() => onEditStart(plan)}
+                title="Edit"
+              >
+                <FaEdit />
+              </IconBtn>
+            ) : (
+              <>
+                <IconBtn
+                  className="save"
+                  onClick={() => onEditSave(plan.id, plan.orderId)}
+                  title="Save"
+                >
+                  <FaSave /> Save
+                </IconBtn>
+
+                <IconBtn
+                  className="cancel"
+                  onClick={onEditCancel}
+                  title="Cancel"
+                >
+                  <FaTimes /> Cancel
+                </IconBtn>
+              </>
+            )}
+
+            {/* Delete */}
+            {!isEditing && (
+              <IconBtn
+                className="del"
+                onClick={() => onDelete(plan.id, plan.orderId)}
+                title="Delete"
+              >
+                <FaTrash />
+              </IconBtn>
+            )}
+          </ActionButtons>
+        </td>
+      </tr>
+    );
+  },
+);
+
+// --- Main Component ---
+
 const ProductionPlanPage = () => {
   const [plans, setPlans] = useState(MOCK_PLANS);
   const [loading, setLoading] = useState(true);
@@ -52,9 +214,7 @@ const ProductionPlanPage = () => {
   const [filterLine, setFilterLine] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // =============================
   // 수정 기능 상태
-  // =============================
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [editForm, setEditForm] = useState({
     product: "",
@@ -62,29 +222,22 @@ const ProductionPlanPage = () => {
     targetLine: "",
   });
 
-  // =============================
   // WorkOrder -> Plan 변환
-  // (백엔드 WorkOrderResDto 구조에 맞춰서 매핑)
-  // =============================
-  const mapWorkOrderToPlan = (wo) => {
+  const mapWorkOrderToPlan = useCallback((wo) => {
     return {
-      id: wo.workorderNumber || `WO-${wo.id}`, // 화면 표시용
-      orderId: wo.id, // ⭐ API 호출용 (필수)
-
+      id: wo.workorderNumber || `WO-${wo.id}`,
+      orderId: wo.id,
       date: wo.startDate ? wo.startDate.split("T")[0] : "",
-
-      product: wo.productId || "", // ⭐ productId 기반
-      line: wo.targetLine || "Fab-Line-A", // 아직 라인 테이블 없으면 더미
-      type: "FAB", // 아직 타입 없으면 더미
+      product: wo.productId || "",
+      line: wo.targetLine || "Fab-Line-A",
+      type: "FAB",
       planQty: wo.targetQty ?? 0,
       status: wo.status ?? "WAITING",
     };
-  };
+  }, []);
 
-  // =============================
-  // 1) 데이터 조회 (READ)
-  // =============================
-  const fetchData = async () => {
+  // 1) 데이터 조회 (READ) - useCallback
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/order`);
@@ -92,28 +245,24 @@ const ProductionPlanPage = () => {
       setPlans(mapped);
     } catch (err) {
       console.error("작업지시 조회 실패:", err);
-      // 실패 시 MOCK 유지
     } finally {
       setLoading(false);
     }
-  };
+  }, [mapWorkOrderToPlan]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  // =============================
-  // 2) 작업지시 생성 (CREATE)
-  // =============================
-  const handleAdd = async () => {
+  // Handlers - useCallback
+
+  const handleAdd = useCallback(async () => {
     try {
-      // 지금은 더미 입력값으로 생성
       const payload = {
         productId: "P-DUMMY-001",
         targetQty: 500,
         targetLine: "Fab-Line-A",
       };
-
       await axios.post(`${API_BASE}/order`, payload);
       alert("작업지시가 추가되었습니다.");
       fetchData();
@@ -121,125 +270,116 @@ const ProductionPlanPage = () => {
       console.error("작업지시 생성 실패:", err);
       alert("작업지시 추가 실패");
     }
-  };
+  }, [fetchData]);
 
-  // =============================
-  // 3) Release (WAITING -> RELEASED)
-  // =============================
-  const handleRelease = async (planId, orderId) => {
-    if (!orderId) {
-      alert("orderId가 없습니다. 데이터 매핑을 확인하세요.");
-      return;
-    }
+  const handleRelease = useCallback(
+    async (planId, orderId) => {
+      if (!orderId) {
+        alert("orderId가 없습니다.");
+        return;
+      }
+      try {
+        await axios.post(`${API_BASE}/order/${orderId}/release`);
+        alert(`Plan [${planId}] Release 완료`);
+        fetchData();
+      } catch (err) {
+        console.error("Release 실패:", err);
+        alert("Release 실패");
+      }
+    },
+    [fetchData],
+  );
 
-    try {
-      await axios.post(`${API_BASE}/order/${orderId}/release`);
-      alert(`Plan [${planId}] Release 완료`);
-      fetchData();
-    } catch (err) {
-      console.error("Release 실패:", err);
-      alert("Release 실패");
-    }
-  };
+  const handleDelete = useCallback(
+    async (planId, orderId) => {
+      if (!orderId) {
+        alert("orderId가 없습니다.");
+        return;
+      }
+      if (!window.confirm("삭제하시겠습니까?")) return;
+      try {
+        await axios.delete(`${API_BASE}/order/${orderId}`);
+        alert("삭제 완료");
+        fetchData();
+      } catch (err) {
+        console.error("삭제 실패:", err);
+        alert("삭제 실패");
+      }
+    },
+    [fetchData],
+  );
 
-  // =============================
-  // 4) 삭제 (DELETE)
-  // =============================
-  const handleDelete = async (planId, orderId) => {
-    if (!orderId) {
-      alert("orderId가 없습니다. 데이터 매핑을 확인하세요.");
-      return;
-    }
-
-    if (!window.confirm("삭제하시겠습니까? (확정된 계획은 삭제 주의)")) return;
-
-    try {
-      await axios.delete(`${API_BASE}/order/${orderId}`);
-      alert("삭제 완료");
-      fetchData();
-    } catch (err) {
-      console.error("삭제 실패:", err);
-      alert("삭제 실패");
-    }
-  };
-
-  // =============================
-  // 5) 수정모드 진입 (EDIT ICON)
-  // =============================
-  const handleEditStart = (plan) => {
+  const handleEditStart = useCallback((plan) => {
     setEditingPlanId(plan.id);
     setEditForm({
       product: plan.product ?? "",
       planQty: plan.planQty ?? "",
       targetLine: plan.line ?? "",
     });
-  };
+  }, []);
 
-  // =============================
-  // 6) 수정 취소
-  // =============================
-  const handleEditCancel = () => {
+  const handleEditCancel = useCallback(() => {
     setEditingPlanId(null);
-    setEditForm({
-      product: "",
-      planQty: "",
-      targetLine: "",
+    setEditForm({ product: "", planQty: "", targetLine: "" });
+  }, []);
+
+  const handleEditFormChange = useCallback((field, value) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleEditSave = useCallback(
+    async (planId, orderId) => {
+      if (!orderId) {
+        alert("orderId가 없습니다.");
+        return;
+      }
+      if (!editForm.product.trim()) {
+        alert("ProductId를 입력하세요.");
+        return;
+      }
+      const qty = Number(editForm.planQty);
+      if (!qty || qty <= 0) {
+        alert("Plan Qty는 1 이상 숫자여야 합니다.");
+        return;
+      }
+
+      try {
+        const payload = {
+          productId: editForm.product.trim(),
+          targetQty: qty,
+          targetLine: editForm.targetLine.trim(),
+        };
+        await axios.put(`${API_BASE}/order/${orderId}`, payload);
+        alert(`Plan [${planId}] 수정 저장 완료`);
+        setEditingPlanId(null);
+        fetchData();
+      } catch (err) {
+        console.error("수정 저장 실패:", err);
+        alert("수정 저장 실패");
+      }
+    },
+    [editForm, fetchData],
+  );
+
+  const handleFilterChange = useCallback((line) => {
+    setFilterLine(line);
+  }, []);
+
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  // Filtering - useMemo
+  const filteredPlans = useMemo(() => {
+    return plans.filter((p) => {
+      const matchLine = filterLine === "ALL" || p.type === filterLine;
+      const product = (p.product ?? "").toLowerCase();
+      const id = (p.id ?? "").toLowerCase();
+      const keyword = (searchTerm ?? "").toLowerCase();
+      const matchSearch = product.includes(keyword) || id.includes(keyword);
+      return matchLine && matchSearch;
     });
-  };
-
-  // =============================
-  // 7) 수정 저장 (PUT)
-  // =============================
-  const handleEditSave = async (planId, orderId) => {
-    if (!orderId) {
-      alert("orderId가 없습니다. 데이터 매핑을 확인하세요.");
-      return;
-    }
-
-    // 간단 유효성
-    if (!editForm.product.trim()) {
-      alert("ProductId를 입력하세요.");
-      return;
-    }
-
-    const qty = Number(editForm.planQty);
-    if (!qty || qty <= 0) {
-      alert("Plan Qty는 1 이상 숫자여야 합니다.");
-      return;
-    }
-
-    try {
-      const payload = {
-        productId: editForm.product.trim(),
-        targetQty: qty,
-        targetLine: editForm.targetLine.trim(),
-      };
-
-      await axios.put(`${API_BASE}/order/${orderId}`, payload);
-
-      alert(`Plan [${planId}] 수정 저장 완료`);
-      setEditingPlanId(null);
-      fetchData();
-    } catch (err) {
-      console.error("수정 저장 실패:", err);
-      alert("수정 저장 실패");
-    }
-  };
-
-  // =============================
-  // 필터링 (toLowerCase 에러 방지)
-  // =============================
-  const filteredPlans = plans.filter((p) => {
-    const matchLine = filterLine === "ALL" || p.type === filterLine;
-
-    const product = (p.product ?? "").toLowerCase();
-    const id = (p.id ?? "").toLowerCase();
-    const keyword = (searchTerm ?? "").toLowerCase();
-
-    const matchSearch = product.includes(keyword) || id.includes(keyword);
-
-    return matchLine && matchSearch;
-  });
+  }, [plans, filterLine, searchTerm]);
 
   return (
     <Container>
@@ -257,7 +397,6 @@ const ProductionPlanPage = () => {
           </PageTitle>
           <SubTitle>Fab / EDS / Module Daily Output Plan</SubTitle>
         </TitleArea>
-
         <ActionGroup>
           <AddButton onClick={handleAdd}>
             <FaPlus /> Create Plan
@@ -265,44 +404,13 @@ const ProductionPlanPage = () => {
         </ActionGroup>
       </Header>
 
-      {/* 컨트롤 바 */}
-      <ControlBar>
-        <FilterGroup>
-          <FilterBtn
-            $active={filterLine === "ALL"}
-            onClick={() => setFilterLine("ALL")}
-          >
-            All Lines
-          </FilterBtn>
-          <FilterBtn
-            $active={filterLine === "FAB"}
-            onClick={() => setFilterLine("FAB")}
-          >
-            Fab (Wafer)
-          </FilterBtn>
-          <FilterBtn
-            $active={filterLine === "EDS"}
-            onClick={() => setFilterLine("EDS")}
-          >
-            EDS (Chip)
-          </FilterBtn>
-          <FilterBtn
-            $active={filterLine === "MOD"}
-            onClick={() => setFilterLine("MOD")}
-          >
-            Module
-          </FilterBtn>
-        </FilterGroup>
-
-        <SearchBox>
-          <FaSearch color="#999" />
-          <input
-            placeholder="Search Product or ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </SearchBox>
-      </ControlBar>
+      {/* 컨트롤 바 (Memoized) */}
+      <ControlBarSection
+        filterLine={filterLine}
+        onFilterChange={handleFilterChange}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+      />
 
       {/* 테이블 */}
       <TableContainer>
@@ -318,139 +426,21 @@ const ProductionPlanPage = () => {
               <th>Action</th>
             </tr>
           </thead>
-
           <tbody>
-            {filteredPlans.map((plan) => {
-              const isEditing = editingPlanId === plan.id;
-
-              return (
-                <tr key={plan.id}>
-                  <td>
-                    <StatusBadge $status={plan.status}>
-                      {plan.status}
-                    </StatusBadge>
-                  </td>
-
-                  <td style={{ fontWeight: "bold", color: "#1a4f8b" }}>
-                    {plan.id}
-                  </td>
-
-                  <td>{plan.date}</td>
-
-                  <td style={{ fontSize: 13 }}>
-                    {isEditing ? (
-                      <EditInput
-                        value={editForm.targetLine}
-                        onChange={(e) =>
-                          setEditForm((prev) => ({
-                            ...prev,
-                            targetLine: e.target.value,
-                          }))
-                        }
-                      />
-                    ) : (
-                      plan.line
-                    )}
-                  </td>
-
-                  {/* Product */}
-                  <td style={{ fontWeight: "600" }}>
-                    {isEditing ? (
-                      <EditInput
-                        value={editForm.product}
-                        onChange={(e) =>
-                          setEditForm((prev) => ({
-                            ...prev,
-                            product: e.target.value,
-                          }))
-                        }
-                      />
-                    ) : (
-                      plan.product
-                    )}
-                  </td>
-
-                  {/* Qty */}
-                  <td>
-                    {isEditing ? (
-                      <EditInput
-                        type="number"
-                        value={editForm.planQty}
-                        onChange={(e) =>
-                          setEditForm((prev) => ({
-                            ...prev,
-                            planQty: e.target.value,
-                          }))
-                        }
-                      />
-                    ) : (
-                      <>
-                        {Number(plan.planQty).toLocaleString()}
-                        <Unit>ea</Unit>
-                      </>
-                    )}
-                  </td>
-
-                  {/* Action */}
-                  <td>
-                    <ActionButtons>
-                      {/* Release 버튼 */}
-                      {plan.status === "WAITING" && !isEditing && (
-                        <IconBtn
-                          className="confirm"
-                          onClick={() => handleRelease(plan.id, plan.orderId)}
-                          title="Release Plan"
-                        >
-                          <FaCheckDouble /> Release
-                        </IconBtn>
-                      )}
-
-                      {/* Edit / Save / Cancel */}
-                      {!isEditing ? (
-                        <IconBtn
-                          className="edit"
-                          onClick={() => handleEditStart(plan)}
-                          title="Edit"
-                        >
-                          <FaEdit />
-                        </IconBtn>
-                      ) : (
-                        <>
-                          <IconBtn
-                            className="save"
-                            onClick={() =>
-                              handleEditSave(plan.id, plan.orderId)
-                            }
-                            title="Save"
-                          >
-                            <FaSave /> Save
-                          </IconBtn>
-
-                          <IconBtn
-                            className="cancel"
-                            onClick={handleEditCancel}
-                            title="Cancel"
-                          >
-                            <FaTimes /> Cancel
-                          </IconBtn>
-                        </>
-                      )}
-
-                      {/* Delete */}
-                      {!isEditing && (
-                        <IconBtn
-                          className="del"
-                          onClick={() => handleDelete(plan.id, plan.orderId)}
-                          title="Delete"
-                        >
-                          <FaTrash />
-                        </IconBtn>
-                      )}
-                    </ActionButtons>
-                  </td>
-                </tr>
-              );
-            })}
+            {filteredPlans.map((plan) => (
+              <PlanTableRow
+                key={plan.id}
+                plan={plan}
+                isEditing={editingPlanId === plan.id}
+                editForm={editForm}
+                onEditStart={handleEditStart}
+                onEditCancel={handleEditCancel}
+                onEditSave={handleEditSave}
+                onEditFormChange={handleEditFormChange}
+                onRelease={handleRelease}
+                onDelete={handleDelete}
+              />
+            ))}
           </tbody>
         </Table>
       </TableContainer>
@@ -634,18 +624,18 @@ const StatusBadge = styled.span`
     props.$status === "COMPLETED"
       ? "#e8f5e9"
       : props.$status === "RELEASED"
-      ? "#e3f2fd"
-      : props.$status === "IN_PROGRESS"
-      ? "#ede7f6"
-      : "#fff3e0"};
+        ? "#e3f2fd"
+        : props.$status === "IN_PROGRESS"
+          ? "#ede7f6"
+          : "#fff3e0"};
   color: ${(props) =>
     props.$status === "COMPLETED"
       ? "#2e7d32"
       : props.$status === "RELEASED"
-      ? "#1976d2"
-      : props.$status === "IN_PROGRESS"
-      ? "#6a1b9a"
-      : "#e67e22"};
+        ? "#1976d2"
+        : props.$status === "IN_PROGRESS"
+          ? "#6a1b9a"
+          : "#e67e22"};
 `;
 
 const Unit = styled.span`

@@ -1,13 +1,14 @@
+// [수정 이유] 토큰 재발급(reissue), 로그아웃(deleteRefreshToken), 승인(approveMember) 로직 추가
+
 package com.hm.mes_final_260106.service;
 
-import com.hm.mes_final_260106.dto.LoginReqDto;
-import com.hm.mes_final_260106.dto.MemberResDto;
-import com.hm.mes_final_260106.dto.SignUpReqDto;
-import com.hm.mes_final_260106.dto.TokenDto;
+import com.hm.mes_final_260106.constant.MemberStatus;
+import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Member;
+import com.hm.mes_final_260106.entity.RefreshToken;
+import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.repository.MemberRepository;
-import com.hm.mes_final_260106.repository.LoginLogRepository;
-import com.hm.mes_final_260106.entity.LoginLog;
+import com.hm.mes_final_260106.repository.RefreshTokenRepository;
 import com.hm.mes_final_260106.security.TokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +19,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -28,55 +29,115 @@ import java.util.List;
 public class AuthService {
     private final AuthenticationManagerBuilder managerBuilder;
     private final MemberRepository memberRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenProvider tokenProvider;
-    private final LoginLogRepository loginLogRepo;
 
+    // 1. 회원가입
     public MemberResDto signup(SignUpReqDto dto) {
         if (memberRepository.existsByEmail(dto.getEmail())) {
-            throw new RuntimeException("이미 가입되어 있는 사원입니다");
+            throw new CustomException("이미 가입되어 있는 사원입니다");
         }
 
-        // DTO 내부에서 암호화 로직이 처리되도록 설계된 toEntity 사용
         Member member = dto.toEntity(passwordEncoder);
-        memberRepository.save(member);
         return MemberResDto.of(memberRepository.save(member));
     }
 
-    // 2. 로그인 (수정됨: 로그 저장 기능 추가)
-    // 🚨 readOnly = true를 제거하거나 false로 해야 저장(INSERT)이 됩니다.
+    // 2. 로그인
     @Transactional
-    public TokenDto login(LoginReqDto Dto) {
-        UsernamePasswordAuthenticationToken authenticationToken = Dto.toAuthenticationToken();
+    public GlobalResponseDto<TokenDto> login(LoginReqDto dto) {
+        // [긴급 진단] 리액트가 쏜 데이터가 진짜 뭔지 소환
+        System.out.println("🔥 [DEBUG] 리액트가 보낸 이메일: [" + dto.getEmail() + "]");
 
-        // 1. 인증 수행
+        // DB에 있는 전체 유저 수 카운트 (DB 연결 확인용)
+        long count = memberRepository.count();
+        System.out.println("🔥 [DEBUG] 현재 DB에 저장된 총 회원 수: " + count);
+
+        UsernamePasswordAuthenticationToken authenticationToken = dto.toAuthenticationToken();
         Authentication authentication = managerBuilder.getObject().authenticate(authenticationToken);
 
-        // 🚨 [추가] 로그인 성공 로그 저장
-        LoginLog log = LoginLog.builder()
-                .email(Dto.getEmail())
-                .status("SUCCESS")
-                .loginTime(LocalDateTime.now())
-                .ipAddress("127.0.0.1") // 실제 IP는 Controller에서 받아와야 하지만 편의상 고정
-                .build();
-        loginLogRepo.save(log);
+        //  PENDING 유저 차단
+        Member member = memberRepository.findById(Long.parseLong(authentication.getName())) // 숫자로 바꾼 후 ID로 조회
+                .orElseThrow(() -> new CustomException("회원을 찾을 수 없습니다."));
 
-        // 2. 토큰 생성 및 반환
-        return tokenProvider.generateTokenDto(authentication);
+        if (member.getStatus() == MemberStatus.PENDING) {
+            throw new CustomException("관리자 승인 대기 중입니다.");
+        }
+
+        //  JWT 생성 (TokenProvider 내부에서 RefreshToken DB 저장)
+        TokenDto tokenDto = tokenProvider.generateTokenDto(authentication);
+        return GlobalResponseDto.success("로그인 성공", tokenDto);
     }
 
-    // 🚨 [추가] 로그 조회 메서드 (Controller용)
+    // 3.  토큰 재발급 (C#과 React가 호출)
+    @Transactional
+    public GlobalResponseDto<TokenDto> reissue(TokenRequestDto dto) {
+        // 1) RefreshToken 검증
+        if (!tokenProvider.validateToken(dto.getRefreshToken())) {
+            throw new CustomException("유효하지 않은 Refresh Token입니다.");
+        }
+
+        // 2) AccessToken에서 memberId 추출 (만료되어도 파싱 가능)
+        Long memberId = tokenProvider.getMemberIdFromToken(dto.getAccessToken());
+
+        // 3) DB의 RefreshToken과 비교
+        RefreshToken refreshToken = refreshTokenRepository.findByMemberId(memberId)
+                .orElseThrow(() -> new CustomException("로그아웃된 사용자입니다."));
+
+        if (!refreshToken.getToken().equals(dto.getRefreshToken())) {
+            throw new CustomException("Refresh Token이 일치하지 않습니다.");
+        }
+
+        // 4) 새로운 토큰 생성 - ★ 수정된 부분
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException("회원을 찾을 수 없습니다."));
+
+        // ★ authenticate 한 번만 호출
+        Authentication authentication = managerBuilder.getObject().authenticate(
+                new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword())
+        );
+
+        TokenDto newTokenDto = tokenProvider.generateTokenDto(authentication);
+
+        log.info("토큰 재발급 성공 - memberId: {}", memberId);
+        return GlobalResponseDto.success("토큰 재발급 성공", newTokenDto);
+    }
+
+    // 4.  로그아웃 (RefreshToken 삭제)
+    @Transactional
+    public void deleteRefreshToken(Long memberId) {
+        refreshTokenRepository.deleteByMemberId(memberId);
+        log.info("로그아웃 완료 - memberId: {}", memberId);
+    }
+
+    // 5.  관리자 승인 (PENDING → ACTIVE)
+    @Transactional
+    public GlobalResponseDto<MemberResDto> approveMember(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new CustomException("회원을 찾을 수 없습니다."));
+
+        if (member.getStatus() != MemberStatus.PENDING) {
+            throw new CustomException("승인 대기 중인 회원이 아닙니다.");
+        }
+
+        member.setStatus(MemberStatus.ACTIVE);
+        memberRepository.save(member);
+
+        log.info("회원 승인 완료 - memberId: {}, email: {}", memberId, member.getEmail());
+        return GlobalResponseDto.success("회원 승인 완료", MemberResDto.of(member));
+    }
+    // 6. 전체 회원 목록 조회 (관리자용)
     @Transactional(readOnly = true)
-    public List<LoginLog> getAllLoginLogs() {
-        return loginLogRepo.findAllByOrderByLoginTimeDesc();
+    public GlobalResponseDto<List<MemberResDto>> findAll() {
+        List<Member> members = memberRepository.findAll();
+        List<MemberResDto> list = members.stream()
+                .map(MemberResDto::of)
+                .collect(Collectors.toList());
+
+        log.info("전체 회원 목록 조회 완료 - 총 {}명", list.size());
+        return GlobalResponseDto.success("조회 성공", list);
     }
 
-    // 3. accessToken 재발급 (추후 구현 시 참고용 로직)
-    /* public TokenDto reissue(TokenRequestDto tokenRequestDto) {
-        // 1. Refresh Token 검증
-        // 2. Access Token에서 Member ID 가져오기
-        // 3. 저장소의 Refresh Token과 비교
-        // 4. 새로운 토큰 생성 및 리턴
-    }
-    */
+
+
 }

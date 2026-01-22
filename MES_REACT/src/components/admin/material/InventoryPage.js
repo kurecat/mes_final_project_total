@@ -1,11 +1,10 @@
 // src/pages/resource/InventoryPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-import axios from "axios";
+// import axios from "axios";
 import {
   FaBoxOpen,
   FaSearch,
-  FaFilter,
   FaExclamationTriangle,
   FaThermometerHalf,
   FaHistory,
@@ -74,69 +73,12 @@ const MOCK_INVENTORY = [
   },
 ];
 
-const InventoryPage = () => {
-  const [inventory, setInventory] = useState(MOCK_INVENTORY);
-  const [loading, setLoading] = useState(true);
-  const [filterType, setFilterType] = useState("ALL");
-  const [searchTerm, setSearchTerm] = useState("");
+// --- [Optimized] Sub-Components with React.memo ---
 
-  // API 호출
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // ★ 실제 API: http://localhost:3001/inventory
-      // const res = await axios.get("http://localhost:3001/inventory");
-      // setInventory(res.data);
-
-      setTimeout(() => {
-        setInventory(MOCK_INVENTORY);
-        setLoading(false);
-      }, 500);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // 필터링 로직
-  const filteredData = inventory.filter((item) => {
-    const matchType = filterType === "ALL" || item.type === filterType;
-    const matchSearch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchType && matchSearch;
-  });
-
-  // KPI 계산
-  const totalItems = inventory.length;
-  const lowStockItems = inventory.filter((i) => i.qty <= i.safety).length;
-  const totalValue = 15.4; // 억원 (가정)
-
-  return (
-    <Container>
-      {/* 1. 헤더 */}
-      <Header>
-        <TitleArea>
-          <PageTitle>
-            <FaBoxOpen /> Material Inventory
-          </PageTitle>
-          <SubTitle>Warehouse Real-time Stock Monitoring</SubTitle>
-        </TitleArea>
-        <HeaderActions>
-          <ActionButton>
-            <FaHistory /> Transaction Log
-          </ActionButton>
-          <ActionButton $primary>
-            <FaPlus /> Stock In
-          </ActionButton>
-        </HeaderActions>
-      </Header>
-
-      {/* 2. KPI 요약 */}
+// 1. Stats Section
+const InventoryStats = React.memo(
+  ({ totalItems, lowStockItems, totalValue }) => {
+    return (
       <StatsGrid>
         <StatCard>
           <IconBox $color="#1a4f8b">
@@ -179,41 +121,163 @@ const InventoryPage = () => {
           </StatInfo>
         </StatCard>
       </StatsGrid>
+    );
+  },
+);
 
-      {/* 3. 리스트 및 컨트롤 */}
+// 2. Table Row Component
+const InventoryRow = React.memo(({ item }) => {
+  const percent = Math.min((item.qty / (item.safety * 2)) * 100, 100);
+  const isLow = item.qty <= item.safety;
+
+  return (
+    <tr>
+      <td style={{ fontFamily: "monospace", color: "#555" }}>{item.id}</td>
+      <td
+        style={{
+          fontWeight: "600",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        {item.type === "CHEM" ? (
+          <FaFlask color="#e67e22" />
+        ) : (
+          <FaBoxOpen color="#1a4f8b" />
+        )}
+        {item.name}
+      </td>
+      <td>
+        <TypeBadge $type={item.type}>{item.type}</TypeBadge>
+      </td>
+      <td>{item.loc}</td>
+      <td style={{ fontSize: 12, color: "#666" }}>{item.condition}</td>
+      <td>
+        <ProgressWrapper>
+          <ProgressBar>
+            <ProgressFill $width={percent} $isLow={isLow} />
+          </ProgressBar>
+          <ProgressLabel>
+            {item.qty} / {item.safety}
+          </ProgressLabel>
+        </ProgressWrapper>
+      </td>
+      <td style={{ fontWeight: "bold" }}>
+        {item.qty} <small>{item.unit}</small>
+      </td>
+      <td>
+        {isLow ? (
+          <StatusBadge $status="LOW">Refill Req</StatusBadge>
+        ) : (
+          <StatusBadge $status="NORMAL">Normal</StatusBadge>
+        )}
+      </td>
+      <td>
+        <TableActionBtn>
+          <FaMinus /> Issue
+        </TableActionBtn>
+      </td>
+    </tr>
+  );
+});
+
+const InventoryPage = () => {
+  const [inventory, setInventory] = useState(MOCK_INVENTORY);
+  const [loading, setLoading] = useState(true);
+  const [filterType, setFilterType] = useState("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // [Optimization] fetchData with useCallback
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // const res = await axios.get("http://localhost:3001/inventory");
+      // setInventory(res.data);
+
+      setTimeout(() => {
+        setInventory(MOCK_INVENTORY);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // [Optimization] Memoize filteredData
+  // This computation is skipped if inventory, filterType, and searchTerm haven't changed
+  const filteredData = useMemo(() => {
+    return inventory.filter((item) => {
+      const matchType = filterType === "ALL" || item.type === filterType;
+      const matchSearch =
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.id.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchType && matchSearch;
+    });
+  }, [inventory, filterType, searchTerm]);
+
+  // [Optimization] Memoize KPI calculations
+  const kpiStats = useMemo(() => {
+    return {
+      totalItems: inventory.length,
+      lowStockItems: inventory.filter((i) => i.qty <= i.safety).length,
+      totalValue: 15.4, // Fixed value for now
+    };
+  }, [inventory]);
+
+  return (
+    <Container>
+      {/* 1. Header */}
+      <Header>
+        <TitleArea>
+          <PageTitle>
+            <FaBoxOpen /> Material Inventory
+          </PageTitle>
+          <SubTitle>Warehouse Real-time Stock Monitoring</SubTitle>
+        </TitleArea>
+        <HeaderActions>
+          <ActionButton>
+            <FaHistory /> Transaction Log
+          </ActionButton>
+          <ActionButton $primary>
+            <FaPlus /> Stock In
+          </ActionButton>
+        </HeaderActions>
+      </Header>
+
+      {/* 2. KPI Summary (Memoized Component) */}
+      <InventoryStats
+        totalItems={kpiStats.totalItems}
+        lowStockItems={kpiStats.lowStockItems}
+        totalValue={kpiStats.totalValue}
+      />
+
+      {/* 3. List & Controls */}
       <ContentSection>
         <ControlBar>
           <FilterGroup>
-            <FilterBtn
-              $active={filterType === "ALL"}
-              onClick={() => setFilterType("ALL")}
-            >
-              All
-            </FilterBtn>
-            <FilterBtn
-              $active={filterType === "RAW"}
-              onClick={() => setFilterType("RAW")}
-            >
-              Raw Wafer
-            </FilterBtn>
-            <FilterBtn
-              $active={filterType === "CHEM"}
-              onClick={() => setFilterType("CHEM")}
-            >
-              Chemical
-            </FilterBtn>
-            <FilterBtn
-              $active={filterType === "GAS"}
-              onClick={() => setFilterType("GAS")}
-            >
-              Gas
-            </FilterBtn>
-            <FilterBtn
-              $active={filterType === "PKG"}
-              onClick={() => setFilterType("PKG")}
-            >
-              Packaging
-            </FilterBtn>
+            {["ALL", "RAW", "CHEM", "GAS", "PKG"].map((type) => (
+              <FilterBtn
+                key={type}
+                $active={filterType === type}
+                onClick={() => setFilterType(type)}
+              >
+                {type === "ALL"
+                  ? "All"
+                  : type === "RAW"
+                    ? "Raw Wafer"
+                    : type === "CHEM"
+                      ? "Chemical"
+                      : type === "GAS"
+                        ? "Gas"
+                        : "Packaging"}
+              </FilterBtn>
+            ))}
           </FilterGroup>
           <SearchBox>
             <FaSearch color="#aaa" />
@@ -241,68 +305,9 @@ const InventoryPage = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredData.map((item) => {
-                const percent = Math.min(
-                  (item.qty / (item.safety * 2)) * 100,
-                  100
-                );
-                const isLow = item.qty <= item.safety;
-
-                return (
-                  <tr key={item.id}>
-                    <td style={{ fontFamily: "monospace", color: "#555" }}>
-                      {item.id}
-                    </td>
-                    <td
-                      style={{
-                        fontWeight: "600",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      {item.type === "CHEM" ? (
-                        <FaFlask color="#e67e22" />
-                      ) : (
-                        <FaBoxOpen color="#1a4f8b" />
-                      )}
-                      {item.name}
-                    </td>
-                    <td>
-                      <TypeBadge $type={item.type}>{item.type}</TypeBadge>
-                    </td>
-                    <td>{item.loc}</td>
-                    <td style={{ fontSize: 12, color: "#666" }}>
-                      {item.condition}
-                    </td>
-                    <td>
-                      <ProgressWrapper>
-                        <ProgressBar>
-                          <ProgressFill $width={percent} $isLow={isLow} />
-                        </ProgressBar>
-                        <ProgressLabel>
-                          {item.qty} / {item.safety}
-                        </ProgressLabel>
-                      </ProgressWrapper>
-                    </td>
-                    <td style={{ fontWeight: "bold" }}>
-                      {item.qty} <small>{item.unit}</small>
-                    </td>
-                    <td>
-                      {isLow ? (
-                        <StatusBadge $status="LOW">Refill Req</StatusBadge>
-                      ) : (
-                        <StatusBadge $status="NORMAL">Normal</StatusBadge>
-                      )}
-                    </td>
-                    <td>
-                      <TableActionBtn>
-                        <FaMinus /> Issue
-                      </TableActionBtn>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filteredData.map((item) => (
+                <InventoryRow key={item.id} item={item} />
+              ))}
             </tbody>
           </Table>
         </TableContainer>
@@ -313,8 +318,7 @@ const InventoryPage = () => {
 
 export default InventoryPage;
 
-// --- Styled Components ---
-
+// --- Styled Components (No changes needed, keeping same styles) ---
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -496,18 +500,18 @@ const TypeBadge = styled.span`
     props.$type === "CHEM"
       ? "#ffebee"
       : props.$type === "GAS"
-      ? "#e3f2fd"
-      : props.$type === "RAW"
-      ? "#e8f5e9"
-      : "#f3e5f5"};
+        ? "#e3f2fd"
+        : props.$type === "RAW"
+          ? "#e8f5e9"
+          : "#f3e5f5"};
   color: ${(props) =>
     props.$type === "CHEM"
       ? "#c62828"
       : props.$type === "GAS"
-      ? "#1565c0"
-      : props.$type === "RAW"
-      ? "#2e7d32"
-      : "#7b1fa2"};
+        ? "#1565c0"
+        : props.$type === "RAW"
+          ? "#2e7d32"
+          : "#7b1fa2"};
 `;
 const ProgressWrapper = styled.div`
   display: flex;

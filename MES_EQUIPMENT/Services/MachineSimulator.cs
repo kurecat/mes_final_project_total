@@ -5,6 +5,14 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 
+public enum MsgType : byte
+{
+    Temperature = 0x31,
+    SingleData = 0x32,
+    ArrayData = 0x33,
+    ProductionEnd = 0x34
+}
+
 public enum DtoType : byte
 {
     Sleep = 0x30,
@@ -21,6 +29,7 @@ public enum DtoType : byte
 
     Item = 0x3A,
     FinalInspection = 0x3B,
+    InputLot = 0x3C,
 }
 public class MachineSimulator
 {
@@ -36,8 +45,9 @@ public class MachineSimulator
     private WireBondingInspectionDto? _wireBondingInspectionDto;
     private MoldingDto? _moldingDto;
     private MoldingInspectionDto? _moldingInspectionDto;
-    private ItemDto[]? _itemDtos;
-    private FinalInspectionDto[]? _finalInspectionDtos;
+    private List<ItemDto> _itemDtos = new List<ItemDto>();
+    private List<FinalInspectionDto> _finalInspectionDtos = new List<FinalInspectionDto>();
+    private List<string> _inputLots = new List<string>();
 
     public MachineSimulator(ApiService apiService, TcpClientService tcpService)
     {
@@ -57,6 +67,12 @@ public class MachineSimulator
 
         while (true)
         {
+            if (_currentWorkOrder != null)
+            {
+                await Task.Delay(AppConfig.PollingIntervalMs);
+                continue;
+            }
+
             WorkOrderDto? workOrder = null;
 
             try
@@ -70,14 +86,13 @@ public class MachineSimulator
                 continue;
             }
 
-            if (_currentWorkOrder == null && workOrder != null)
+            if (workOrder != null)
             {
-                _currentWorkOrder = workOrder;
-                Console.WriteLine($"[작업 수주] 번호 : {workOrder.Id}, 완료됨 : {workOrder.CurrentQty} / 목표 : {workOrder.TargetQty}");
+                Console.WriteLine($"[작업 수주] 번호 : {workOrder.Id}, 작업량 : {workOrder.CurrentQty} / {workOrder.TargetQty}");
                 await SendWorkOrderToDevice(workOrder);
 
             }
-            else if (_currentWorkOrder == null && workOrder == null)
+            else if (workOrder == null)
             {
                 Console.WriteLine("[-] 대기중인 작업이 없습니다.");
             }
@@ -124,12 +139,12 @@ public class MachineSimulator
                 byte[] payload = await _tcpService.ReadPacketAsync(2);
                 if (payload == null || payload.Length < 2) continue;
 
-                if (type == 0x31)   // 온도
+                if (type == (byte)MsgType.Temperature)   // 온도
                 {
                     short val = BitConverter.ToInt16(payload, 0);
                     await HandleTemerature(val);
                 }
-                else if (type == 0x32)    // 단일 DTO
+                else if (type == (byte)MsgType.SingleData)    // 단일 DTO
                 {
                     int size = BitConverter.ToInt16(payload, 0);
 
@@ -192,41 +207,47 @@ public class MachineSimulator
                         Console.WriteLine($"[Deserialize Error] DTO 변환 실패: {ex.Message}");
                     }
                 }
-                else if (type == 0x33)    // 배열 DTO
+                else if (type == (byte)MsgType.ArrayData)    // 배열 DTO
                 {
-                    int index = 0;
                     int size = BitConverter.ToInt16(payload, 0);
-                    List<ItemDto> itemDtoList = new List<ItemDto>();
-                    List<FinalInspectionDto> finalInspectionDtoList = new List<FinalInspectionDto>();
-                    try
+
+                    while (size > 0)
                     {
-                        while (size > 0)
+                        // 타입용바이트
+                        DtoType dtoType = (DtoType)(await _tcpService.ReadPacketAsync(1))[0];
+
+                        payload = await _tcpService.ReadPacketAsync(size);
+                        if (payload == null || payload.Length < size) continue;
+
+                        try
                         {
-                            // 타입용바이트
-                            DtoType dtoType = (DtoType)(await _tcpService.ReadPacketAsync(1))[0];
-
-                            payload = await _tcpService.ReadPacketAsync(size);
-                            if (payload == null || payload.Length < size) continue;
-
-                            if (dtoType == DtoType.Item)
-                                itemDtoList.Add(ItemDto.FromBytes(payload));
-                            else if (dtoType == DtoType.FinalInspection)
-                                finalInspectionDtoList.Add(FinalInspectionDto.FromBytes(payload));
-
-                            size = BitConverter.ToInt16(await _tcpService.ReadPacketAsync(2));
+                            switch (dtoType)
+                            {
+                                case DtoType.Item:
+                                    _itemDtos?.Add(ItemDto.FromBytes(payload));
+                                    Console.WriteLine($"Item: {_itemDtos?.Count}");
+                                    break;
+                                case DtoType.FinalInspection:
+                                    _finalInspectionDtos?.Add(FinalInspectionDto.FromBytes(payload));
+                                    Console.WriteLine($"FinalInspection: {_finalInspectionDtos?.Count}");
+                                    break;
+                                case DtoType.InputLot:
+                                    _inputLots?.Add(System.Text.Encoding.UTF8.GetString(payload, 0, size));
+                                    Console.WriteLine($"InputLotSummary: {_inputLots?.Count}");
+                                    break;
+                            }
                         }
-                        _itemDtos = itemDtoList.ToArray();
-                        _finalInspectionDtos = finalInspectionDtoList.ToArray();
-                        Console.WriteLine($"Item: {_itemDtos?.Length}");
-                        Console.WriteLine($"FinalInspection: {_finalInspectionDtos?.Length}");
-                        await HandleProductionResult();
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[Deserialize Error] 배열 DTO 변환 실패 : {ex.Message}");
+                        }
 
+                        size = BitConverter.ToInt16(await _tcpService.ReadPacketAsync(2));
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[Deserialize Error] Item DTO 변환 실패 (index={index}): {ex.Message}");
-                        Console.WriteLine($"[Deserialize Error] FinalInspection DTO 변환 실패 (index={index}): {ex.Message}");
-                    }
+                }
+                else if (type == (byte)MsgType.ProductionEnd)
+                {
+                    await HandleProductionResult();
                 }
             }
             catch (Exception ex)
@@ -274,14 +295,20 @@ public class MachineSimulator
             WireBondingInspectionDto = _wireBondingInspectionDto,
             MoldingDto = _moldingDto,
             MoldingInspectionDto = _moldingInspectionDto,
-            ItemDtos = _itemDtos,
-            FinalInspectionDtos = _finalInspectionDtos
+            ItemDtos = _itemDtos.ToArray(),
+            FinalInspectionDtos = _finalInspectionDtos.ToArray(),
+            InputLots = _inputLots.ToArray()
         };
 
         string status = await _apiService.ReportProductionAsync(report);
         Console.WriteLine($"[생산 보고] 작업지시번호 : {report.WorkOrderId}");
 
         _currentWorkOrder = null;
+
+        _itemDtos.Clear();
+        _finalInspectionDtos.Clear();
+        _inputLots.Clear();
+
     }
 
     private async Task SendWorkOrderToDevice(WorkOrderDto order)
@@ -291,15 +318,22 @@ public class MachineSimulator
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine($"[WORN] 작업지시서 오류, 작업취소");
             Console.ResetColor();
+
+            _currentWorkOrder = null;
+
             return;
         }
 
         if (!_tcpService.IsConnected) return;
-        byte[] packet = new byte[7];
+
+        _currentWorkOrder = order;
+
+        byte[] productCodeBody = System.Text.Encoding.UTF8.GetBytes(order.ProductId);
+        byte[] packet = new byte[4 + productCodeBody.Length];
         packet[0] = 0x01;  // STX
-        packet[1] = 0x20;  // 생산 작업 지시
-        Array.Copy(BitConverter.GetBytes(order.TargetQty), 0, packet, 2, 4);    // 남은수량
-        packet[6] = 0x03;
+        packet[1] = 0x31;  // 생산 작업 지시
+        Array.Copy(BitConverter.GetBytes(productCodeBody.Length), 0, packet, 2, 2);
+        Array.Copy(productCodeBody, 0, packet, 4, productCodeBody.Length);
         await _tcpService.SendAsync(packet);
 
         Console.ForegroundColor = ConsoleColor.Yellow;

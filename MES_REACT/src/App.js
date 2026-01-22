@@ -1,6 +1,7 @@
 // src/App.js
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
+import styled from "styled-components";
 import GlobalStyle from "./style/GlobalStyle";
 
 // 페이지 Import
@@ -76,3 +77,15 @@ const App = () => {
 };
 
 export default App;
+
+// --- 로딩 UI 스타일 컴포넌트 ---
+const LoadingScreen = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #1a4f8b;
+  background-color: #f5f6fa;
+`;

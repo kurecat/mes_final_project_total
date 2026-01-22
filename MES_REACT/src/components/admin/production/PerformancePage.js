@@ -1,5 +1,5 @@
 // src/pages/production/PerformancePage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import axios from "axios";
 import {
@@ -59,107 +59,14 @@ const MOCK_LIST = [
     rate: 97.0,
     status: "RUNNING",
   },
-  {
-    woId: "WO-MOD-105",
-    product: "DDR5 32GB UDIMM",
-    line: "Mod-Line-C",
-    unit: "ea",
-    planQty: 2000,
-    actualQty: 2000,
-    lossQty: 0,
-    rate: 100.0,
-    status: "COMPLETED",
-  },
-  {
-    woId: "WO-FAB-002",
-    product: "LPDDR5X Mobile",
-    line: "Fab-Line-B",
-    unit: "wfrs",
-    planQty: 800,
-    actualQty: 200,
-    lossQty: 1,
-    rate: 25.0,
-    status: "RUNNING",
-  },
 ];
 
-const PerformancePage = () => {
-  const [hourlyData, setHourlyData] = useState(MOCK_HOURLY);
-  const [listData, setListData] = useState(MOCK_LIST);
-  const [loading, setLoading] = useState(true);
+// --- [Optimized] Sub-Components with React.memo ---
 
-  const [date, setDate] = useState("2026-01-20");
-  const [selectedLine, setSelectedLine] = useState("ALL");
-
-  // ✅ 추가/수정: KPI 요약 데이터를 서버에서 받아오기 위한 state
-  const [summary, setSummary] = useState({
-    totalPlanQty: 0,
-    totalGoodQty: 0,
-    totalDefectQty: 0,
-    yieldRate: 0,
-  });
-
-  // ✅ 추가/수정: 백엔드 API BASE
-  const API_BASE = "http://localhost:8111/api/mes";
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // 1) KPI 요약
-      const resSummary = await axios.get(`${API_BASE}/performance/summary`, {
-        params: { date, line: selectedLine },
-      });
-
-      setSummary({
-        totalPlanQty: resSummary.data?.totalPlanQty ?? 0,
-        totalGoodQty: resSummary.data?.totalGoodQty ?? 0,
-        totalDefectQty: resSummary.data?.totalDefectQty ?? 0,
-        yieldRate: resSummary.data?.yieldRate ?? 0,
-      });
-
-      // 2) 시간대별 차트
-      const resHourly = await axios.get(`${API_BASE}/performance/hourly`, {
-        params: { date, line: selectedLine },
-      });
-      setHourlyData(resHourly.data ?? []);
-
-      // 3) ⭐ 우측 리스트 API 연동
-      const resList = await axios.get(`${API_BASE}/performance/list`, {
-        params: { date, line: selectedLine },
-      });
-      setListData(resList.data ?? []);
-
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-
-      setSummary({
-        totalPlanQty: 0,
-        totalGoodQty: 0,
-        totalDefectQty: 0,
-        yieldRate: 0,
-      });
-
-      setHourlyData(MOCK_HOURLY);
-      setListData(MOCK_LIST);
-      setLoading(false);
-    }
-  };
-
-  // ✅ 수정: date/line 변경 시 재조회 되도록 변경
-  useEffect(() => {
-    fetchData();
-  }, [date, selectedLine]);
-
-  // ✅ 수정: KPI는 서버 값 사용
-  const totalPlan = summary.totalPlanQty;
-  const totalActual = summary.totalGoodQty;
-  const totalScrap = summary.totalDefectQty;
-  const achieveRate = summary.yieldRate;
-
-  return (
-    <Container>
-      {/* 1. 상단 필터 및 타이틀 */}
+// 1. Header Component
+const PerformanceHeader = React.memo(
+  ({ loading, date, onDateChange, selectedLine, onLineChange, onExport }) => {
+    return (
       <Header>
         <TitleArea>
           <PageTitle>
@@ -176,181 +83,307 @@ const PerformancePage = () => {
         <FilterGroup>
           <DateInput>
             <FaCalendarAlt color="#666" />
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
+            <input type="date" value={date} onChange={onDateChange} />
           </DateInput>
           <SelectWrapper>
             <FaFilter color="#666" style={{ marginLeft: 10 }} />
-            <Select
-              value={selectedLine}
-              onChange={(e) => setSelectedLine(e.target.value)}
-            >
+            <Select value={selectedLine} onChange={onLineChange}>
               <option value="ALL">All Lines</option>
-              <option value="Fab-Line-A">Fab-Line-A</option> {/* ✅ 수정 */}
-              <option value="EDS-Line-01">EDS-Line-01</option> {/* ✅ 수정 */}
-              <option value="Mod-Line-C">Mod-Line-C</option> {/* ✅ 수정 */}
+              <option value="Fab-Line-A">Fab-Line-A</option>
+              <option value="EDS-Line-01">EDS-Line-01</option>
+              <option value="Mod-Line-C">Mod-Line-C</option>
             </Select>
           </SelectWrapper>
-          <ExportButton>
+          <ExportButton onClick={onExport}>
             <FaFileDownload /> Export
           </ExportButton>
         </FilterGroup>
       </Header>
+    );
+  },
+);
 
-      {/* 2. KPI 요약 카드 */}
-      <KpiGrid>
-        <KpiCard>
-          <IconBox $color="#1a4f8b">
-            <FaClipboardList />
-          </IconBox>
-          <KpiInfo>
-            <Label>Daily Plan</Label>
-            <Value>
-              {Number(totalPlan).toLocaleString()} <Unit>wfrs</Unit>
-            </Value>
-          </KpiInfo>
-        </KpiCard>
+// 2. KPI Board Component
+const KpiBoard = React.memo(({ summary }) => {
+  const { totalPlan, totalActual, totalScrap, achieveRate } = summary;
 
-        <KpiCard>
-          <IconBox $color="#2ecc71">
-            <FaCheckCircle />
-          </IconBox>
-          <KpiInfo>
-            <Label>Daily Output</Label>
-            <Value>
-              {Number(totalActual).toLocaleString()} <Unit>wfrs</Unit>
-            </Value>
-          </KpiInfo>
-        </KpiCard>
+  return (
+    <KpiGrid>
+      <KpiCard>
+        <IconBox $color="#1a4f8b">
+          <FaClipboardList />
+        </IconBox>
+        <KpiInfo>
+          <Label>Daily Plan</Label>
+          <Value>
+            {Number(totalPlan).toLocaleString()} <Unit>wfrs</Unit>
+          </Value>
+        </KpiInfo>
+      </KpiCard>
 
-        <KpiCard>
-          <IconBox $color="#e74c3c">
-            <FaExclamationCircle />
-          </IconBox>
-          <KpiInfo>
-            <Label>Scrap / Loss</Label>
-            <Value style={{ color: "#e74c3c" }}>
-              {Number(totalScrap).toLocaleString()} <Unit>wfrs</Unit>
-            </Value>
-          </KpiInfo>
-        </KpiCard>
+      <KpiCard>
+        <IconBox $color="#2ecc71">
+          <FaCheckCircle />
+        </IconBox>
+        <KpiInfo>
+          <Label>Daily Output</Label>
+          <Value>
+            {Number(totalActual).toLocaleString()} <Unit>wfrs</Unit>
+          </Value>
+        </KpiInfo>
+      </KpiCard>
 
-        <KpiCard>
-          <KpiInfo style={{ width: "100%" }}>
-            <Row>
-              <Label>Achievement Rate</Label>
-              <PercentValue>{Number(achieveRate).toFixed(1)}%</PercentValue>
-            </Row>
-            <ProgressBar>
-              <ProgressFill
-                $width={Math.min(Number(achieveRate), 100)}
-                $color={Number(achieveRate) >= 95 ? "#2ecc71" : "#f39c12"}
-              />
-            </ProgressBar>
-          </KpiInfo>
-        </KpiCard>
-      </KpiGrid>
+      <KpiCard>
+        <IconBox $color="#e74c3c">
+          <FaExclamationCircle />
+        </IconBox>
+        <KpiInfo>
+          <Label>Scrap / Loss</Label>
+          <Value style={{ color: "#e74c3c" }}>
+            {Number(totalScrap).toLocaleString()} <Unit>wfrs</Unit>
+          </Value>
+        </KpiInfo>
+      </KpiCard>
 
-      {/* 3. 메인 컨텐츠 (차트 + 테이블) */}
+      <KpiCard>
+        <KpiInfo style={{ width: "100%" }}>
+          <Row>
+            <Label>Achievement Rate</Label>
+            <PercentValue>{Number(achieveRate).toFixed(1)}%</PercentValue>
+          </Row>
+          <ProgressBar>
+            <ProgressFill
+              $width={Math.min(Number(achieveRate), 100)}
+              $color={Number(achieveRate) >= 95 ? "#2ecc71" : "#f39c12"}
+            />
+          </ProgressBar>
+        </KpiInfo>
+      </KpiCard>
+    </KpiGrid>
+  );
+});
+
+// 3. Chart Component
+const HourlyChart = React.memo(({ data }) => {
+  return (
+    <ChartSection>
+      <SectionHeader>
+        <SectionTitle>Hourly Output Trend (Fab Wafer Out)</SectionTitle>
+      </SectionHeader>
+      <ResponsiveContainer width="100%" height={320}>
+        <ComposedChart
+          data={data}
+          margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
+        >
+          <CartesianGrid stroke="#f5f5f5" strokeDasharray="3 3" />
+          <XAxis dataKey="time" />
+          <YAxis
+            yAxisId="left"
+            label={{
+              value: "Wafer (wfrs)",
+              angle: -90,
+              position: "insideLeft",
+            }}
+          />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            label={{ value: "Scrap", angle: 90, position: "insideRight" }}
+          />
+          <Tooltip />
+          <Legend />
+          <Bar
+            yAxisId="left"
+            dataKey="plan"
+            name="Plan"
+            fill="#a79d9d"
+            barSize={20}
+          />
+          <Bar
+            yAxisId="left"
+            dataKey="actual"
+            name="Actual"
+            fill="#1a4f8b"
+            barSize={20}
+          />
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="scrap"
+            name="Scrap/Loss"
+            stroke="#e74c3c"
+            strokeWidth={2}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </ChartSection>
+  );
+});
+
+// 4. List Table Row (for virtualization/performance)
+const WorkOrderRow = React.memo(({ row }) => {
+  return (
+    <tr>
+      <td>{row.line}</td>
+      <td style={{ fontWeight: 600, fontSize: 13 }}>{row.product}</td>
+      <td style={{ color: "#666", fontSize: 12 }}>{row.unit}</td>
+      <td>{row.planQty.toLocaleString()}</td>
+      <td>{row.actualQty.toLocaleString()}</td>
+      <td style={{ color: row.lossQty > 0 ? "#e74c3c" : "#ccc" }}>
+        {row.lossQty > 0 ? row.lossQty.toLocaleString() : "-"}
+      </td>
+      <td>
+        <StatusBadge $status={row.status}>{row.status}</StatusBadge>
+      </td>
+    </tr>
+  );
+});
+
+// 5. List Table Component
+const WorkOrderTable = React.memo(({ data }) => {
+  return (
+    <ListSection>
+      <SectionHeader>
+        <SectionTitle>Work Order Performance Detail</SectionTitle>
+      </SectionHeader>
+      <TableWrapper>
+        <Table>
+          <thead>
+            <tr>
+              <th>Line</th>
+              <th>Product</th>
+              <th>Unit</th>
+              <th>Plan</th>
+              <th>Actual</th>
+              <th>Loss</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row) => (
+              <WorkOrderRow key={row.woId} row={row} />
+            ))}
+          </tbody>
+        </Table>
+      </TableWrapper>
+    </ListSection>
+  );
+});
+
+// --- Main Component ---
+
+const PerformancePage = () => {
+  const [hourlyData, setHourlyData] = useState(MOCK_HOURLY);
+  const [listData, setListData] = useState(MOCK_LIST);
+  const [loading, setLoading] = useState(true);
+
+  const [date, setDate] = useState("2026-01-20");
+  const [selectedLine, setSelectedLine] = useState("ALL");
+
+  const [summary, setSummary] = useState({
+    totalPlanQty: 0,
+    totalGoodQty: 0,
+    totalDefectQty: 0,
+    yieldRate: 0,
+  });
+
+  const API_BASE = "http://localhost:8111/api/mes";
+
+  // 1. fetchData with useCallback
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // 1) KPI Summary
+      const resSummary = await axios.get(`${API_BASE}/performance/summary`, {
+        params: { date, line: selectedLine },
+      });
+
+      setSummary({
+        totalPlanQty: resSummary.data?.totalPlanQty ?? 0,
+        totalGoodQty: resSummary.data?.totalGoodQty ?? 0,
+        totalDefectQty: resSummary.data?.totalDefectQty ?? 0,
+        yieldRate: resSummary.data?.yieldRate ?? 0,
+      });
+
+      // 2) Hourly Chart
+      const resHourly = await axios.get(`${API_BASE}/performance/hourly`, {
+        params: { date, line: selectedLine },
+      });
+      setHourlyData(resHourly.data ?? []);
+
+      // 3) List Data
+      const resList = await axios.get(`${API_BASE}/performance/list`, {
+        params: { date, line: selectedLine },
+      });
+      setListData(resList.data ?? []);
+
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      // Fallback
+      setSummary({
+        totalPlanQty: 0,
+        totalGoodQty: 0,
+        totalDefectQty: 0,
+        yieldRate: 0,
+      });
+      setHourlyData(MOCK_HOURLY);
+      setListData(MOCK_LIST);
+      setLoading(false);
+    }
+  }, [date, selectedLine]);
+
+  // 2. useEffect depends on fetchData
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 3. Handlers with useCallback
+  const handleDateChange = useCallback((e) => {
+    setDate(e.target.value);
+  }, []);
+
+  const handleLineChange = useCallback((e) => {
+    setSelectedLine(e.target.value);
+  }, []);
+
+  const handleExport = useCallback(() => {
+    alert("Exporting data...");
+  }, []);
+
+  // 4. Memoize Summary Object
+  const summaryData = useMemo(
+    () => ({
+      totalPlan: summary.totalPlanQty,
+      totalActual: summary.totalGoodQty,
+      totalScrap: summary.totalDefectQty,
+      achieveRate: summary.yieldRate,
+    }),
+    [summary],
+  );
+
+  return (
+    <Container>
+      {/* 1. Header (Memoized) */}
+      <PerformanceHeader
+        loading={loading}
+        date={date}
+        onDateChange={handleDateChange}
+        selectedLine={selectedLine}
+        onLineChange={handleLineChange}
+        onExport={handleExport}
+      />
+
+      {/* 2. KPI Section (Memoized) */}
+      <KpiBoard summary={summaryData} />
+
+      {/* 3. Main Content */}
       <ContentBody>
-        {/* 좌측: 시간대별 실적 차트 (Fab Wafer 기준) */}
-        <ChartSection>
-          <SectionHeader>
-            <SectionTitle>Hourly Output Trend (Fab Wafer Out)</SectionTitle>
-          </SectionHeader>
-          <ResponsiveContainer width="100%" height={320}>
-            <ComposedChart
-              data={hourlyData}
-              margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
-            >
-              <CartesianGrid stroke="#f5f5f5" strokeDasharray="3 3" />
-              <XAxis dataKey="time" />
-              <YAxis
-                yAxisId="left"
-                label={{
-                  value: "Wafer (wfrs)",
-                  angle: -90,
-                  position: "insideLeft",
-                }}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                label={{ value: "Scrap", angle: 90, position: "insideRight" }}
-              />
-              <Tooltip />
-              <Legend />
-              <Bar
-                yAxisId="left"
-                dataKey="plan"
-                name="Plan"
-                fill="#a79d9d"
-                barSize={20}
-              />
-              <Bar
-                yAxisId="left"
-                dataKey="actual"
-                name="Actual"
-                fill="#1a4f8b"
-                barSize={20}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="scrap"
-                name="Scrap/Loss"
-                stroke="#e74c3c"
-                strokeWidth={2}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartSection>
+        {/* Left: Chart (Memoized) */}
+        <HourlyChart data={hourlyData} />
 
-        {/* 우측: 공정별/제품별 상세 리스트 */}
-        <ListSection>
-          <SectionHeader>
-            <SectionTitle>Work Order Performance Detail</SectionTitle>
-          </SectionHeader>
-          <TableWrapper>
-            <Table>
-              <thead>
-                <tr>
-                  <th>Line</th>
-                  <th>Product</th>
-                  <th>Unit</th>
-                  <th>Plan</th>
-                  <th>Actual</th>
-                  <th>Loss</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {listData.map((row) => (
-                  <tr key={row.woId}>
-                    <td>{row.line}</td>
-                    <td style={{ fontWeight: 600, fontSize: 13 }}>
-                      {row.product}
-                    </td>
-                    <td style={{ color: "#666", fontSize: 12 }}>{row.unit}</td>
-                    <td>{row.planQty.toLocaleString()}</td>
-                    <td>{row.actualQty.toLocaleString()}</td>
-                    <td style={{ color: row.lossQty > 0 ? "#e74c3c" : "#ccc" }}>
-                      {row.lossQty > 0 ? row.lossQty.toLocaleString() : "-"}
-                    </td>
-                    <td>
-                      <StatusBadge $status={row.status}>
-                        {row.status}
-                      </StatusBadge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </TableWrapper>
-        </ListSection>
+        {/* Right: List (Memoized) */}
+        <WorkOrderTable data={listData} />
       </ContentBody>
     </Container>
   );

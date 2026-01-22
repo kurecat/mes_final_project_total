@@ -14,7 +14,7 @@ public class ItemDto {
     private Long id;
     private String serialNumber;
     private Product product;
-    private WorkOrder workOrder;
+    private Long ProductionLogId;
     private String inspectionResult;
     private String location;
 }
