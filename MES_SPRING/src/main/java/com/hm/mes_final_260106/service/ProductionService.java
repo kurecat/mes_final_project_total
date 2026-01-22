@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.constant.Authority;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Bom;
 import com.hm.mes_final_260106.entity.Material;
@@ -300,7 +301,7 @@ public class ProductionService {
         MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
         moldingInspection.setMolding(molding);
 
-        List<FinalInspection> finalInspections = new ArrayList<>();
+
         List<Item> items = new ArrayList<>();
         List<FinalInspection> finalInspections = new ArrayList<>();
 
@@ -461,7 +462,7 @@ public class ProductionService {
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .name(dto.getName())
-                .authority(dto.getAuthority() == null ? "OPERATOR" : dto.getAuthority())
+                .authority(Authority.valueOf(dto.getAuthority() == null ? "OPERATOR" : dto.getAuthority()))
                 .build();
 
         Member savedMember = memberRepo.save(member);
