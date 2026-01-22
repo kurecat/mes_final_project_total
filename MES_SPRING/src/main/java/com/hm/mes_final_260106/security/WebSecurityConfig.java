@@ -33,21 +33,29 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable()) //
+                .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                         .accessDeniedHandler(jwtAccessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll() // 로그인/회원가입 허용
-                        .requestMatchers("/api/mes/order/**", "/api/mes/material/**").hasRole("ADMIN") //
-                        .requestMatchers("/api/mes/machine/**").hasAnyRole("OPERATOR", "ADMIN") //
+                        // 공개 엔드포인트
+                        .requestMatchers("/auth/login", "/auth/signup", "/auth/refresh")
+                        .permitAll()
+
+                        // ★ 수정: hasAuthority("ROLE_ADMIN") 사용
+                        .requestMatchers("/auth/approve/**", "/auth/all")
+                        .hasAuthority("ROLE_ADMIN")
+
+                        .requestMatchers("/api/mes/order/**", "/api/mes/material/**")
+                        .hasAuthority("ROLE_ADMIN")
+
                         .anyRequest().authenticated()
                 )
-                // ★ 중요: JwtSecurityConfig를 그대로 유지하며 적용하는 부분
-                .with(new JwtSecurityConfig(tokenProvider), Customizer.withDefaults()); //
+                .with(new JwtSecurityConfig(tokenProvider), Customizer.withDefaults());
 
         return http.build();
     }

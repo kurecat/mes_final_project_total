@@ -47,6 +47,9 @@ public class TokenProvider {
         String authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
+        // ★ 로그 추가
+        log.info("🔑 JWT 생성 - User: {}, Authorities: {}",
+                authentication.getName(), authorities);
 
         long now = (new Date()).getTime();
         Date accessTokenExpiresIn = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);

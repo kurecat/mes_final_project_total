@@ -29,7 +29,20 @@ public class MesFinal260106Application {
                         .build());
                 System.out.println(" 관리자 계정 생성 완료");
             }
+            // 2. 승인 대기 유저 (테스트용)
+            if (!repo.existsByEmail("user@mes.com")) {
+                repo.save(Member.builder()
+                        .email("user@mes.com")
+                        .password(encoder.encode("1234"))
+                        .name("신입사원")
+                        .authority(Authority.ROLE_OPERATOR)
+                        .status(MemberStatus.PENDING) // ★ 여기서 승인 대기 상태로 설정
+                        .build());
+                System.out.println("⏳ 승인 대기 유저 생성 완료 (user@mes.com)");
+            }
         };
+
+
     }
 
 }

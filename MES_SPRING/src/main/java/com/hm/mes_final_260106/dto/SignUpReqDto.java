@@ -17,7 +17,7 @@ public class SignUpReqDto {
                 .email(email)
                 .password(encoder.encode(password))
                 .name(name)
-                .authority(Authority.valueOf(authority))
+                .authority(Authority.valueOf(String.valueOf(authority)))
                 .build();
     }
 }

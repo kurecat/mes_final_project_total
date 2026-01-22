@@ -1,58 +1,90 @@
-// src/pages/admin/UsersPage.js
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
+import api from "../../../api/axios";
 import {
   FaUserPlus,
   FaSearch,
-  FaFilter,
   FaEllipsisH,
   FaUserTie,
   FaEnvelope,
   FaPhoneAlt,
   FaBuilding,
-  FaCircle,
 } from "react-icons/fa";
 
 const UsersPage = () => {
-  // --- State ---
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  // --- Data Fetching ---
+  // 1. 데이터 로드 (백엔드 8111 포트 연동)
   useEffect(() => {
-    fetch("http://localhost:3001/users")
-      .then((res) => res.json())
-      .then((data) => setUsers(data))
-      .catch((err) => console.error("Error fetching users:", err));
+    api
+      .get("/auth/all") // axios.js에 baseURL이 잡혀있으므로 상대경로 권장
+      .then((res) => {
+        console.log("🔥 서버에서 온 데이터 원본:", res.data.data[0]);
+        setUsers(res.data.data || []);
+      })
+      .catch((err) => {
+        console.error("데이터 로드 실패:", err);
+      });
   }, []);
 
-  // --- Filtering Logic ---
+  // 2. 필터링 로직 (ID 검색 보강)
   const filteredUsers = users.filter((user) => {
+    const userId = user.id || user.memberId || "";
     const matchSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
+      (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(userId).includes(searchTerm);
 
-    const matchRole = roleFilter === "ALL" || user.role === roleFilter;
+    const userRole = user.authority
+      ? user.authority.replace("ROLE_", "")
+      : "OPERATOR";
+    const matchRole = roleFilter === "ALL" || userRole === roleFilter;
     const matchStatus = statusFilter === "ALL" || user.status === statusFilter;
 
     return matchSearch && matchRole && matchStatus;
   });
 
-  // --- Handlers ---
-  const handleStatusToggle = (id) => {
-    // Optimistic Update (실제로는 API 호출 필요)
-    const updatedUsers = users.map((user) =>
-      user.id === id
-        ? { ...user, status: user.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" }
-        : user
-    );
-    setUsers(updatedUsers);
+  // 3. 상태 변경 핸들러 (승인 로직 핵심)
+  const handleStatusToggle = (targetId) => {
+    console.log("🔍 승인 요청 시도 ID:", targetId);
+
+    if (!targetId) {
+      alert("사용자 ID를 찾을 수 없습니다.");
+      return;
+    }
+
+    // 서버 승인 API 호출 (상대경로 사용하여 인터셉터 토큰 보장)
+    api
+      .put(`/auth/approve/${targetId}`)
+      .then((res) => {
+        const updatedUser = res.data.data;
+
+        // 화면 리스트 즉시 갱신
+        setUsers((prevUsers) =>
+          prevUsers.map((user) => {
+            const currentId = user.id || user.memberId;
+            return currentId == targetId
+              ? { ...user, status: updatedUser.status }
+              : user;
+          }),
+        );
+
+        alert(`${updatedUser.name} 사원의 승인이 완료되었습니다!`);
+      })
+      .catch((err) => {
+        console.error("승인 실패 상세:", err.response?.data);
+        const errorMsg =
+          err.response?.data?.message ||
+          "관리자 권한이 필요하거나 이미 승인된 사용자입니다.";
+        alert(errorMsg);
+      });
   };
 
   const getInitials = (name) => {
+    if (!name) return "??";
     return name
       .split(" ")
       .map((n) => n[0])
@@ -73,7 +105,6 @@ const UsersPage = () => {
         </PrimaryBtn>
       </Header>
 
-      {/* Controls / Toolbar */}
       <Toolbar>
         <FilterGroup>
           <SearchBox>
@@ -90,9 +121,7 @@ const UsersPage = () => {
           >
             <option value="ALL">All Roles</option>
             <option value="ADMIN">Admin</option>
-            <option value="ENGINEER">Engineer</option>
             <option value="OPERATOR">Operator</option>
-            <option value="MANAGER">Manager</option>
           </Select>
           <Select
             value={statusFilter}
@@ -100,7 +129,7 @@ const UsersPage = () => {
           >
             <option value="ALL">All Status</option>
             <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
+            <option value="PENDING">Pending</option>
           </Select>
         </FilterGroup>
 
@@ -109,7 +138,6 @@ const UsersPage = () => {
         </TotalCount>
       </Toolbar>
 
-      {/* User Table */}
       <TableContainer>
         <Table>
           <thead>
@@ -124,60 +152,74 @@ const UsersPage = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.map((user) => (
-              <tr key={user.id}>
-                <td>
-                  <ProfileCell>
-                    <Avatar>
-                      {user.avatar ? (
-                        <img src={user.avatar} alt={user.name} />
-                      ) : (
-                        <Initials>{getInitials(user.name)}</Initials>
-                      )}
-                    </Avatar>
-                    <UserInfo>
-                      <div className="name">{user.name}</div>
-                      <div className="id">{user.employeeId}</div>
-                    </UserInfo>
-                  </ProfileCell>
-                </td>
-                <td>
-                  <DeptInfo>
-                    <FaBuilding size={10} color="#999" /> {user.department}
-                  </DeptInfo>
-                </td>
-                <td>
-                  <RoleBadge $role={user.role}>{user.role}</RoleBadge>
-                </td>
-                <td>
-                  <ContactCell>
-                    <div>
-                      <FaEnvelope size={10} /> {user.email}
-                    </div>
-                    <div>
-                      <FaPhoneAlt size={10} /> {user.phone}
-                    </div>
-                  </ContactCell>
-                </td>
-                <td style={{ fontSize: "13px", color: "#666" }}>
-                  {user.lastLogin}
-                </td>
-                <td>
-                  <StatusToggle
-                    $active={user.status === "ACTIVE"}
-                    onClick={() => handleStatusToggle(user.id)}
-                  >
-                    <div className="knob" />
-                    <span className="label">{user.status}</span>
-                  </StatusToggle>
-                </td>
-                <td>
-                  <ActionBtn>
-                    <FaEllipsisH />
-                  </ActionBtn>
-                </td>
-              </tr>
-            ))}
+            {filteredUsers.map((user) => {
+              const displayId = user.id || user.memberId;
+              return (
+                <tr key={displayId}>
+                  <td>
+                    <ProfileCell>
+                      <Avatar>
+                        {user.avatar ? (
+                          <img src={user.avatar} alt={user.name} />
+                        ) : (
+                          <Initials>{getInitials(user.name)}</Initials>
+                        )}
+                      </Avatar>
+                      <UserInfo>
+                        <div className="name">{user.name}</div>
+                        <div className="id">#{displayId}</div>
+                      </UserInfo>
+                    </ProfileCell>
+                  </td>
+                  <td>
+                    <DeptInfo>
+                      <FaBuilding size={10} color="#999" />{" "}
+                      {user.department || "MES 부서"}
+                    </DeptInfo>
+                  </td>
+                  <td>
+                    <RoleBadge
+                      $role={
+                        user.authority
+                          ? user.authority.replace("ROLE_", "")
+                          : "OPERATOR"
+                      }
+                    >
+                      {user.authority
+                        ? user.authority.replace("ROLE_", "")
+                        : "OPERATOR"}
+                    </RoleBadge>
+                  </td>
+                  <td>
+                    <ContactCell>
+                      <div>
+                        <FaEnvelope size={10} /> {user.email}
+                      </div>
+                      <div>
+                        <FaPhoneAlt size={10} /> {user.phone || "010-0000-0000"}
+                      </div>
+                    </ContactCell>
+                  </td>
+                  <td style={{ fontSize: "13px", color: "#666" }}>
+                    {user.lastLogin || "최근 기록 없음"}
+                  </td>
+                  <td>
+                    <StatusToggle
+                      $active={user.status === "ACTIVE"}
+                      onClick={() => handleStatusToggle(displayId)}
+                    >
+                      <div className="knob" />
+                      <span className="label">{user.status}</span>
+                    </StatusToggle>
+                  </td>
+                  <td>
+                    <ActionBtn>
+                      <FaEllipsisH />
+                    </ActionBtn>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </Table>
       </TableContainer>
@@ -186,7 +228,6 @@ const UsersPage = () => {
 };
 
 export default UsersPage;
-
 // --- Styled Components ---
 
 // 1. 컨테이너: 부모 높이(100%)에 맞추고 외부 스크롤 방지

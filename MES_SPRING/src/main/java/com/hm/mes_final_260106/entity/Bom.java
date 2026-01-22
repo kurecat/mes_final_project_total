@@ -24,10 +24,7 @@ public class Bom {
     @Column(name = "bom_id")
     private Long id;
 
-    // ★ 중요: DB의 product_id (FK)
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Products products;
+
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)

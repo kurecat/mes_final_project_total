@@ -19,6 +19,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -85,13 +88,11 @@ public class AuthService {
             throw new CustomException("Refresh Token이 일치하지 않습니다.");
         }
 
-        // 4) 새로운 토큰 생성 (Authentication 객체 재구성)
+        // 4) 새로운 토큰 생성 - ★ 수정된 부분
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException("회원을 찾을 수 없습니다."));
 
-        UsernamePasswordAuthenticationToken authenticationToken =
-                new UsernamePasswordAuthenticationToken(String.valueOf(member.getId()), "", null);
-
+        // ★ authenticate 한 번만 호출
         Authentication authentication = managerBuilder.getObject().authenticate(
                 new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword())
         );
@@ -125,4 +126,18 @@ public class AuthService {
         log.info("회원 승인 완료 - memberId: {}, email: {}", memberId, member.getEmail());
         return GlobalResponseDto.success("회원 승인 완료", MemberResDto.of(member));
     }
+    // 6. 전체 회원 목록 조회 (관리자용)
+    @Transactional(readOnly = true)
+    public GlobalResponseDto<List<MemberResDto>> findAll() {
+        List<Member> members = memberRepository.findAll();
+        List<MemberResDto> list = members.stream()
+                .map(MemberResDto::of)
+                .collect(Collectors.toList());
+
+        log.info("전체 회원 목록 조회 완료 - 총 {}명", list.size());
+        return GlobalResponseDto.success("조회 성공", list);
+    }
+
+
+
 }
