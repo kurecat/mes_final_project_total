@@ -26,8 +26,8 @@ public class Item {
     private Product product;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workorder_id")
-    private WorkOrder workOrder;
+    @JoinColumn(name = "production_log_id")
+    private ProductionLog productionLog;
 
     @Column(name = "inspection_result", length = 50)
     private String inspectionResult;

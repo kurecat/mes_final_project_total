@@ -33,6 +33,8 @@ public class ProductionService {
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
     private final ProductRepository productRepo;
+    private final LotRepository lotRepo;
+    private final LotMappingRepository lotMappingRepo;
 
     private final MemberRepository memberRepo;
     private final WorkerRepository workerRepo;
@@ -78,11 +80,14 @@ public class ProductionService {
     // 2) 작업 지시 생성
     // =========================
     @Transactional
-    public WorkOrder createWorkOrder(String productId, int targetQty, String targetLine) {
+    public WorkOrder createWorkOrder(String productCode, int targetQty, String targetLine) {
+
+        Product product = productRepo.findByCode(productCode)
+                .orElseThrow(()-> new RuntimeException("품목을 찾을 수 없습니다"));
 
         WorkOrder order = WorkOrder.builder()
-                .workorder_number(generateWorkOrderNumber())
-                .productId(productId)
+                .workOrderNumber(generateWorkOrderNumber())
+                .product(product)
                 .targetQty(targetQty)
                 .currentQty(0)
                 .status("WAITING")
@@ -149,7 +154,7 @@ public class ProductionService {
         }
 
         order.setStatus("COMPLETED");
-        order.setEnd_date(LocalDateTime.now());
+        order.setEndDate(LocalDateTime.now());
 
         return orderRepo.save(order);
     }
@@ -174,16 +179,19 @@ public class ProductionService {
     // 5) 작업지시 수정
     // =========================
     @Transactional
-    public WorkOrder updateWorkOrder(Long id, String productId, int targetQty, String targetLine) {
+    public WorkOrder updateWorkOrder(Long id, String productCode, int targetQty, String targetLine) {
 
         WorkOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + id));
+
+        Product product = productRepo.findByCode(productCode)
+                .orElseThrow(()-> new RuntimeException("품목을 찾을 수 없습니다"));
 
         if ("IN_PROGRESS".equals(order.getStatus()) || "COMPLETED".equals(order.getStatus())) {
             throw new RuntimeException("진행중/완료된 작업은 수정할 수 없습니다.");
         }
 
-        order.setProductId(productId);
+        order.setProduct(product);
         order.setTargetQty(targetQty);
         order.setTargetLine(targetLine);
 
@@ -227,12 +235,12 @@ public class ProductionService {
         order.setStatus(status);
 
         // 시작/종료 시간 기록
-        if ("IN_PROGRESS".equals(status) && order.getStart_date() == null) {
-            order.setStart_date(LocalDateTime.now()); // ⭐
+        if ("IN_PROGRESS".equals(status) && order.getStartDate() == null) {
+            order.setStartDate(LocalDateTime.now()); // ⭐
         }
 
         if ("COMPLETED".equals(status)) {
-            order.setEnd_date(LocalDateTime.now()); // ⭐
+            order.setEndDate(LocalDateTime.now()); // ⭐
         }
 
         return orderRepo.save(order);
@@ -266,18 +274,18 @@ public class ProductionService {
     @Transactional
     public void reportProduction(ProductionReportDto dto) {
         log.info("reportProduction 실행 : {}", dto.getWorkOrderId());
-        log.info("{}", dto.getItemDtos());
+        log.info("itemDtos : {}", dto.getItemDtos());
+        log.info("inputLots : {}", dto.getInputLots());
         Long orderId = dto.getWorkOrderId();
 
         // 지시 정보 확인
-        WorkOrder order = orderRepo.findById(orderId)
+        WorkOrder workOrder = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
 
-        Product product = productRepo.findByCode(order.getProductId())
-                .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다. ID: " + order.getProductId()));
+        Product product = workOrder.getProduct();
 
         ProductionLog productionLog = mapper.toEntity(dto);
-        productionLog.setWorkOrder(order);
+        productionLog.setWorkOrder(workOrder);
 
         Dicing dicing = mapper.toEntity(dto.getDicingDto());
         dicing.setProductionLog(productionLog);
@@ -309,7 +317,7 @@ public class ProductionService {
 
         for (int i = 0; i < dto.getItemDtos().size(); i++) {
             Item item = mapper.toEntity(dto.getItemDtos().get(i));
-            item.setWorkOrder(order);
+            item.setProductionLog(productionLog);
             item.setProduct(product);
             items.add(item);
 
@@ -317,6 +325,21 @@ public class ProductionService {
             finalInspection.setProductionLog(productionLog);
             finalInspection.setItem(item);
             finalInspections.add(finalInspection);
+        }
+
+        List<Lot> lots = new ArrayList<>();
+        List<LotMapping>  lotMappings = new ArrayList<>();
+
+        for (String lotCode : dto.getInputLots()) {
+            Lot lot = lotRepo.findByCode(lotCode)
+                    .orElseThrow(() -> new RuntimeException("LOT를 찾을 수 없습니다. Code: " + lotCode));
+            lot.setStatus("소모됨");
+            lots.add(lot);
+
+            LotMapping lotMapping = new LotMapping();
+            lotMapping.setProductionLog(productionLog);
+            lotMapping.setLot(lot);
+            lotMappings.add(lotMapping);
         }
 
         productionLog = logRepo.save(productionLog);
@@ -330,8 +353,10 @@ public class ProductionService {
         moldingInspection = moldingInspectionRepo.save(moldingInspection);
         items = itemRepo.saveAll(items);
         finalInspections = finalInspectionLRepo.saveAll(finalInspections);
+        lots = lotRepo.saveAll(lots);
+        lotMappings = lotMappingRepo.saveAll(lotMappings);
 
-        List<Bom> boms = bomRepo.findAllByProductCode(order.getProductId());
+        List<Bom> boms = bomRepo.findAllByProductCode(workOrder.getProduct().getCode());
         for (Bom bom : boms) {
             Material mat = bom.getMaterial();
             int required = bom.getRequiredQty();
@@ -346,18 +371,18 @@ public class ProductionService {
         }
 
         // 수량 증가
-        order.setCurrentQty(order.getCurrentQty() + 1);
+        workOrder.setCurrentQty(workOrder.getCurrentQty() + 1);
 
         // 완료 처리
-        if (order.getCurrentQty() >= order.getTargetQty()) {
-            order.setStatus("COMPLETED");
-            order.setEnd_date(LocalDateTime.now()); // 생산 마감 시점 기록
+        if (workOrder.getCurrentQty() >= workOrder.getTargetQty()) {
+            workOrder.setStatus("COMPLETED");
+            workOrder.setEndDate(LocalDateTime.now()); // 생산 마감 시점 기록
         }
 
         log.info("[생산 보고] 제품:{} 상태:{} 수량:{}/{}",
-                order.getProductId(), order.getStatus(), order.getCurrentQty(), order.getTargetQty());
+                workOrder.getProduct().getCode(), workOrder.getStatus(), workOrder.getCurrentQty(), workOrder.getTargetQty());
 
-        orderRepo.save(order);
+        orderRepo.save(workOrder);
     }
 
     // =========================
@@ -438,8 +463,8 @@ public class ProductionService {
             String status = "IN_PROGRESS".equals(wo.getStatus()) ? "RUNNING" : wo.getStatus();
 
             return new WorkOrderPerformanceResDto(
-                    wo.getWorkorder_number(),   // woId
-                    wo.getProductId(),          // product (지금은 productId 그대로 출력)
+                    wo.getWorkOrderNumber(),   // woId
+                    wo.getProduct().getCode(),
                     wo.getTargetLine(),         // line
                     "wfrs",                     // unit (고정, 필요시 제품단위로 바꿀 수 있음)
                     plan,

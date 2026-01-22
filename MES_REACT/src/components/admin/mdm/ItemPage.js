@@ -1,17 +1,15 @@
 // src/pages/mdm/ItemPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-import axios from "axios";
+// import axios from "axios";
 import {
   FaBox,
   FaSearch,
-  FaFilter,
   FaPlus,
   FaTrash,
   FaEdit,
   FaSync,
   FaBarcode,
-  FaLayerGroup,
 } from "react-icons/fa";
 
 // --- Fallback Mock Data ---
@@ -58,17 +56,93 @@ const MOCK_ITEMS = [
   },
 ];
 
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Control Bar Component
+const ControlBarSection = React.memo(
+  ({ filterType, onFilterChange, searchTerm, onSearchChange }) => {
+    return (
+      <ControlBar>
+        <FilterGroup>
+          {["ALL", "FERT", "HALB", "ROH"].map((type) => (
+            <FilterBtn
+              key={type}
+              $active={filterType === type}
+              onClick={() => onFilterChange(type)}
+            >
+              {type === "ALL"
+                ? "All"
+                : type === "FERT"
+                  ? "Finished (FERT)"
+                  : type === "HALB"
+                    ? "Semi-Finish (HALB)"
+                    : "Raw Material (ROH)"}
+            </FilterBtn>
+          ))}
+        </FilterGroup>
+        <SearchBox>
+          <FaSearch color="#999" />
+          <input
+            placeholder="Search Code or Name..."
+            value={searchTerm}
+            onChange={onSearchChange}
+          />
+        </SearchBox>
+      </ControlBar>
+    );
+  },
+);
+
+// 2. Table Row Component
+const ItemTableRow = React.memo(({ item, onDelete }) => {
+  return (
+    <tr>
+      <td
+        style={{
+          fontFamily: "monospace",
+          color: "#1a4f8b",
+          fontWeight: "bold",
+        }}
+      >
+        <FaBarcode style={{ marginRight: 5, color: "#999" }} />
+        {item.id}
+      </td>
+      <td style={{ fontWeight: "600" }}>{item.name}</td>
+      <td>
+        <TypeBadge $type={item.type}>{item.type}</TypeBadge>
+      </td>
+      <td style={{ color: "#555" }}>{item.spec}</td>
+      <td>
+        <UnitBadge>{item.unit}</UnitBadge>
+      </td>
+      <td style={{ fontWeight: "bold" }}>
+        {item.safetyStock.toLocaleString()}
+      </td>
+      <td className="center">
+        <IconButton className="edit">
+          <FaEdit />
+        </IconButton>
+        <IconButton className="del" onClick={() => onDelete(item.id)}>
+          <FaTrash />
+        </IconButton>
+      </td>
+    </tr>
+  );
+});
+
+// --- Main Component ---
+
 const ItemPage = () => {
   const [items, setItems] = useState(MOCK_ITEMS);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. 데이터 조회 (READ)
-  const fetchData = async () => {
+  // 1. 데이터 조회 (READ) - useCallback
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // ★ 실제 API: http://localhost:3001/items
+      // API call logic...
       // const res = await axios.get("http://localhost:3001/items");
       // setItems(res.data);
 
@@ -80,29 +154,24 @@ const ItemPage = () => {
       console.error(err);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  // 2. 품목 삭제 (DELETE)
-  const handleDelete = async (id) => {
+  // 2. Handlers - useCallback
+  const handleDelete = useCallback(async (id) => {
     if (!window.confirm(`품목 코드 [${id}]를 삭제하시겠습니까?`)) return;
     try {
-      // ★ 실제 API DELETE
       // await axios.delete(`http://localhost:3001/items/${id}`);
-      // fetchData();
-
-      // Mock 동작
       setItems((prev) => prev.filter((item) => item.id !== id));
     } catch (err) {
       console.error("Delete Error", err);
     }
-  };
+  }, []);
 
-  // 3. 품목 추가 (CREATE - Mock)
-  const handleAdd = () => {
+  const handleAdd = useCallback(() => {
     const newItem = {
       id: `ITM-NEW-${Math.floor(Math.random() * 1000)}`,
       name: "New Item Entry",
@@ -111,18 +180,27 @@ const ItemPage = () => {
       unit: "EA",
       safetyStock: 0,
     };
-    setItems([newItem, ...items]);
-    // 실제로는 모달 창을 띄워 입력받고 POST 요청을 보내야 함
-  };
+    setItems((prev) => [newItem, ...prev]);
+  }, []);
 
-  // 필터링 로직
-  const filteredItems = items.filter((item) => {
-    const matchType = filterType === "ALL" || item.type === filterType;
-    const matchSearch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchType && matchSearch;
-  });
+  const handleFilterChange = useCallback((type) => {
+    setFilterType(type);
+  }, []);
+
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  // 3. Filtering - useMemo
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const matchType = filterType === "ALL" || item.type === filterType;
+      const matchSearch =
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.id.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchType && matchSearch;
+    });
+  }, [items, filterType, searchTerm]);
 
   return (
     <Container>
@@ -147,43 +225,13 @@ const ItemPage = () => {
         </ActionGroup>
       </Header>
 
-      {/* 컨트롤 바 (필터/검색) */}
-      <ControlBar>
-        <FilterGroup>
-          <FilterBtn
-            $active={filterType === "ALL"}
-            onClick={() => setFilterType("ALL")}
-          >
-            All
-          </FilterBtn>
-          <FilterBtn
-            $active={filterType === "FERT"}
-            onClick={() => setFilterType("FERT")}
-          >
-            Finished (FERT)
-          </FilterBtn>
-          <FilterBtn
-            $active={filterType === "HALB"}
-            onClick={() => setFilterType("HALB")}
-          >
-            Semi-Finish (HALB)
-          </FilterBtn>
-          <FilterBtn
-            $active={filterType === "ROH"}
-            onClick={() => setFilterType("ROH")}
-          >
-            Raw Material (ROH)
-          </FilterBtn>
-        </FilterGroup>
-        <SearchBox>
-          <FaSearch color="#999" />
-          <input
-            placeholder="Search Code or Name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </SearchBox>
-      </ControlBar>
+      {/* 컨트롤 바 (Memoized) */}
+      <ControlBarSection
+        filterType={filterType}
+        onFilterChange={handleFilterChange}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+      />
 
       {/* 테이블 영역 */}
       <TableContainer>
@@ -203,40 +251,7 @@ const ItemPage = () => {
           </thead>
           <tbody>
             {filteredItems.map((item) => (
-              <tr key={item.id}>
-                <td
-                  style={{
-                    fontFamily: "monospace",
-                    color: "#1a4f8b",
-                    fontWeight: "bold",
-                  }}
-                >
-                  <FaBarcode style={{ marginRight: 5, color: "#999" }} />
-                  {item.id}
-                </td>
-                <td style={{ fontWeight: "600" }}>{item.name}</td>
-                <td>
-                  <TypeBadge $type={item.type}>{item.type}</TypeBadge>
-                </td>
-                <td style={{ color: "#555" }}>{item.spec}</td>
-                <td>
-                  <UnitBadge>{item.unit}</UnitBadge>
-                </td>
-                <td style={{ fontWeight: "bold" }}>
-                  {item.safetyStock.toLocaleString()}
-                </td>
-                <td className="center">
-                  <IconButton className="edit">
-                    <FaEdit />
-                  </IconButton>
-                  <IconButton
-                    className="del"
-                    onClick={() => handleDelete(item.id)}
-                  >
-                    <FaTrash />
-                  </IconButton>
-                </td>
-              </tr>
+              <ItemTableRow key={item.id} item={item} onDelete={handleDelete} />
             ))}
           </tbody>
         </Table>
@@ -413,14 +428,14 @@ const TypeBadge = styled.span`
     props.$type === "FERT"
       ? "#e3f2fd"
       : props.$type === "HALB"
-      ? "#fff3e0"
-      : "#f3e5f5"};
+        ? "#fff3e0"
+        : "#f3e5f5"};
   color: ${(props) =>
     props.$type === "FERT"
       ? "#1976d2"
       : props.$type === "HALB"
-      ? "#e67e22"
-      : "#7b1fa2"};
+        ? "#e67e22"
+        : "#7b1fa2"};
 `;
 const UnitBadge = styled.span`
   font-size: 11px;

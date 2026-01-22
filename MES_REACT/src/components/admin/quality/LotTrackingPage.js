@@ -1,5 +1,5 @@
 // src/pages/production/LotTrackingPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import {
   FaSearch,
@@ -12,6 +12,197 @@ import {
   FaArrowRight,
   FaBoxOpen,
 } from "react-icons/fa";
+
+// --- Helpers ---
+const getStatusColor = (status) => {
+  switch (status) {
+    case "RUNNING":
+      return "#2ecc71"; // Green
+    case "HOLD":
+      return "#e74c3c"; // Red
+    case "WAIT":
+      return "#f39c12"; // Orange
+    default:
+      return "#95a5a6";
+  }
+};
+
+const getProgressColor = (percent) => {
+  if (percent < 30) return "#f1c40f";
+  if (percent < 70) return "#3498db";
+  return "#2ecc71";
+};
+
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Header Stats Component
+const LotTrackingHeader = React.memo(({ stats }) => {
+  return (
+    <HeaderStats>
+      <StatItem>
+        <StatIcon $color="#2ecc71">
+          <FaPlayCircle />
+        </StatIcon>
+        <div>
+          <StatValue>{stats.runningLots}</StatValue>
+          <StatLabel>Running Lots</StatLabel>
+        </div>
+      </StatItem>
+      <StatItem>
+        <StatIcon $color="#e74c3c">
+          <FaPauseCircle />
+        </StatIcon>
+        <div>
+          <StatValue>{stats.holdLots}</StatValue>
+          <StatLabel>Hold Lots</StatLabel>
+        </div>
+      </StatItem>
+      <StatItem>
+        <StatIcon $color="#f39c12">
+          <FaClock />
+        </StatIcon>
+        <div>
+          <StatValue>{stats.waitLots}</StatValue>
+          <StatLabel>Waiting</StatLabel>
+        </div>
+      </StatItem>
+      <StatItem>
+        <StatIcon $color="#34495e">
+          <FaIndustry />
+        </StatIcon>
+        <div>
+          <StatValue>{stats.avgTat}</StatValue>
+          <StatLabel>Avg. TAT</StatLabel>
+        </div>
+      </StatItem>
+    </HeaderStats>
+  );
+});
+
+// 2. Lot List Item Component
+const LotListItem = React.memo(({ lot, isActive, onClick }) => {
+  return (
+    <LotCard $active={isActive} onClick={() => onClick(lot)}>
+      <CardTop>
+        <LotId>{lot.id}</LotId>
+        <StatusBadge $status={lot.status}>{lot.status}</StatusBadge>
+      </CardTop>
+      <ProductName>{lot.product}</ProductName>
+      <StepInfo>
+        Current: <b>{lot.currentStep}</b>
+      </StepInfo>
+      <ProgressBarContainer>
+        <ProgressBar
+          $width={lot.progress}
+          $color={getProgressColor(lot.progress)}
+        />
+      </ProgressBarContainer>
+      <ProgressLabel>{lot.progress}% Complete</ProgressLabel>
+    </LotCard>
+  );
+});
+
+// 3. List Panel Component
+const LotListPanel = React.memo(
+  ({ searchTerm, onSearchChange, filteredLots, selectedLotId, onLotClick }) => {
+    return (
+      <ListPanel>
+        <SearchArea>
+          <FaSearch color="#999" />
+          <SearchInput
+            placeholder="Search Lot ID or Product..."
+            value={searchTerm}
+            onChange={onSearchChange}
+          />
+        </SearchArea>
+
+        <LotList>
+          {filteredLots.map((lot) => (
+            <LotListItem
+              key={lot.id}
+              lot={lot}
+              isActive={selectedLotId === lot.id}
+              onClick={onLotClick}
+            />
+          ))}
+        </LotList>
+      </ListPanel>
+    );
+  },
+);
+
+// 4. Detail View Component
+const DetailView = React.memo(({ selectedLot }) => {
+  if (!selectedLot) {
+    return (
+      <DetailPanel>
+        <EmptyState>Select a Lot to view details</EmptyState>
+      </DetailPanel>
+    );
+  }
+
+  return (
+    <DetailPanel>
+      <DetailHeader>
+        <TitleGroup>
+          <FaBoxOpen size={24} color="#555" />
+          <h2>{selectedLot.id} Details</h2>
+        </TitleGroup>
+        <MetaGroup>
+          <MetaTag $type="priority">{selectedLot.priority} Priority</MetaTag>
+          <MetaTag $type="qty">{selectedLot.waferQty} Wafers</MetaTag>
+        </MetaGroup>
+      </DetailHeader>
+
+      <InfoGrid>
+        <InfoItem>
+          <Label>Product ID</Label>
+          <Value>{selectedLot.product}</Value>
+        </InfoItem>
+        <InfoItem>
+          <Label>Equipment</Label>
+          <Value>{selectedLot.equipmentId}</Value>
+        </InfoItem>
+        <InfoItem>
+          <Label>Start Time</Label>
+          <Value>{selectedLot.startTime}</Value>
+        </InfoItem>
+        <InfoItem>
+          <Label>Est. Completion</Label>
+          <Value>{selectedLot.eta}</Value>
+        </InfoItem>
+      </InfoGrid>
+
+      {selectedLot.status === "HOLD" && (
+        <AlertBox>
+          <FaExclamationTriangle />
+          <span>
+            <b>HOLD REASON:</b> {selectedLot.holdReason}
+          </span>
+        </AlertBox>
+      )}
+
+      <ProcessSection>
+        <h3>Process Route Tracking</h3>
+        <RouteContainer>
+          {selectedLot.route &&
+            selectedLot.route.map((step, idx) => (
+              <StepItem key={idx} $status={step.status}>
+                <StepCircle $status={step.status}>{idx + 1}</StepCircle>
+                <StepText>
+                  <StepName>{step.step}</StepName>
+                  <StepStatus $status={step.status}>{step.status}</StepStatus>
+                </StepText>
+                {idx !== selectedLot.route.length - 1 && <Line />}
+              </StepItem>
+            ))}
+        </RouteContainer>
+      </ProcessSection>
+    </DetailPanel>
+  );
+});
+
+// --- Main Component ---
 
 const LotTrackingPage = () => {
   // --- State ---
@@ -50,183 +241,42 @@ const LotTrackingPage = () => {
     fetchData();
   }, []);
 
-  // --- Helpers ---
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "RUNNING":
-        return "#2ecc71"; // Green
-      case "HOLD":
-        return "#e74c3c"; // Red
-      case "WAIT":
-        return "#f39c12"; // Orange
-      default:
-        return "#95a5a6";
-    }
-  };
+  // --- Handlers (useCallback) ---
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
 
-  const getProgressColor = (percent) => {
-    if (percent < 30) return "#f1c40f";
-    if (percent < 70) return "#3498db";
-    return "#2ecc71";
-  };
+  const handleLotClick = useCallback((lot) => {
+    setSelectedLot(lot);
+  }, []);
 
-  // 필터링
-  const filteredLots = lots.filter(
-    (lot) =>
-      lot.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lot.product.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // --- Filtering (useMemo) ---
+  const filteredLots = useMemo(() => {
+    return lots.filter(
+      (lot) =>
+        lot.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lot.product.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [lots, searchTerm]);
 
   return (
     <Container>
-      {/* 1. 상단 통계 바 */}
-      <HeaderStats>
-        <StatItem>
-          <StatIcon $color="#2ecc71">
-            <FaPlayCircle />
-          </StatIcon>
-          <div>
-            <StatValue>{stats.runningLots}</StatValue>
-            <StatLabel>Running Lots</StatLabel>
-          </div>
-        </StatItem>
-        <StatItem>
-          <StatIcon $color="#e74c3c">
-            <FaPauseCircle />
-          </StatIcon>
-          <div>
-            <StatValue>{stats.holdLots}</StatValue>
-            <StatLabel>Hold Lots</StatLabel>
-          </div>
-        </StatItem>
-        <StatItem>
-          <StatIcon $color="#f39c12">
-            <FaClock />
-          </StatIcon>
-          <div>
-            <StatValue>{stats.waitLots}</StatValue>
-            <StatLabel>Waiting</StatLabel>
-          </div>
-        </StatItem>
-        <StatItem>
-          <StatIcon $color="#34495e">
-            <FaIndustry />
-          </StatIcon>
-          <div>
-            <StatValue>{stats.avgTat}</StatValue>
-            <StatLabel>Avg. TAT</StatLabel>
-          </div>
-        </StatItem>
-      </HeaderStats>
+      {/* 1. Header Stats (Memoized) */}
+      <LotTrackingHeader stats={stats} />
 
-      {/* 2. 메인 컨텐츠 (Split View) */}
+      {/* 2. Main Content */}
       <MainContent>
-        {/* Left: Lot List */}
-        <ListPanel>
-          <SearchArea>
-            <FaSearch color="#999" />
-            <SearchInput
-              placeholder="Search Lot ID or Product..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </SearchArea>
+        {/* Left: Lot List (Memoized) */}
+        <LotListPanel
+          searchTerm={searchTerm}
+          onSearchChange={handleSearchChange}
+          filteredLots={filteredLots}
+          selectedLotId={selectedLot?.id}
+          onLotClick={handleLotClick}
+        />
 
-          <LotList>
-            {filteredLots.map((lot) => (
-              <LotCard
-                key={lot.id}
-                $active={selectedLot?.id === lot.id}
-                onClick={() => setSelectedLot(lot)}
-              >
-                <CardTop>
-                  <LotId>{lot.id}</LotId>
-                  <StatusBadge $status={lot.status}>{lot.status}</StatusBadge>
-                </CardTop>
-                <ProductName>{lot.product}</ProductName>
-                <StepInfo>
-                  Current: <b>{lot.currentStep}</b>
-                </StepInfo>
-                <ProgressBarContainer>
-                  <ProgressBar
-                    $width={lot.progress}
-                    $color={getProgressColor(lot.progress)}
-                  />
-                </ProgressBarContainer>
-                <ProgressLabel>{lot.progress}% Complete</ProgressLabel>
-              </LotCard>
-            ))}
-          </LotList>
-        </ListPanel>
-
-        {/* Right: Detail View */}
-        <DetailPanel>
-          {selectedLot ? (
-            <>
-              <DetailHeader>
-                <TitleGroup>
-                  <FaBoxOpen size={24} color="#555" />
-                  <h2>{selectedLot.id} Details</h2>
-                </TitleGroup>
-                <MetaGroup>
-                  <MetaTag $type="priority">
-                    {selectedLot.priority} Priority
-                  </MetaTag>
-                  <MetaTag $type="qty">{selectedLot.waferQty} Wafers</MetaTag>
-                </MetaGroup>
-              </DetailHeader>
-
-              <InfoGrid>
-                <InfoItem>
-                  <Label>Product ID</Label>
-                  <Value>{selectedLot.product}</Value>
-                </InfoItem>
-                <InfoItem>
-                  <Label>Equipment</Label>
-                  <Value>{selectedLot.equipmentId}</Value>
-                </InfoItem>
-                <InfoItem>
-                  <Label>Start Time</Label>
-                  <Value>{selectedLot.startTime}</Value>
-                </InfoItem>
-                <InfoItem>
-                  <Label>Est. Completion</Label>
-                  <Value>{selectedLot.eta}</Value>
-                </InfoItem>
-              </InfoGrid>
-
-              {selectedLot.status === "HOLD" && (
-                <AlertBox>
-                  <FaExclamationTriangle />
-                  <span>
-                    <b>HOLD REASON:</b> {selectedLot.holdReason}
-                  </span>
-                </AlertBox>
-              )}
-
-              <ProcessSection>
-                <h3>Process Route Tracking</h3>
-                <RouteContainer>
-                  {selectedLot.route &&
-                    selectedLot.route.map((step, idx) => (
-                      <StepItem key={idx} $status={step.status}>
-                        <StepCircle $status={step.status}>{idx + 1}</StepCircle>
-                        <StepText>
-                          <StepName>{step.step}</StepName>
-                          <StepStatus $status={step.status}>
-                            {step.status}
-                          </StepStatus>
-                        </StepText>
-                        {idx !== selectedLot.route.length - 1 && <Line />}
-                      </StepItem>
-                    ))}
-                </RouteContainer>
-              </ProcessSection>
-            </>
-          ) : (
-            <EmptyState>Select a Lot to view details</EmptyState>
-          )}
-        </DetailPanel>
+        {/* Right: Detail View (Memoized) */}
+        <DetailView selectedLot={selectedLot} />
       </MainContent>
     </Container>
   );
@@ -370,14 +420,14 @@ const StatusBadge = styled.span`
     props.$status === "RUNNING"
       ? "#e8f5e9"
       : props.$status === "HOLD"
-      ? "#ffebee"
-      : "#fff3e0"};
+        ? "#ffebee"
+        : "#fff3e0"};
   color: ${(props) =>
     props.$status === "RUNNING"
       ? "#2ecc71"
       : props.$status === "HOLD"
-      ? "#e74c3c"
-      : "#f39c12"};
+        ? "#e74c3c"
+        : "#f39c12"};
 `;
 
 const ProductName = styled.div`
@@ -527,10 +577,10 @@ const StepCircle = styled.div`
     props.$status === "DONE"
       ? "#2ecc71"
       : props.$status === "RUNNING"
-      ? "#3498db"
-      : props.$status === "HOLD"
-      ? "#e74c3c"
-      : "#ddd"};
+        ? "#3498db"
+        : props.$status === "HOLD"
+          ? "#e74c3c"
+          : "#ddd"};
   color: white;
   display: flex;
   align-items: center;

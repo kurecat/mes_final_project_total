@@ -23,6 +23,7 @@ public class ProductionReportDto
     public MoldingInspectionDto? MoldingInspectionDto { get; set; }
     public ItemDto[]? ItemDtos { get; set; }
     public FinalInspectionDto[]? FinalInspectionDtos { get; set; }
+    public string[]? InputLots { get; set; }
 
 
 }

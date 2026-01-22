@@ -1,5 +1,5 @@
 // src/pages/doc/StandardPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import {
   FaSearch,
@@ -13,7 +13,7 @@ import {
   FaPenNib,
 } from "react-icons/fa";
 
-// --- ★ 요청하신 5가지 검사 기준 데이터 (한글 적용) ---
+// --- Mock Data ---
 const MOCK_STANDARDS = [
   {
     id: "STD-QC-01",
@@ -77,7 +77,7 @@ const MOCK_STANDARDS = [
     title: "Molding 공정 검사 기준서",
     category: "Quality",
     revision: "Rev 1.0",
-    status: "DRAFT", // 작성 중 예시
+    status: "DRAFT",
     owner: "생산1팀",
     updatedAt: "2024-03-10",
     description:
@@ -105,48 +105,26 @@ const MOCK_STANDARDS = [
   },
 ];
 
-const StandardPage = () => {
-  // --- State ---
-  const [documents, setDocuments] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [selectedDoc, setSelectedDoc] = useState(null);
+// --- Helper Functions ---
+const getStatusIcon = (status) => {
+  if (status === "ACTIVE") return <FaCheckCircle color="#2ecc71" />;
+  if (status === "DRAFT") return <FaPenNib color="#f39c12" />;
+  return <FaBan color="#95a5a6" />;
+};
 
-  // --- Fetch Data (Mock Data 로드) ---
-  useEffect(() => {
-    // 실제 서버 fetch 대신 MOCK 데이터를 바로 state에 설정
-    setDocuments(MOCK_STANDARDS);
-  }, []);
+// --- [Optimized] Sub-Components with React.memo ---
 
-  // --- Filtering ---
-  const filteredDocs = documents.filter((doc) => {
-    const matchSearch =
-      doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doc.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCategory =
-      categoryFilter === "ALL" || doc.category === categoryFilter;
-    return matchSearch && matchCategory;
-  });
-
-  // --- Helpers ---
-  const getStatusIcon = (status) => {
-    if (status === "ACTIVE") return <FaCheckCircle color="#2ecc71" />;
-    if (status === "DRAFT") return <FaPenNib color="#f39c12" />;
-    return <FaBan color="#95a5a6" />;
-  };
-
-  return (
-    <Container>
+// 1. Header Component
+const StandardHeader = React.memo(
+  ({ categoryFilter, onCategoryChange, searchTerm, onSearchChange }) => {
+    return (
       <Header>
         <TitleGroup>
           <FaFileAlt size={24} color="#34495e" />
           <h1>Standard Documents (SOP)</h1>
         </TitleGroup>
         <ActionGroup>
-          <FilterSelect
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-          >
+          <FilterSelect value={categoryFilter} onChange={onCategoryChange}>
             <option value="ALL">All Categories</option>
             <option value="Process">Process</option>
             <option value="Equipment">Equipment</option>
@@ -158,141 +136,208 @@ const StandardPage = () => {
             <input
               placeholder="Search Title or Doc ID..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={onSearchChange}
             />
           </SearchBox>
         </ActionGroup>
       </Header>
+    );
+  },
+);
 
-      {/* Main Table */}
-      <TableContainer>
-        <Table>
-          <thead>
-            <tr>
-              <th width="120">Doc ID</th>
-              <th>Document Title</th>
-              <th width="100">Category</th>
-              <th width="80">Rev</th>
-              <th width="100">Status</th>
-              <th width="150">Owner</th>
-              <th width="120">Updated</th>
-              <th width="100">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredDocs.map((doc) => (
-              <tr key={doc.id} onClick={() => setSelectedDoc(doc)}>
-                <DocIdCell>{doc.id}</DocIdCell>
-                <TitleCell>
-                  <FaFilePdf color="#e74c3c" style={{ marginRight: 8 }} />
-                  {doc.title}
-                </TitleCell>
-                <td>
-                  <CategoryBadge>{doc.category}</CategoryBadge>
-                </td>
-                <td>{doc.revision}</td>
-                <td>
-                  <StatusBadge $status={doc.status}>
-                    {getStatusIcon(doc.status)}
-                    <span>{doc.status}</span>
-                  </StatusBadge>
-                </td>
-                <td>{doc.owner}</td>
-                <td>{doc.updatedAt}</td>
-                <td>
-                  <ViewBtn>View Detail</ViewBtn>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </TableContainer>
+// 2. Table Row Component
+const StandardTableRow = React.memo(({ doc, onClick }) => {
+  return (
+    <tr onClick={() => onClick(doc)}>
+      <DocIdCell>{doc.id}</DocIdCell>
+      <TitleCell>
+        <FaFilePdf color="#e74c3c" style={{ marginRight: 8 }} />
+        {doc.title}
+      </TitleCell>
+      <td>
+        <CategoryBadge>{doc.category}</CategoryBadge>
+      </td>
+      <td>{doc.revision}</td>
+      <td>
+        <StatusBadge $status={doc.status}>
+          {getStatusIcon(doc.status)}
+          <span>{doc.status}</span>
+        </StatusBadge>
+      </td>
+      <td>{doc.owner}</td>
+      <td>{doc.updatedAt}</td>
+      <td>
+        <ViewBtn>View Detail</ViewBtn>
+      </td>
+    </tr>
+  );
+});
 
-      {/* Detail Modal */}
-      {selectedDoc && (
-        <Overlay onClick={() => setSelectedDoc(null)}>
-          <ModalContent onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <h2>{selectedDoc.title}</h2>
-              <CloseBtn onClick={() => setSelectedDoc(null)}>
-                <FaTimes />
-              </CloseBtn>
-            </ModalHeader>
+// 3. Table Component
+const StandardTable = React.memo(({ docs, onRowClick }) => {
+  return (
+    <TableContainer>
+      <Table>
+        <thead>
+          <tr>
+            <th width="120">Doc ID</th>
+            <th>Document Title</th>
+            <th width="100">Category</th>
+            <th width="80">Rev</th>
+            <th width="100">Status</th>
+            <th width="150">Owner</th>
+            <th width="120">Updated</th>
+            <th width="100">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {docs.map((doc) => (
+            <StandardTableRow key={doc.id} doc={doc} onClick={onRowClick} />
+          ))}
+        </tbody>
+      </Table>
+    </TableContainer>
+  );
+});
 
-            <ModalBody>
-              <InfoSection>
-                <InfoItem>
-                  <label>Document ID</label>
-                  <span>{selectedDoc.id}</span>
-                </InfoItem>
-                <InfoItem>
-                  <label>Current Revision</label>
-                  <span>{selectedDoc.revision}</span>
-                </InfoItem>
-                <InfoItem>
-                  <label>Status</label>
-                  <StatusBadge $status={selectedDoc.status}>
-                    {selectedDoc.status}
-                  </StatusBadge>
-                </InfoItem>
-                <InfoItem>
-                  <label>Owner</label>
-                  <span>{selectedDoc.owner}</span>
-                </InfoItem>
-              </InfoSection>
+// 4. Detail Modal Component
+const DetailModal = React.memo(({ doc, onClose }) => {
+  if (!doc) return null;
 
-              <DescriptionBox>
-                <h4>Description</h4>
-                <p style={{ whiteSpace: "pre-line" }}>
-                  {/* 줄바꿈 처리를 위해 whiteSpace 스타일 추가 */}
-                  {selectedDoc.description}
-                </p>
-              </DescriptionBox>
+  return (
+    <Overlay onClick={onClose}>
+      <ModalContent onClick={(e) => e.stopPropagation()}>
+        <ModalHeader>
+          <h2>{doc.title}</h2>
+          <CloseBtn onClick={onClose}>
+            <FaTimes />
+          </CloseBtn>
+        </ModalHeader>
 
-              <HistorySection>
-                <h4>
-                  <FaHistory /> Revision History
-                </h4>
-                <HistoryTable>
-                  <thead>
-                    <tr>
-                      <th>Rev</th>
-                      <th>Date</th>
-                      <th>Author</th>
-                      <th>Comment</th>
+        <ModalBody>
+          <InfoSection>
+            <InfoItem>
+              <label>Document ID</label>
+              <span>{doc.id}</span>
+            </InfoItem>
+            <InfoItem>
+              <label>Current Revision</label>
+              <span>{doc.revision}</span>
+            </InfoItem>
+            <InfoItem>
+              <label>Status</label>
+              <StatusBadge $status={doc.status}>{doc.status}</StatusBadge>
+            </InfoItem>
+            <InfoItem>
+              <label>Owner</label>
+              <span>{doc.owner}</span>
+            </InfoItem>
+          </InfoSection>
+
+          <DescriptionBox>
+            <h4>Description</h4>
+            <p style={{ whiteSpace: "pre-line" }}>{doc.description}</p>
+          </DescriptionBox>
+
+          <HistorySection>
+            <h4>
+              <FaHistory /> Revision History
+            </h4>
+            <HistoryTable>
+              <thead>
+                <tr>
+                  <th>Rev</th>
+                  <th>Date</th>
+                  <th>Author</th>
+                  <th>Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                {doc.revisions && doc.revisions.length > 0 ? (
+                  doc.revisions.map((rev, idx) => (
+                    <tr key={idx}>
+                      <td>
+                        <b>{rev.rev}</b>
+                      </td>
+                      <td>{rev.date}</td>
+                      <td>{rev.author}</td>
+                      <td>{rev.comment}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {selectedDoc.revisions &&
-                    selectedDoc.revisions.length > 0 ? (
-                      selectedDoc.revisions.map((rev, idx) => (
-                        <tr key={idx}>
-                          <td>
-                            <b>{rev.rev}</b>
-                          </td>
-                          <td>{rev.date}</td>
-                          <td>{rev.author}</td>
-                          <td>{rev.comment}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan="4">No history available.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </HistoryTable>
-              </HistorySection>
-            </ModalBody>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4">No history available.</td>
+                  </tr>
+                )}
+              </tbody>
+            </HistoryTable>
+          </HistorySection>
+        </ModalBody>
 
-            <ModalFooter>
-              <DownloadBtn>
-                <FaCloudDownloadAlt /> Download PDF
-              </DownloadBtn>
-            </ModalFooter>
-          </ModalContent>
-        </Overlay>
-      )}
+        <ModalFooter>
+          <DownloadBtn>
+            <FaCloudDownloadAlt /> Download PDF
+          </DownloadBtn>
+        </ModalFooter>
+      </ModalContent>
+    </Overlay>
+  );
+});
+
+// --- Main Component ---
+
+const StandardPage = () => {
+  const [documents, setDocuments] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("ALL");
+  const [selectedDoc, setSelectedDoc] = useState(null);
+
+  // --- Fetch Data ---
+  useEffect(() => {
+    setDocuments(MOCK_STANDARDS);
+  }, []);
+
+  // --- Handlers (useCallback) ---
+  const handleCategoryChange = useCallback((e) => {
+    setCategoryFilter(e.target.value);
+  }, []);
+
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleRowClick = useCallback((doc) => {
+    setSelectedDoc(doc);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setSelectedDoc(null);
+  }, []);
+
+  // --- Filtering (useMemo) ---
+  const filteredDocs = useMemo(() => {
+    return documents.filter((doc) => {
+      const matchSearch =
+        doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.id.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchCategory =
+        categoryFilter === "ALL" || doc.category === categoryFilter;
+      return matchSearch && matchCategory;
+    });
+  }, [documents, searchTerm, categoryFilter]);
+
+  return (
+    <Container>
+      <StandardHeader
+        categoryFilter={categoryFilter}
+        onCategoryChange={handleCategoryChange}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+      />
+
+      <StandardTable docs={filteredDocs} onRowClick={handleRowClick} />
+
+      <DetailModal doc={selectedDoc} onClose={handleCloseModal} />
     </Container>
   );
 };

@@ -1,5 +1,5 @@
 // src/pages/resource/MaterialPage.js
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import axios from "axios";
 import {
@@ -31,7 +31,6 @@ const formatTime = (isoString) => {
 
 // =============================
 // 백엔드 응답 -> 화면 row 변환
-// (MaterialTxResDto 기반)
 // =============================
 const mapTxToRow = (tx) => {
   const type = tx.type === "INBOUND" ? "IN" : "OUT";
@@ -52,6 +51,197 @@ const mapTxToRow = (tx) => {
   };
 };
 
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Tab Header Component
+const TabHeader = React.memo(({ activeTab, onTabChange }) => {
+  return (
+    <HeaderSection>
+      <TabButton
+        $active={activeTab === "IN"}
+        onClick={() => onTabChange("IN")}
+        $color="#2ecc71"
+      >
+        <FaTruckLoading size={24} />
+        <div>
+          <TabTitle>Material Inbound (입고)</TabTitle>
+          <TabDesc>Raw Wafer / Chemical / Parts 입고 검수</TabDesc>
+        </div>
+      </TabButton>
+
+      <TabButton
+        $active={activeTab === "OUT"}
+        onClick={() => onTabChange("OUT")}
+        $color="#e67e22"
+      >
+        <FaDolly size={24} />
+        <div>
+          <TabTitle>Line Outbound (불출)</TabTitle>
+          <TabDesc>Fab 설비 투입 및 자재 불출 스캔</TabDesc>
+        </div>
+      </TabButton>
+    </HeaderSection>
+  );
+});
+
+// 2. Input Form Component
+const InputForm = React.memo(({ activeTab, inputs, onChange, onSubmit }) => {
+  return (
+    <InputCard $mode={activeTab}>
+      <CardHeader $mode={activeTab}>
+        {activeTab === "IN" ? <FaTruckLoading /> : <FaDolly />}
+        {activeTab === "IN" ? " 입고 등록 (Scan)" : " 불출 등록 (Scan)"}
+      </CardHeader>
+
+      <Form onSubmit={onSubmit}>
+        <FormGroup>
+          <Label>Material Barcode *</Label>
+          <InputWrapper>
+            <Input
+              name="barcode"
+              value={inputs.barcode}
+              onChange={onChange}
+              placeholder="Scan (ex: WF-001, PR-A)"
+              autoFocus
+            />
+            <ScanIcon>
+              <FaBarcode />
+            </ScanIcon>
+          </InputWrapper>
+          <HintText>백엔드 Material.code와 동일한 값을 입력하세요.</HintText>
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Quantity *</Label>
+          <Input
+            type="number"
+            name="qty"
+            value={inputs.qty}
+            onChange={onChange}
+            placeholder="수량 입력"
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>
+            {activeTab === "IN"
+              ? "Target Location (적재 위치)"
+              : "Target Equipment (투입 설비)"}
+          </Label>
+          <Input
+            name="location"
+            value={inputs.location}
+            onChange={onChange}
+            placeholder={
+              activeTab === "IN" ? "ex: WH-Raw-01" : "ex: Photo-Line-A"
+            }
+          />
+        </FormGroup>
+
+        <SubmitButton type="submit" $mode={activeTab}>
+          <FaCheck />{" "}
+          {activeTab === "IN" ? "CONFIRM INBOUND" : "CONFIRM OUTBOUND"}
+        </SubmitButton>
+      </Form>
+    </InputCard>
+  );
+});
+
+// 3. Log Table Row Component
+const LogTableRow = React.memo(({ row }) => {
+  return (
+    <tr>
+      <td>{row.time}</td>
+      <td>
+        <TypeBadge $type={row.type}>
+          {row.type === "IN" ? "입고" : "불출"}
+        </TypeBadge>
+      </td>
+      <td
+        style={{
+          fontWeight: "600",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        {(row.item || "").includes("Wafer") ? (
+          <FaCircle size={8} color="#555" />
+        ) : (row.item || "").includes("Gas") ? (
+          <FaFlask size={10} color="#3498db" />
+        ) : (
+          <FaMicrochip size={12} color="#f39c12" />
+        )}
+        {row.item}
+      </td>
+      <td style={{ fontWeight: "bold" }}>{row.qty}</td>
+      <td>
+        <UnitBadge>{row.unit}</UnitBadge>
+      </td>
+      <td>{row.target}</td>
+      <td>{row.worker}</td>
+    </tr>
+  );
+});
+
+// 4. Log Table Component
+const LogTable = React.memo(
+  ({ history, loading, keyword, onKeywordChange }) => {
+    return (
+      <HistorySection>
+        <SectionHeader>
+          <TitleArea>
+            <FaHistory /> Today's Transaction Log
+            {loading && (
+              <FaSync
+                className="spin"
+                style={{ fontSize: 12, marginLeft: 8, color: "#999" }}
+              />
+            )}
+          </TitleArea>
+
+          <SearchGroup>
+            <FaSearch color="#aaa" />
+            <SmallInput
+              placeholder="Search Item..."
+              value={keyword}
+              onChange={onKeywordChange}
+            />
+          </SearchGroup>
+        </SectionHeader>
+
+        <TableContainer>
+          <Table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Material Name</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>Target Loc/Eq</th>
+                <th>Worker</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {!loading && history.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: 20, color: "#999" }}>
+                    오늘 트랜잭션 로그가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                history.map((row) => <LogTableRow key={row.id} row={row} />)
+              )}
+            </tbody>
+          </Table>
+        </TableContainer>
+      </HistorySection>
+    );
+  },
+);
+
 const MaterialPage = () => {
   const [activeTab, setActiveTab] = useState("IN"); // IN (입고) or OUT (불출)
   const [history, setHistory] = useState([]);
@@ -64,13 +254,13 @@ const MaterialPage = () => {
   const [inputs, setInputs] = useState({
     barcode: "",
     qty: "",
-    location: "", // IN: targetLocation / OUT: targetEquipment (현재 UI 그대로 사용)
+    location: "",
   });
 
   // =============================
-  // 오늘 로그 조회
+  // 오늘 로그 조회 (useCallback)
   // =============================
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axios.get(`${API_BASE}/transactions/today`);
@@ -78,91 +268,88 @@ const MaterialPage = () => {
       setHistory(rows);
     } catch (err) {
       console.error("오늘 트랜잭션 로그 조회 실패:", err);
-      alert("오늘 트랜잭션 로그 조회에 실패했습니다. (백엔드 실행/주소 확인)");
+      // alert("오늘 트랜잭션 로그 조회에 실패했습니다. (백엔드 실행/주소 확인)");
+      setHistory([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // =============================
+  // 핸들러 (useCallback)
+  // =============================
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
   }, []);
 
-  // =============================
-  // 입력 핸들러
-  // =============================
-  const handleChange = (e) => {
-    setInputs({ ...inputs, [e.target.name]: e.target.value });
-  };
+  const handleInputChange = useCallback((e) => {
+    setInputs((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  }, []);
 
-  // =============================
-  // 등록(입고/불출) 처리
-  // =============================
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleKeywordChange = useCallback((e) => {
+    setKeyword(e.target.value);
+  }, []);
 
-    if (!inputs.barcode || !inputs.qty) {
-      return alert("필수 정보를 입력하세요. (Barcode, Qty)");
-    }
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
 
-    const qtyNumber = Number(inputs.qty);
-    if (Number.isNaN(qtyNumber) || qtyNumber <= 0) {
-      return alert("수량은 1 이상 숫자만 입력 가능합니다.");
-    }
-
-    try {
-      if (activeTab === "IN") {
-        // =============================
-        // 입고 API
-        // =============================
-        const payload = {
-          materialBarcode: inputs.barcode,
-          qty: qtyNumber,
-          unit: "ea", // 필요하면 UI에서 선택하도록 확장 가능
-          targetLocation: inputs.location || null,
-          workerName: "Admin", // TODO: 로그인 유저로 교체
-        };
-
-        await axios.post(`${API_BASE}/inbound`, payload);
-        alert("입고 처리가 완료되었습니다.");
-      } else {
-        // =============================
-        // 불출 API
-        // =============================
-        const payload = {
-          materialBarcode: inputs.barcode,
-          qty: qtyNumber,
-          unit: "ea",
-          targetLocation: null, // 지금 UI는 location 하나라서 장비에 넣는 형태
-          targetEquipment: inputs.location || null,
-          workerName: "Admin",
-        };
-
-        await axios.post(`${API_BASE}/outbound`, payload);
-        alert("불출 처리가 완료되었습니다.");
+      if (!inputs.barcode || !inputs.qty) {
+        return alert("필수 정보를 입력하세요. (Barcode, Qty)");
       }
 
-      // 입력 초기화
-      setInputs({ barcode: "", qty: "", location: "" });
+      const qtyNumber = Number(inputs.qty);
+      if (Number.isNaN(qtyNumber) || qtyNumber <= 0) {
+        return alert("수량은 1 이상 숫자만 입력 가능합니다.");
+      }
 
-      // 로그 갱신
-      fetchData();
-    } catch (err) {
-      console.error("Transaction Error:", err);
+      try {
+        if (activeTab === "IN") {
+          const payload = {
+            materialBarcode: inputs.barcode,
+            qty: qtyNumber,
+            unit: "ea",
+            targetLocation: inputs.location || null,
+            workerName: "Admin",
+          };
 
-      // CustomException 처리 (백엔드가 {code, message}로 내려주는 경우)
-      const msg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        "처리 중 오류가 발생했습니다.";
+          await axios.post(`${API_BASE}/inbound`, payload);
+          alert("입고 처리가 완료되었습니다.");
+        } else {
+          const payload = {
+            materialBarcode: inputs.barcode,
+            qty: qtyNumber,
+            unit: "ea",
+            targetLocation: null,
+            targetEquipment: inputs.location || null,
+            workerName: "Admin",
+          };
 
-      alert(msg);
-    }
-  };
+          await axios.post(`${API_BASE}/outbound`, payload);
+          alert("불출 처리가 완료되었습니다.");
+        }
+
+        setInputs({ barcode: "", qty: "", location: "" });
+        fetchData();
+      } catch (err) {
+        console.error("Transaction Error:", err);
+        const msg =
+          err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          "처리 중 오류가 발생했습니다.";
+        alert(msg);
+      }
+    },
+    [activeTab, inputs, fetchData],
+  );
 
   // =============================
-  // 검색 필터링
+  // 검색 필터링 (useMemo)
   // =============================
   const filteredHistory = useMemo(() => {
     if (!keyword.trim()) return history;
@@ -174,178 +361,25 @@ const MaterialPage = () => {
 
   return (
     <Container>
-      {/* 1. 상단 탭 (입고 vs 불출) */}
-      <HeaderSection>
-        <TabButton
-          $active={activeTab === "IN"}
-          onClick={() => setActiveTab("IN")}
-          $color="#2ecc71"
-        >
-          <FaTruckLoading size={24} />
-          <div>
-            <TabTitle>Material Inbound (입고)</TabTitle>
-            <TabDesc>Raw Wafer / Chemical / Parts 입고 검수</TabDesc>
-          </div>
-        </TabButton>
-
-        <TabButton
-          $active={activeTab === "OUT"}
-          onClick={() => setActiveTab("OUT")}
-          $color="#e67e22"
-        >
-          <FaDolly size={24} />
-          <div>
-            <TabTitle>Line Outbound (불출)</TabTitle>
-            <TabDesc>Fab 설비 투입 및 자재 불출 스캔</TabDesc>
-          </div>
-        </TabButton>
-      </HeaderSection>
+      {/* 1. Top Tab Section */}
+      <TabHeader activeTab={activeTab} onTabChange={handleTabChange} />
 
       <ContentWrapper>
-        {/* 2. 좌측: 스캔 및 입력 폼 */}
-        <InputCard $mode={activeTab}>
-          <CardHeader $mode={activeTab}>
-            {activeTab === "IN" ? <FaTruckLoading /> : <FaDolly />}
-            {activeTab === "IN" ? " 입고 등록 (Scan)" : " 불출 등록 (Scan)"}
-          </CardHeader>
+        {/* 2. Left: Input Form Section */}
+        <InputForm
+          activeTab={activeTab}
+          inputs={inputs}
+          onChange={handleInputChange}
+          onSubmit={handleSubmit}
+        />
 
-          <Form onSubmit={handleSubmit}>
-            <FormGroup>
-              <Label>Material Barcode *</Label>
-              <InputWrapper>
-                <Input
-                  name="barcode"
-                  value={inputs.barcode}
-                  onChange={handleChange}
-                  placeholder="Scan (ex: WF-001, PR-A)"
-                  autoFocus
-                />
-                <ScanIcon>
-                  <FaBarcode />
-                </ScanIcon>
-              </InputWrapper>
-              <HintText>
-                백엔드 Material.code와 동일한 값을 입력하세요.
-              </HintText>
-            </FormGroup>
-
-            <FormGroup>
-              <Label>Quantity *</Label>
-              <Input
-                type="number"
-                name="qty"
-                value={inputs.qty}
-                onChange={handleChange}
-                placeholder="수량 입력"
-              />
-            </FormGroup>
-
-            <FormGroup>
-              <Label>
-                {activeTab === "IN"
-                  ? "Target Location (적재 위치)"
-                  : "Target Equipment (투입 설비)"}
-              </Label>
-              <Input
-                name="location"
-                value={inputs.location}
-                onChange={handleChange}
-                placeholder={
-                  activeTab === "IN" ? "ex: WH-Raw-01" : "ex: Photo-Line-A"
-                }
-              />
-            </FormGroup>
-
-            <SubmitButton type="submit" $mode={activeTab}>
-              <FaCheck />{" "}
-              {activeTab === "IN" ? "CONFIRM INBOUND" : "CONFIRM OUTBOUND"}
-            </SubmitButton>
-          </Form>
-        </InputCard>
-
-        {/* 3. 우측: 수불 이력 테이블 */}
-        <HistorySection>
-          <SectionHeader>
-            <TitleArea>
-              <FaHistory /> Today's Transaction Log
-              {loading && (
-                <FaSync
-                  className="spin"
-                  style={{ fontSize: 12, marginLeft: 8, color: "#999" }}
-                />
-              )}
-            </TitleArea>
-
-            <SearchGroup>
-              <FaSearch color="#aaa" />
-              <SmallInput
-                placeholder="Search Item..."
-                value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-              />
-            </SearchGroup>
-          </SectionHeader>
-
-          <TableContainer>
-            <Table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Type</th>
-                  <th>Material Name</th>
-                  <th>Qty</th>
-                  <th>Unit</th>
-                  <th>Target Loc/Eq</th>
-                  <th>Worker</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {!loading && filteredHistory.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ padding: 20, color: "#999" }}>
-                      오늘 트랜잭션 로그가 없습니다.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredHistory.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.time}</td>
-                      <td>
-                        <TypeBadge $type={row.type}>
-                          {row.type === "IN" ? "입고" : "불출"}
-                        </TypeBadge>
-                      </td>
-                      <td
-                        style={{
-                          fontWeight: "600",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        {(row.item || "").includes("Wafer") ? (
-                          <FaCircle size={8} color="#555" />
-                        ) : (row.item || "").includes("Gas") ? (
-                          <FaFlask size={10} color="#3498db" />
-                        ) : (
-                          <FaMicrochip size={12} color="#f39c12" />
-                        )}
-                        {row.item}
-                      </td>
-                      <td style={{ fontWeight: "bold" }}>{row.qty}</td>
-                      <td>
-                        <UnitBadge>{row.unit}</UnitBadge>
-                      </td>
-                      <td>{row.target}</td>
-                      <td>{row.worker}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </Table>
-          </TableContainer>
-        </HistorySection>
+        {/* 3. Right: Log Table Section */}
+        <LogTable
+          history={filteredHistory}
+          loading={loading}
+          keyword={keyword}
+          onKeywordChange={handleKeywordChange}
+        />
       </ContentWrapper>
     </Container>
   );
@@ -353,7 +387,7 @@ const MaterialPage = () => {
 
 export default MaterialPage;
 
-// --- Styled Components ---
+// --- Styled Components (No Changes) ---
 
 const Container = styled.div`
   width: 100%;

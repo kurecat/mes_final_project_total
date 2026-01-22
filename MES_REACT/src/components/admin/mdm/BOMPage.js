@@ -1,7 +1,7 @@
 // src/pages/mdm/BomPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-import axios from "axios";
+// import axios from "axios";
 import {
   FaSearch,
   FaSitemap,
@@ -166,203 +166,9 @@ const MOCK_BOMS = [
   },
 ];
 
-const BomPage = () => {
-  const [bomList, setBomList] = useState(MOCK_BOMS);
-  const [selectedBom, setSelectedBom] = useState(null); // 초기엔 null
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // ★ 실제 API: http://localhost:3001/boms
-      // const res = await axios.get("http://localhost:3001/boms");
-      // setBomList(res.data);
-      // if (res.data.length > 0) setSelectedBom(res.data[0]);
-
-      setTimeout(() => {
-        setBomList(MOCK_BOMS);
-        setSelectedBom(MOCK_BOMS[0]); // 데이터 로드 후 첫 번째 선택
-        setLoading(false);
-      }, 500);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const filteredBoms = bomList.filter(
-    (bom) =>
-      bom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bom.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  return (
-    <Container>
-      {/* 1. 좌측 사이드바: BOM Master List */}
-      <Sidebar>
-        <SidebarHeader>
-          <Title>
-            <FaSitemap /> Product BOMs
-            {loading && (
-              <FaSync
-                className="spin"
-                style={{ fontSize: 12, marginLeft: 8 }}
-              />
-            )}
-          </Title>
-          <SearchBox>
-            <FaSearch color="#999" />
-            <input
-              placeholder="Search Product..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </SearchBox>
-        </SidebarHeader>
-
-        <BomList>
-          {filteredBoms.map((bom) => (
-            <BomItem
-              key={bom.id}
-              $active={selectedBom && selectedBom.id === bom.id}
-              onClick={() => setSelectedBom(bom)}
-            >
-              <ItemTop>
-                <ItemName>{bom.name}</ItemName>
-                <StatusBadge $status={bom.status}>{bom.status}</StatusBadge>
-              </ItemTop>
-              <ItemBottom>
-                <span>{bom.id}</span>
-                <span>{bom.revision}</span>
-              </ItemBottom>
-            </BomItem>
-          ))}
-        </BomList>
-
-        <AddButton>
-          <FaPlus /> New Product BOM
-        </AddButton>
-      </Sidebar>
-
-      {/* 2. 우측 컨텐츠: BOM Detail Structure */}
-      <ContentArea>
-        {selectedBom ? (
-          <>
-            <DetailHeader>
-              <HeaderLeft>
-                <ProductName>
-                  {selectedBom.name} <RevBadge>{selectedBom.revision}</RevBadge>
-                </ProductName>
-                <ProductMeta>
-                  Code: <strong>{selectedBom.id}</strong> | Type:{" "}
-                  {selectedBom.type} | Last Updated: {selectedBom.lastUpdated}
-                </ProductMeta>
-              </HeaderLeft>
-              <HeaderRight>
-                <ActionButton>
-                  <FaEdit /> Revision Change
-                </ActionButton>
-                <ActionButton $primary>
-                  <FaFileExport /> Export Excel
-                </ActionButton>
-              </HeaderRight>
-            </DetailHeader>
-
-            <TableContainer>
-              <BomTable>
-                <thead>
-                  <tr>
-                    <th width="5%">Lv.</th>
-                    <th width="15%">Part Number</th>
-                    <th width="25%">Item Name</th>
-                    <th width="10%">Type</th>
-                    <th width="10%">Qty</th>
-                    <th width="10%">Unit</th>
-                    <th width="25%">Specification</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* 루트(최상위) 아이템 표시 */}
-                  <RootRow>
-                    <td>0</td>
-                    <td>{selectedBom.id}</td>
-                    <td className="name">
-                      <FaCubes style={{ marginRight: 8, color: "#1a4f8b" }} />
-                      {selectedBom.name}
-                    </td>
-                    <td>
-                      <TypeLabel $type="FG">FG</TypeLabel>
-                    </td>
-                    <td>1</td>
-                    <td>ea</td>
-                    <td>Finished Product</td>
-                  </RootRow>
-
-                  {/* 자식 아이템들 표시 */}
-                  {selectedBom.children.map((child, index) => (
-                    <tr key={index}>
-                      <td style={{ textAlign: "center", color: "#888" }}>
-                        {child.level}
-                      </td>
-                      <td style={{ fontFamily: "monospace", color: "#555" }}>
-                        {child.id}
-                      </td>
-                      <td className="name">
-                        <Indent $level={child.level}>
-                          <LCorner />
-                          {/* 자재 타입별 아이콘 분기 */}
-                          {child.type === "CHEM" ? (
-                            <FaFlask
-                              color="#e74c3c"
-                              size={12}
-                              style={{ marginRight: 5 }}
-                            />
-                          ) : child.type === "ASSY" ? (
-                            <FaMicrochip
-                              color="#f39c12"
-                              size={12}
-                              style={{ marginRight: 5 }}
-                            />
-                          ) : (
-                            <FaCube
-                              color="#3498db"
-                              size={12}
-                              style={{ marginRight: 5 }}
-                            />
-                          )}
-                          <span>{child.name}</span>
-                        </Indent>
-                      </td>
-                      <td>
-                        <TypeLabel $type={child.type}>{child.type}</TypeLabel>
-                      </td>
-                      <td style={{ fontWeight: "600" }}>{child.qty}</td>
-                      <td style={{ color: "#666" }}>{child.unit}</td>
-                      <td style={{ color: "#666", fontSize: "13px" }}>
-                        {child.spec}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </BomTable>
-            </TableContainer>
-          </>
-        ) : (
-          <EmptyState>Select a BOM to view details</EmptyState>
-        )}
-      </ContentArea>
-    </Container>
-  );
-};
-
-export default BomPage;
-
-// --- Styled Components ---
+/* =========================================================================
+   Styled Components (Defined top-level to avoid ReferenceError in sub-components)
+   ========================================================================= */
 
 const Container = styled.div`
   width: 100%;
@@ -611,18 +417,18 @@ const TypeLabel = styled.span`
     props.$type === "ASSY"
       ? "#fff3e0"
       : props.$type === "CHEM"
-      ? "#ffebee"
-      : props.$type === "FG"
-      ? "#e8f5e9"
-      : "#e3f2fd"};
+        ? "#ffebee"
+        : props.$type === "FG"
+          ? "#e8f5e9"
+          : "#e3f2fd"};
   color: ${(props) =>
     props.$type === "ASSY"
       ? "#e67e22"
       : props.$type === "CHEM"
-      ? "#c62828"
-      : props.$type === "FG"
-      ? "#2e7d32"
-      : "#1976d2"};
+        ? "#c62828"
+        : props.$type === "FG"
+          ? "#2e7d32"
+          : "#1976d2"};
 `;
 
 const EmptyState = styled.div`
@@ -633,3 +439,245 @@ const EmptyState = styled.div`
   color: #999;
   font-size: 16px;
 `;
+
+/* =========================================================================
+   Optimized Sub-Components
+   ========================================================================= */
+
+// 1. Sidebar Item Component (Memoized)
+const SidebarItem = React.memo(({ bom, isActive, onClick }) => {
+  return (
+    <BomItem $active={isActive} onClick={() => onClick(bom)}>
+      <ItemTop>
+        <ItemName>{bom.name}</ItemName>
+        <StatusBadge $status={bom.status}>{bom.status}</StatusBadge>
+      </ItemTop>
+      <ItemBottom>
+        <span>{bom.id}</span>
+        <span>{bom.revision}</span>
+      </ItemBottom>
+    </BomItem>
+  );
+});
+
+// 2. Sidebar Panel Component (Memoized)
+const SidebarPanel = React.memo(
+  ({
+    loading,
+    searchTerm,
+    onSearchChange,
+    filteredBoms,
+    selectedBomId,
+    onSelect,
+  }) => {
+    return (
+      <Sidebar>
+        <SidebarHeader>
+          <Title>
+            <FaSitemap /> Product BOMs
+            {loading && (
+              <FaSync
+                className="spin"
+                style={{ fontSize: 12, marginLeft: 8 }}
+              />
+            )}
+          </Title>
+          <SearchBox>
+            <FaSearch color="#999" />
+            <input
+              placeholder="Search Product..."
+              value={searchTerm}
+              onChange={onSearchChange}
+            />
+          </SearchBox>
+        </SidebarHeader>
+
+        <BomList>
+          {filteredBoms.map((bom) => (
+            <SidebarItem
+              key={bom.id}
+              bom={bom}
+              isActive={selectedBomId === bom.id}
+              onClick={onSelect}
+            />
+          ))}
+        </BomList>
+
+        <AddButton>
+          <FaPlus /> New Product BOM
+        </AddButton>
+      </Sidebar>
+    );
+  },
+);
+
+// 3. Detail View - Table Row (Memoized)
+const BomTableRow = React.memo(({ child }) => {
+  return (
+    <tr>
+      <td style={{ textAlign: "center", color: "#888" }}>{child.level}</td>
+      <td style={{ fontFamily: "monospace", color: "#555" }}>{child.id}</td>
+      <td className="name">
+        <Indent $level={child.level}>
+          <LCorner />
+          {/* 자재 타입별 아이콘 분기 */}
+          {child.type === "CHEM" ? (
+            <FaFlask color="#e74c3c" size={12} style={{ marginRight: 5 }} />
+          ) : child.type === "ASSY" ? (
+            <FaMicrochip color="#f39c12" size={12} style={{ marginRight: 5 }} />
+          ) : (
+            <FaCube color="#3498db" size={12} style={{ marginRight: 5 }} />
+          )}
+          <span>{child.name}</span>
+        </Indent>
+      </td>
+      <td>
+        <TypeLabel $type={child.type}>{child.type}</TypeLabel>
+      </td>
+      <td style={{ fontWeight: "600" }}>{child.qty}</td>
+      <td style={{ color: "#666" }}>{child.unit}</td>
+      <td style={{ color: "#666", fontSize: "13px" }}>{child.spec}</td>
+    </tr>
+  );
+});
+
+// 4. Detail View Component (Memoized)
+const DetailView = React.memo(({ bom }) => {
+  if (!bom) return <EmptyState>Select a BOM to view details</EmptyState>;
+
+  return (
+    <>
+      <DetailHeader>
+        <HeaderLeft>
+          <ProductName>
+            {bom.name} <RevBadge>{bom.revision}</RevBadge>
+          </ProductName>
+          <ProductMeta>
+            Code: <strong>{bom.id}</strong> | Type: {bom.type} | Last Updated:{" "}
+            {bom.lastUpdated}
+          </ProductMeta>
+        </HeaderLeft>
+        <HeaderRight>
+          <ActionButton>
+            <FaEdit /> Revision Change
+          </ActionButton>
+          <ActionButton $primary>
+            <FaFileExport /> Export Excel
+          </ActionButton>
+        </HeaderRight>
+      </DetailHeader>
+
+      <TableContainer>
+        <BomTable>
+          <thead>
+            <tr>
+              <th width="5%">Lv.</th>
+              <th width="15%">Part Number</th>
+              <th width="25%">Item Name</th>
+              <th width="10%">Type</th>
+              <th width="10%">Qty</th>
+              <th width="10%">Unit</th>
+              <th width="25%">Specification</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Root Item */}
+            <RootRow>
+              <td>0</td>
+              <td>{bom.id}</td>
+              <td className="name">
+                <FaCubes style={{ marginRight: 8, color: "#1a4f8b" }} />
+                {bom.name}
+              </td>
+              <td>
+                <TypeLabel $type="FG">FG</TypeLabel>
+              </td>
+              <td>1</td>
+              <td>ea</td>
+              <td>Finished Product</td>
+            </RootRow>
+
+            {/* Children Items */}
+            {bom.children.map((child, index) => (
+              <BomTableRow key={index} child={child} />
+            ))}
+          </tbody>
+        </BomTable>
+      </TableContainer>
+    </>
+  );
+});
+
+/* =========================================================================
+   Main Component
+   ========================================================================= */
+
+const BomPage = () => {
+  const [bomList, setBomList] = useState(MOCK_BOMS);
+  const [selectedBom, setSelectedBom] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // [Optimization] fetchData with useCallback
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // API call logic...
+      // const res = await axios.get("http://localhost:3001/boms");
+      // setBomList(res.data);
+      // if (res.data.length > 0) setSelectedBom(res.data[0]);
+
+      setTimeout(() => {
+        setBomList(MOCK_BOMS);
+        setSelectedBom(MOCK_BOMS[0]);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // [Optimization] Handlers with useCallback
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleSelectBom = useCallback((bom) => {
+    setSelectedBom(bom);
+  }, []);
+
+  // [Optimization] Filtering with useMemo
+  const filteredBoms = useMemo(() => {
+    return bomList.filter(
+      (bom) =>
+        bom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bom.id.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [bomList, searchTerm]);
+
+  return (
+    <Container>
+      {/* 1. Sidebar Panel */}
+      <SidebarPanel
+        loading={loading}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+        filteredBoms={filteredBoms}
+        selectedBomId={selectedBom?.id}
+        onSelect={handleSelectBom}
+      />
+
+      {/* 2. Detail View */}
+      <ContentArea>
+        <DetailView bom={selectedBom} />
+      </ContentArea>
+    </Container>
+  );
+};
+
+export default BomPage;

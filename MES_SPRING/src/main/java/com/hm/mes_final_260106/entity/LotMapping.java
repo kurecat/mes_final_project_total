@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "item_lot")
+@Table(name = "lot_mapping")
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor

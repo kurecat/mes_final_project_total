@@ -1,90 +1,59 @@
+// src/pages/admin/UsersPage.js
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import api from "../../../api/axios";
 import {
   FaUserPlus,
   FaSearch,
+  FaFilter,
   FaEllipsisH,
   FaUserTie,
   FaEnvelope,
   FaPhoneAlt,
   FaBuilding,
+  FaCircle,
 } from "react-icons/fa";
 
 const UsersPage = () => {
+  // --- State ---
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  // 1. 데이터 로드 (백엔드 8111 포트 연동)
+  // --- Data Fetching ---
   useEffect(() => {
-    api
-      .get("/auth/all") // axios.js에 baseURL이 잡혀있으므로 상대경로 권장
-      .then((res) => {
-        console.log("🔥 서버에서 온 데이터 원본:", res.data.data[0]);
-        setUsers(res.data.data || []);
-      })
-      .catch((err) => {
-        console.error("데이터 로드 실패:", err);
-      });
+    fetch("http://localhost:3001/users")
+      .then((res) => res.json())
+      .then((data) => setUsers(data))
+      .catch((err) => console.error("Error fetching users:", err));
   }, []);
 
-  // 2. 필터링 로직 (ID 검색 보강)
+  // --- Filtering Logic ---
   const filteredUsers = users.filter((user) => {
-    const userId = user.id || user.memberId || "";
     const matchSearch =
-      (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(userId).includes(searchTerm);
+      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const userRole = user.authority
-      ? user.authority.replace("ROLE_", "")
-      : "OPERATOR";
-    const matchRole = roleFilter === "ALL" || userRole === roleFilter;
+    const matchRole = roleFilter === "ALL" || user.role === roleFilter;
     const matchStatus = statusFilter === "ALL" || user.status === statusFilter;
 
     return matchSearch && matchRole && matchStatus;
   });
 
-  // 3. 상태 변경 핸들러 (승인 로직 핵심)
-  const handleStatusToggle = (targetId) => {
-    console.log("🔍 승인 요청 시도 ID:", targetId);
-
-    if (!targetId) {
-      alert("사용자 ID를 찾을 수 없습니다.");
-      return;
-    }
-
-    // 서버 승인 API 호출 (상대경로 사용하여 인터셉터 토큰 보장)
-    api
-      .put(`/auth/approve/${targetId}`)
-      .then((res) => {
-        const updatedUser = res.data.data;
-
-        // 화면 리스트 즉시 갱신
-        setUsers((prevUsers) =>
-          prevUsers.map((user) => {
-            const currentId = user.id || user.memberId;
-            return currentId == targetId
-              ? { ...user, status: updatedUser.status }
-              : user;
-          }),
-        );
-
-        alert(`${updatedUser.name} 사원의 승인이 완료되었습니다!`);
-      })
-      .catch((err) => {
-        console.error("승인 실패 상세:", err.response?.data);
-        const errorMsg =
-          err.response?.data?.message ||
-          "관리자 권한이 필요하거나 이미 승인된 사용자입니다.";
-        alert(errorMsg);
-      });
+  // --- Handlers ---
+  const handleStatusToggle = (id) => {
+    // Optimistic Update (실제로는 API 호출 필요)
+    const updatedUsers = users.map((user) =>
+      user.id === id
+        ? { ...user, status: user.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" }
+        : user
+    );
+    setUsers(updatedUsers);
   };
 
   const getInitials = (name) => {
-    if (!name) return "??";
     return name
       .split(" ")
       .map((n) => n[0])
@@ -93,18 +62,24 @@ const UsersPage = () => {
       .substring(0, 2);
   };
 
-  return (
-    <Container>
-      <Header>
-        <TitleGroup>
-          <FaUserTie size={24} color="#34495e" />
-          <h1>User Management</h1>
-        </TitleGroup>
-        <PrimaryBtn>
-          <FaUserPlus /> Add New User
-        </PrimaryBtn>
-      </Header>
+// --- [Optimized] Sub-Components with React.memo ---
 
+// 1. Header Component
+const UserHeader = React.memo(({ onAddUser }) => {
+  return (
+    <Header>
+      <TitleGroup>
+        <FaUserTie size={24} color="#34495e" />
+        <h1>User Management</h1>
+      </TitleGroup>
+      <PrimaryBtn onClick={onAddUser}>
+        <FaUserPlus /> Add New User
+      </PrimaryBtn>
+    </Header>
+  );
+});
+
+      {/* Controls / Toolbar */}
       <Toolbar>
         <FilterGroup>
           <SearchBox>
@@ -112,122 +87,203 @@ const UsersPage = () => {
             <input
               placeholder="Search Name, Email, ID..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={onSearchChange}
             />
           </SearchBox>
-          <Select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-          >
+          <Select value={roleFilter} onChange={onRoleChange}>
             <option value="ALL">All Roles</option>
             <option value="ADMIN">Admin</option>
+            <option value="ENGINEER">Engineer</option>
             <option value="OPERATOR">Operator</option>
+            <option value="MANAGER">Manager</option>
           </Select>
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
+          <Select value={statusFilter} onChange={onStatusChange}>
             <option value="ALL">All Status</option>
             <option value="ACTIVE">Active</option>
-            <option value="PENDING">Pending</option>
+            <option value="INACTIVE">Inactive</option>
           </Select>
         </FilterGroup>
 
         <TotalCount>
-          Total: <b>{filteredUsers.length}</b> users
+          Total: <b>{totalCount}</b> users
         </TotalCount>
       </Toolbar>
+    );
+  },
+);
 
-      <TableContainer>
-        <Table>
-          <thead>
-            <tr>
-              <th width="250">User Profile</th>
-              <th width="150">Department</th>
-              <th width="120">Role</th>
-              <th width="200">Contact Info</th>
-              <th width="150">Last Login</th>
-              <th width="100">Status</th>
-              <th width="50">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.map((user) => {
-              const displayId = user.id || user.memberId;
-              return (
-                <tr key={displayId}>
-                  <td>
-                    <ProfileCell>
-                      <Avatar>
-                        {user.avatar ? (
-                          <img src={user.avatar} alt={user.name} />
-                        ) : (
-                          <Initials>{getInitials(user.name)}</Initials>
-                        )}
-                      </Avatar>
-                      <UserInfo>
-                        <div className="name">{user.name}</div>
-                        <div className="id">#{displayId}</div>
-                      </UserInfo>
-                    </ProfileCell>
-                  </td>
-                  <td>
-                    <DeptInfo>
-                      <FaBuilding size={10} color="#999" />{" "}
-                      {user.department || "MES 부서"}
-                    </DeptInfo>
-                  </td>
-                  <td>
-                    <RoleBadge
-                      $role={
-                        user.authority
-                          ? user.authority.replace("ROLE_", "")
-                          : "OPERATOR"
-                      }
-                    >
-                      {user.authority
-                        ? user.authority.replace("ROLE_", "")
-                        : "OPERATOR"}
-                    </RoleBadge>
-                  </td>
-                  <td>
-                    <ContactCell>
-                      <div>
-                        <FaEnvelope size={10} /> {user.email}
-                      </div>
-                      <div>
-                        <FaPhoneAlt size={10} /> {user.phone || "010-0000-0000"}
-                      </div>
-                    </ContactCell>
-                  </td>
-                  <td style={{ fontSize: "13px", color: "#666" }}>
-                    {user.lastLogin || "최근 기록 없음"}
-                  </td>
-                  <td>
-                    <StatusToggle
-                      $active={user.status === "ACTIVE"}
-                      onClick={() => handleStatusToggle(displayId)}
-                    >
-                      <div className="knob" />
-                      <span className="label">{user.status}</span>
-                    </StatusToggle>
-                  </td>
-                  <td>
-                    <ActionBtn>
-                      <FaEllipsisH />
-                    </ActionBtn>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-      </TableContainer>
+// 3. Table Row Component
+const UserTableRow = React.memo(({ user, onStatusToggle }) => {
+  return (
+    <tr>
+      <td>
+        <ProfileCell>
+          <Avatar>
+            {user.avatar ? (
+              <img src={user.avatar} alt={user.name} />
+            ) : (
+              <Initials>{getInitials(user.name)}</Initials>
+            )}
+          </Avatar>
+          <UserInfo>
+            <div className="name">{user.name}</div>
+            <div className="id">{user.employeeId}</div>
+          </UserInfo>
+        </ProfileCell>
+      </td>
+      <td>
+        <DeptInfo>
+          <FaBuilding size={10} color="#999" /> {user.department}
+        </DeptInfo>
+      </td>
+      <td>
+        <RoleBadge $role={user.role}>{user.role}</RoleBadge>
+      </td>
+      <td>
+        <ContactCell>
+          <div>
+            <FaEnvelope size={10} /> {user.email}
+          </div>
+          <div>
+            <FaPhoneAlt size={10} /> {user.phone}
+          </div>
+        </ContactCell>
+      </td>
+      <td style={{ fontSize: "13px", color: "#666" }}>{user.lastLogin}</td>
+      <td>
+        <StatusToggle
+          $active={user.status === "ACTIVE"}
+          onClick={() => onStatusToggle(user.id)}
+        >
+          <div className="knob" />
+          <span className="label">{user.status}</span>
+        </StatusToggle>
+      </td>
+      <td>
+        <ActionBtn>
+          <FaEllipsisH />
+        </ActionBtn>
+      </td>
+    </tr>
+  );
+});
+
+// 4. Table Component
+const UserTable = React.memo(({ users, onStatusToggle }) => {
+  return (
+    <TableContainer>
+      <Table>
+        <thead>
+          <tr>
+            <th width="250">User Profile</th>
+            <th width="150">Department</th>
+            <th width="120">Role</th>
+            <th width="200">Contact Info</th>
+            <th width="150">Last Login</th>
+            <th width="100">Status</th>
+            <th width="50">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user) => (
+            <UserTableRow
+              key={user.id}
+              user={user}
+              onStatusToggle={onStatusToggle}
+            />
+          ))}
+        </tbody>
+      </Table>
+    </TableContainer>
+  );
+});
+
+// --- Main Component ---
+
+const UsersPage = () => {
+  const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // Data Fetching
+  useEffect(() => {
+    fetch("http://localhost:3001/users")
+      .then((res) => res.json())
+      .then((data) => setUsers(data))
+      .catch((err) => console.error("Error fetching users:", err));
+  }, []);
+
+  // Handlers (useCallback)
+  const handleStatusToggle = useCallback((id) => {
+    setUsers((prevUsers) =>
+      prevUsers.map((user) =>
+        user.id === id
+          ? {
+              ...user,
+              status: user.status === "ACTIVE" ? "INACTIVE" : "ACTIVE",
+            }
+          : user,
+      ),
+    );
+  }, []);
+
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleRoleFilterChange = useCallback((e) => {
+    setRoleFilter(e.target.value);
+  }, []);
+
+  const handleStatusFilterChange = useCallback((e) => {
+    setStatusFilter(e.target.value);
+  }, []);
+
+  const handleAddUser = useCallback(() => {
+    alert("Add User Modal Open");
+  }, []);
+
+  // Filtering Logic (useMemo)
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const matchSearch =
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchRole = roleFilter === "ALL" || user.role === roleFilter;
+      const matchStatus =
+        statusFilter === "ALL" || user.status === statusFilter;
+
+      return matchSearch && matchRole && matchStatus;
+    });
+  }, [users, searchTerm, roleFilter, statusFilter]);
+
+  return (
+    <Container>
+      {/* Header (Memoized) */}
+      <UserHeader onAddUser={handleAddUser} />
+
+      {/* Toolbar (Memoized) */}
+      <UserToolbar
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+        roleFilter={roleFilter}
+        onRoleChange={handleRoleFilterChange}
+        statusFilter={statusFilter}
+        onStatusChange={handleStatusFilterChange}
+        totalCount={filteredUsers.length}
+      />
+
+      {/* Table (Memoized) */}
+      <UserTable users={filteredUsers} onStatusToggle={handleStatusToggle} />
     </Container>
   );
 };
 
 export default UsersPage;
+
 // --- Styled Components ---
 
 // 1. 컨테이너: 부모 높이(100%)에 맞추고 외부 스크롤 방지
@@ -336,8 +392,8 @@ const TableContainer = styled.div`
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  flex: 1; /* 남은 공간 채움 */
-  overflow: auto; /* 내부 스크롤 활성화 */
+  flex: 1;
+  overflow: auto;
   display: flex;
   flex-direction: column;
 `;
@@ -346,13 +402,13 @@ const TableContainer = styled.div`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+  white-space: nowrap;
 
   thead {
-    position: sticky; /* 헤더 고정 */
+    position: sticky;
     top: 0;
     z-index: 10;
-    background: #fcfcfc; /* 헤더 배경색 지정 필수 */
+    background: #fcfcfc;
   }
 
   th {
@@ -434,13 +490,13 @@ const RoleBadge = styled.span`
   background-color: ${(props) => {
     switch (props.$role) {
       case "ADMIN":
-        return "#e8daef"; // Purple
+        return "#e8daef";
       case "ENGINEER":
-        return "#d6eaf8"; // Blue
+        return "#d6eaf8";
       case "MANAGER":
-        return "#fcf3cf"; // Yellow
+        return "#fcf3cf";
       default:
-        return "#e8f6f3"; // Green (Operator)
+        return "#e8f6f3";
     }
   }};
   color: ${(props) => {

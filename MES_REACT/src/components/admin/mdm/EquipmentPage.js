@@ -1,7 +1,7 @@
 // src/pages/resource/EquipmentPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-import axios from "axios";
+// import axios from "axios";
 import {
   FaServer,
   FaSearch,
@@ -10,7 +10,6 @@ import {
   FaTrash,
   FaSync,
   FaCircle,
-  FaTools,
 } from "react-icons/fa";
 
 // --- Fallback Mock Data ---
@@ -44,76 +43,12 @@ const MOCK_EQUIPMENTS = [
   },
 ];
 
-const EquipmentPage = () => {
-  const [equipments, setEquipments] = useState(MOCK_EQUIPMENTS);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+// --- [Optimized] Sub-Components with React.memo ---
 
-  // 1. 데이터 조회 (READ)
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // ★ 실제 API: http://localhost:3001/equipments
-      // const res = await axios.get("http://localhost:3001/equipments");
-      // setEquipments(res.data);
-
-      setTimeout(() => {
-        setEquipments(MOCK_EQUIPMENTS);
-        setLoading(false);
-      }, 500);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // 2. 설비 상태 변경 (UPDATE - 예시: RUN <-> IDLE 토글)
-  const toggleStatus = async (id, currentStatus) => {
-    const newStatus = currentStatus === "RUN" ? "IDLE" : "RUN";
-    try {
-      // ★ 실제 API PATCH
-      // await axios.patch(`http://localhost:3001/equipments/${id}`, { status: newStatus });
-      // fetchData(); // 재조회
-
-      // Mock 동작
-      setEquipments((prev) =>
-        prev.map((eq) => (eq.id === id ? { ...eq, status: newStatus } : eq))
-      );
-    } catch (err) {
-      console.error("Update Error", err);
-    }
-  };
-
-  // 3. 설비 삭제 (DELETE)
-  const handleDelete = async (id) => {
-    if (!window.confirm("정말 삭제하시겠습니까?")) return;
-
-    try {
-      // ★ 실제 API DELETE
-      // await axios.delete(`http://localhost:3001/equipments/${id}`);
-      // fetchData();
-
-      // Mock 동작
-      setEquipments((prev) => prev.filter((eq) => eq.id !== id));
-    } catch (err) {
-      console.error("Delete Error", err);
-    }
-  };
-
-  // 필터링
-  const filteredList = equipments.filter(
-    (eq) =>
-      eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      eq.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  return (
-    <Container>
-      {/* 헤더 */}
+// 1. Header Section Component
+const EquipmentHeader = React.memo(
+  ({ loading, searchTerm, onSearchChange, onAddClick }) => {
+    return (
       <Header>
         <TitleArea>
           <PageTitle>
@@ -133,14 +68,129 @@ const EquipmentPage = () => {
             <input
               placeholder="Search Eq ID or Name..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={onSearchChange}
             />
           </SearchBox>
-          <AddButton>
+          <AddButton onClick={onAddClick}>
             <FaPlus /> Add Equipment
           </AddButton>
         </ActionGroup>
       </Header>
+    );
+  },
+);
+
+// 2. Table Row Component
+const EquipmentRow = React.memo(({ eq, onToggleStatus, onDelete }) => {
+  return (
+    <tr>
+      <td>
+        <StatusBadge
+          $status={eq.status}
+          onClick={() => onToggleStatus(eq.id, eq.status)}
+          title="Click to Toggle Status"
+        >
+          <FaCircle size={8} /> {eq.status}
+        </StatusBadge>
+      </td>
+      <td style={{ fontWeight: "bold", color: "#1a4f8b" }}>{eq.id}</td>
+      <td style={{ fontWeight: "600" }}>{eq.name}</td>
+      <td>
+        <TypeTag>{eq.type}</TypeTag>
+      </td>
+      <td>{eq.model}</td>
+      <td>{eq.location}</td>
+      <td style={{ color: "#666" }}>{eq.installDate}</td>
+      <td className="center">
+        <IconButton className="edit">
+          <FaEdit />
+        </IconButton>
+        <IconButton className="del" onClick={() => onDelete(eq.id)}>
+          <FaTrash />
+        </IconButton>
+      </td>
+    </tr>
+  );
+});
+
+// --- Main Component ---
+
+const EquipmentPage = () => {
+  const [equipments, setEquipments] = useState(MOCK_EQUIPMENTS);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // 1. 데이터 조회 (READ) - useCallback
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      // API call logic...
+      // const res = await axios.get("http://localhost:3001/equipments");
+      // setEquipments(res.data);
+
+      setTimeout(() => {
+        setEquipments(MOCK_EQUIPMENTS);
+        setLoading(false);
+      }, 500);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 2. Handlers - useCallback
+  const toggleStatus = useCallback(async (id, currentStatus) => {
+    const newStatus = currentStatus === "RUN" ? "IDLE" : "RUN";
+    try {
+      // await axios.patch(`http://localhost:3001/equipments/${id}`, { status: newStatus });
+      setEquipments((prev) =>
+        prev.map((eq) => (eq.id === id ? { ...eq, status: newStatus } : eq)),
+      );
+    } catch (err) {
+      console.error("Update Error", err);
+    }
+  }, []);
+
+  const handleDelete = useCallback(async (id) => {
+    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+    try {
+      // await axios.delete(`http://localhost:3001/equipments/${id}`);
+      setEquipments((prev) => prev.filter((eq) => eq.id !== id));
+    } catch (err) {
+      console.error("Delete Error", err);
+    }
+  }, []);
+
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleAddClick = useCallback(() => {
+    alert("Add Modal Open");
+  }, []);
+
+  // 3. Filtering - useMemo
+  const filteredList = useMemo(() => {
+    return equipments.filter(
+      (eq) =>
+        eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        eq.id.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [equipments, searchTerm]);
+
+  return (
+    <Container>
+      {/* 헤더 (Memoized) */}
+      <EquipmentHeader
+        loading={loading}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+        onAddClick={handleAddClick}
+      />
 
       {/* 테이블 영역 */}
       <TableContainer>
@@ -159,38 +209,12 @@ const EquipmentPage = () => {
           </thead>
           <tbody>
             {filteredList.map((eq) => (
-              <tr key={eq.id}>
-                <td>
-                  <StatusBadge
-                    $status={eq.status}
-                    onClick={() => toggleStatus(eq.id, eq.status)}
-                    title="Click to Toggle Status"
-                  >
-                    <FaCircle size={8} /> {eq.status}
-                  </StatusBadge>
-                </td>
-                <td style={{ fontWeight: "bold", color: "#1a4f8b" }}>
-                  {eq.id}
-                </td>
-                <td style={{ fontWeight: "600" }}>{eq.name}</td>
-                <td>
-                  <TypeTag>{eq.type}</TypeTag>
-                </td>
-                <td>{eq.model}</td>
-                <td>{eq.location}</td>
-                <td style={{ color: "#666" }}>{eq.installDate}</td>
-                <td className="center">
-                  <IconButton className="edit">
-                    <FaEdit />
-                  </IconButton>
-                  <IconButton
-                    className="del"
-                    onClick={() => handleDelete(eq.id)}
-                  >
-                    <FaTrash />
-                  </IconButton>
-                </td>
-              </tr>
+              <EquipmentRow
+                key={eq.id}
+                eq={eq}
+                onToggleStatus={toggleStatus}
+                onDelete={handleDelete}
+              />
             ))}
           </tbody>
         </Table>
@@ -346,14 +370,14 @@ const StatusBadge = styled.span`
     props.$status === "RUN"
       ? "#e8f5e9"
       : props.$status === "DOWN"
-      ? "#ffebee"
-      : "#fff3e0"};
+        ? "#ffebee"
+        : "#fff3e0"};
   color: ${(props) =>
     props.$status === "RUN"
       ? "#2e7d32"
       : props.$status === "DOWN"
-      ? "#c62828"
-      : "#f39c12"};
+        ? "#c62828"
+        : "#f39c12"};
   transition: transform 0.1s;
   &:active {
     transform: scale(0.95);

@@ -19,7 +19,6 @@ public class ProductionReportDto {
 
     // --- 기존 필드 유지 ---
     private Long workOrderId;           // 작업 지시 ID
-    private Long lotId;                 // lot ID
     private Long memberId;              // 작업자 ID
     private Long equipmentId;           // 설비 ID
     private LocalDateTime startTime;    // 작업 시작 시간
@@ -42,8 +41,7 @@ public class ProductionReportDto {
     private MoldingInspectionDto moldingInspectionDto;
 
     // 배열([]) 대신 List<> 사용 권장
-    private List<LotMappingDto> lotMappingDtos;
     private List<ItemDto> itemDtos;
     private List<FinalInspectionDto> finalInspectionDtos;
-
+    private List<String> inputLots;
 }
