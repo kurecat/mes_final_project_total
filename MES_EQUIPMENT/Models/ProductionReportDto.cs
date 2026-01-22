@@ -21,6 +21,7 @@ public class ProductionReportDto
     public WireBondingInspectionDto? WireBondingInspectionDto { get; set; }
     public MoldingDto? MoldingDto { get; set; }
     public MoldingInspectionDto? MoldingInspectionDto { get; set; }
+    public string[]? InputLots { get; set; }
     public ItemDto[]? ItemDtos { get; set; }
     public FinalInspectionDto[]? FinalInspectionDtos { get; set; }
 
