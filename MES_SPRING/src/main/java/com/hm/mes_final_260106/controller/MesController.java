@@ -1,5 +1,9 @@
 package com.hm.mes_final_260106.controller;
 
+/*
+// 임시 비활성화: 다른 모듈로 인한 서버 실행 문제 해결을 위해 MesController를 임시로 주석 처리합니다.
+// 협업 중인 다른 개발자의 작업에 영향을 주지 않기 위함입니다. (백엔드 담당: 시큐리티, JWT, 멤버, 어드민 기능)
+
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.WorkOrder;
@@ -217,4 +221,5 @@ public ResponseEntity<String> deleteWorker(@PathVariable("id") Long id) {
 
 
 }
+*/
 

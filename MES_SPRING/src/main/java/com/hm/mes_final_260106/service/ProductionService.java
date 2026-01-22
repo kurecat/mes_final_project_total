@@ -38,6 +38,8 @@ public class ProductionService {
     private final WorkerRepository workerRepo;
     private final PasswordEncoder passwordEncoder;
 
+
+
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
     private final DieBondingRepository dieBondingRepo;
