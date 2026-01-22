@@ -1,6 +1,7 @@
 // src/pages/quality/DefectPage.js
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
+// import axios from "axios";
 import {
   FaBug,
   FaSearch,
@@ -22,8 +23,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// --- Wafer Map Logic (Client Side Generation 유지) ---
-// 1: Good (Prime), 2: Repairable (수리 가능), 0: Reject (폐기), -1: Empty
+// --- Wafer Map Logic (Client Side Generation) ---
 const generateWaferMap = () => {
   const map = [];
   const size = 14;
@@ -33,12 +33,13 @@ const generateWaferMap = () => {
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const distance = Math.sqrt(
-        Math.pow(x - center + 0.5, 2) + Math.pow(y - center + 0.5, 2)
+        Math.pow(x - center + 0.5, 2) + Math.pow(y - center + 0.5, 2),
       );
       if (distance < radius) {
         const rand = Math.random();
         let status = 1; // Good
-        if (rand > 0.9) status = 0; // Reject
+        if (rand > 0.9)
+          status = 0; // Reject
         else if (rand > 0.8) status = 2; // Repairable
         map.push({ x, y, status });
       } else {
@@ -51,189 +52,177 @@ const generateWaferMap = () => {
 
 const WAFER_MAP = generateWaferMap();
 
-const DefectPage = () => {
-  // --- State for Data ---
-  const [stats, setStats] = useState({
-    totalDefects: 0,
-    worstStep: "-",
-    repairedCount: 0,
-    primeYield: 0,
-  });
-  const [paretoData, setParetoData] = useState([]);
-  const [defectLogs, setDefectLogs] = useState([]);
+// --- [Optimized] Sub-Components with React.memo ---
 
-  // --- State for Filters ---
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-
-  // --- Data Fetching ---
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // json-server 기본 포트 3001 가정
-        const baseUrl = "http://localhost:3001";
-
-        const [statsRes, paretoRes, logsRes] = await Promise.all([
-          fetch(`${baseUrl}/stats`),
-          fetch(`${baseUrl}/paretoData`),
-          fetch(`${baseUrl}/defectLogs`),
-        ]);
-
-        const statsData = await statsRes.json();
-        const paretoData = await paretoRes.json();
-        const logsData = await logsRes.json();
-
-        setStats(statsData);
-        setParetoData(paretoData);
-        setDefectLogs(logsData);
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // --- Filter Logic ---
-  const filteredLogs = defectLogs.filter((log) => {
-    const matchSearch =
-      log.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.lotId.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus = statusFilter === "ALL" || log.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
-
+// 1. Stats Component
+const DefectStats = React.memo(({ stats }) => {
   return (
-    <Container>
-      {/* 1. 상단 통계 카드 (Dynamic Data) */}
-      <StatsRow>
-        <StatCard>
-          <IconBox $color="#e74c3c">
-            <FaBug />
-          </IconBox>
-          <StatInfo>
-            <Label>Total Defects</Label>
-            <Value>
-              {stats.totalDefects} <Unit>ea</Unit>
-            </Value>
-          </StatInfo>
-        </StatCard>
-        <StatCard>
-          <IconBox $color="#f39c12">
-            <FaExclamationTriangle />
-          </IconBox>
-          <StatInfo>
-            <Label>Worst Step</Label>
-            <Value style={{ fontSize: 20 }}>{stats.worstStep}</Value>
-          </StatInfo>
-        </StatCard>
-        <StatCard>
-          <IconBox $color="#2ecc71">
-            <FaCheckDouble />
-          </IconBox>
-          <StatInfo>
-            <Label>Repaired Count</Label>
-            <Value>
-              {stats.repairedCount} <Unit>chips</Unit>
-            </Value>
-          </StatInfo>
-        </StatCard>
-        <StatCard>
-          <IconBox $color="#3498db">
-            <FaMicroscope />
-          </IconBox>
-          <StatInfo>
-            <Label>Prime Yield</Label>
-            <Value>
-              {stats.primeYield} <Unit>%</Unit>
-            </Value>
-          </StatInfo>
-        </StatCard>
-      </StatsRow>
+    <StatsRow>
+      <StatCard>
+        <IconBox $color="#e74c3c">
+          <FaBug />
+        </IconBox>
+        <StatInfo>
+          <Label>Total Defects</Label>
+          <Value>
+            {stats.totalDefects} <Unit>ea</Unit>
+          </Value>
+        </StatInfo>
+      </StatCard>
+      <StatCard>
+        <IconBox $color="#f39c12">
+          <FaExclamationTriangle />
+        </IconBox>
+        <StatInfo>
+          <Label>Worst Step</Label>
+          <Value style={{ fontSize: 20 }}>{stats.worstStep}</Value>
+        </StatInfo>
+      </StatCard>
+      <StatCard>
+        <IconBox $color="#2ecc71">
+          <FaCheckDouble />
+        </IconBox>
+        <StatInfo>
+          <Label>Repaired Count</Label>
+          <Value>
+            {stats.repairedCount} <Unit>chips</Unit>
+          </Value>
+        </StatInfo>
+      </StatCard>
+      <StatCard>
+        <IconBox $color="#3498db">
+          <FaMicroscope />
+        </IconBox>
+        <StatInfo>
+          <Label>Prime Yield</Label>
+          <Value>
+            {stats.primeYield} <Unit>%</Unit>
+          </Value>
+        </StatInfo>
+      </StatCard>
+    </StatsRow>
+  );
+});
 
-      {/* 2. 메인 시각화 영역 */}
-      <VizSection>
-        {/* 파레토 차트 (Dynamic Data) */}
-        <ChartCard>
-          <CardHeader>
-            <CardTitle>
-              <FaChartBar /> Defect Pareto (Fail Mode)
-            </CardTitle>
-          </CardHeader>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart
-              data={paretoData}
-              margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
-            >
-              <CartesianGrid stroke="#f5f5f5" />
-              <XAxis dataKey="name" fontSize={12} tick={{ dy: 5 }} />
-              <YAxis
-                yAxisId="left"
-                label={{ value: "Count", angle: -90, position: "insideLeft" }}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                unit="%"
-                domain={[0, 100]}
-              />
-              <Tooltip />
-              <Legend />
-              <Bar
-                yAxisId="left"
-                dataKey="count"
-                name="Count"
-                fill="#1a4f8b"
-                barSize={30}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="cum"
-                name="Cum %"
-                stroke="#e74c3c"
-                strokeWidth={2}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartCard>
+// 2. Chart Component
+const DefectChart = React.memo(({ data }) => {
+  return (
+    <ChartCard>
+      <CardHeader>
+        <CardTitle>
+          <FaChartBar /> Defect Pareto (Fail Mode)
+        </CardTitle>
+      </CardHeader>
+      <ResponsiveContainer width="100%" height={300}>
+        <ComposedChart
+          data={data}
+          margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
+        >
+          <CartesianGrid stroke="#f5f5f5" />
+          <XAxis dataKey="name" fontSize={12} tick={{ dy: 5 }} />
+          <YAxis
+            yAxisId="left"
+            label={{ value: "Count", angle: -90, position: "insideLeft" }}
+          />
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            unit="%"
+            domain={[0, 100]}
+          />
+          <Tooltip />
+          <Legend />
+          <Bar
+            yAxisId="left"
+            dataKey="count"
+            name="Count"
+            fill="#1a4f8b"
+            barSize={30}
+          />
+          <Line
+            yAxisId="right"
+            type="monotone"
+            dataKey="cum"
+            name="Cum %"
+            stroke="#e74c3c"
+            strokeWidth={2}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+    </ChartCard>
+  );
+});
 
-        {/* 웨이퍼 맵 시각화 (Logic Maintained) */}
-        <MapCard>
-          <CardHeader>
-            <CardTitle>EDS Map Monitoring</CardTitle>
-            <MapMeta>DDR5-16Gb | WF-05</MapMeta>
-          </CardHeader>
-          <WaferContainer>
-            <WaferGrid>
-              {WAFER_MAP.map((die, idx) => (
-                <Die key={idx} $status={die.status} />
-              ))}
-            </WaferGrid>
-            <MapLegend>
-              <LegendItem>
-                <Dot color="#2ecc71" /> Good (Prime)
-              </LegendItem>
-              <LegendItem>
-                <Dot color="#f1c40f" /> Repairable
-              </LegendItem>
-              <LegendItem>
-                <Dot color="#e74c3c" /> Reject (Bad)
-              </LegendItem>
-            </MapLegend>
-          </WaferContainer>
-        </MapCard>
-      </VizSection>
+// 3. Wafer Map Component
+const WaferMap = React.memo(() => {
+  return (
+    <MapCard>
+      <CardHeader>
+        <CardTitle>EDS Map Monitoring</CardTitle>
+        <MapMeta>DDR5-16Gb | WF-05</MapMeta>
+      </CardHeader>
+      <WaferContainer>
+        <WaferGrid>
+          {WAFER_MAP.map((die, idx) => (
+            <Die key={idx} $status={die.status} />
+          ))}
+        </WaferGrid>
+        <MapLegend>
+          <LegendItem>
+            <Dot color="#2ecc71" /> Good (Prime)
+          </LegendItem>
+          <LegendItem>
+            <Dot color="#f1c40f" /> Repairable
+          </LegendItem>
+          <LegendItem>
+            <Dot color="#e74c3c" /> Reject (Bad)
+          </LegendItem>
+        </MapLegend>
+      </WaferContainer>
+    </MapCard>
+  );
+});
 
-      {/* 3. 하단 불량 상세 리스트 (Dynamic Data) */}
+// 4. List Row Component
+const DefectRow = React.memo(({ log }) => {
+  return (
+    <tr>
+      <td>{log.time}</td>
+      <td style={{ fontWeight: "bold", color: "#e74c3c" }}>{log.id}</td>
+      <td>
+        {log.lotId} / {log.waferId}
+      </td>
+      <td style={{ fontFamily: "monospace" }}>{log.coord}</td>
+      <td>{log.type}</td>
+      <td>{log.process}</td>
+      <td>
+        {log.image ? (
+          <ImgBtn>
+            <FaFileImage /> View
+          </ImgBtn>
+        ) : (
+          <span style={{ color: "#ccc" }}>-</span>
+        )}
+      </td>
+      <td>
+        <StatusBadge $status={log.status}>{log.status}</StatusBadge>
+      </td>
+      <td>
+        <ActionBtn>Detail</ActionBtn>
+      </td>
+    </tr>
+  );
+});
+
+// 5. Defect List Component
+const DefectList = React.memo(
+  ({ logs, statusFilter, onStatusChange, searchTerm, onSearchChange }) => {
+    return (
       <ListSection>
         <ListHeader>
           <CardTitle>Defect Occurrence List</CardTitle>
           <ControlGroup>
-            <FilterSelect
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
+            <FilterSelect value={statusFilter} onChange={onStatusChange}>
               <option value="ALL">All Status</option>
               <option value="NEW">New</option>
               <option value="REPAIRED">Repaired</option>
@@ -244,7 +233,7 @@ const DefectPage = () => {
               <input
                 placeholder="Search Type or Lot ID..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={onSearchChange}
               />
             </SearchBox>
           </ControlGroup>
@@ -266,38 +255,8 @@ const DefectPage = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.length > 0 ? (
-                filteredLogs.map((log) => (
-                  <tr key={log.id}>
-                    <td>{log.time}</td>
-                    <td style={{ fontWeight: "bold", color: "#e74c3c" }}>
-                      {log.id}
-                    </td>
-                    <td>
-                      {log.lotId} / {log.waferId}
-                    </td>
-                    <td style={{ fontFamily: "monospace" }}>{log.coord}</td>
-                    <td>{log.type}</td>
-                    <td>{log.process}</td>
-                    <td>
-                      {log.image ? (
-                        <ImgBtn>
-                          <FaFileImage /> View
-                        </ImgBtn>
-                      ) : (
-                        <span style={{ color: "#ccc" }}>-</span>
-                      )}
-                    </td>
-                    <td>
-                      <StatusBadge $status={log.status}>
-                        {log.status}
-                      </StatusBadge>
-                    </td>
-                    <td>
-                      <ActionBtn>Detail</ActionBtn>
-                    </td>
-                  </tr>
-                ))
+              {logs.length > 0 ? (
+                logs.map((log) => <DefectRow key={log.id} log={log} />)
               ) : (
                 <tr>
                   <td
@@ -312,13 +271,137 @@ const DefectPage = () => {
           </Table>
         </TableContainer>
       </ListSection>
+    );
+  },
+);
+
+// --- Main Component ---
+
+const DefectPage = () => {
+  // --- State for Data ---
+  const [stats, setStats] = useState({
+    totalDefects: 0,
+    worstStep: "-",
+    repairedCount: 0,
+    primeYield: 0,
+  });
+  const [paretoData, setParetoData] = useState([]);
+  const [defectLogs, setDefectLogs] = useState([]);
+
+  // --- State for Filters ---
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+
+  // --- Data Fetching ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Mocking fetch logic for demo (Replace with actual API calls)
+        /*
+        const baseUrl = "http://localhost:3001";
+        const [statsRes, paretoRes, logsRes] = await Promise.all([
+          fetch(`${baseUrl}/stats`),
+          fetch(`${baseUrl}/paretoData`),
+          fetch(`${baseUrl}/defectLogs`),
+        ]);
+        // ... json parsing ...
+        */
+
+        // Using Mock Data
+        setStats({
+          totalDefects: 124,
+          worstStep: "Etch-Gate",
+          repairedCount: 45,
+          primeYield: 92.5,
+        });
+        setParetoData([
+          { name: "Particle", count: 45, cum: 36 },
+          { name: "Scratch", count: 30, cum: 60 },
+          { name: "Pattern", count: 20, cum: 76 },
+          { name: "Overlay", count: 15, cum: 88 },
+          { name: "Bridge", count: 14, cum: 100 },
+        ]);
+        setDefectLogs([
+          {
+            id: "DEF-001",
+            time: "10:23:41",
+            lotId: "LOT-A01",
+            waferId: "WF-05",
+            coord: "(12, 45)",
+            type: "Particle",
+            process: "Etch",
+            status: "NEW",
+            image: true,
+          },
+          {
+            id: "DEF-002",
+            time: "11:05:12",
+            lotId: "LOT-A02",
+            waferId: "WF-12",
+            coord: "(08, 22)",
+            type: "Scratch",
+            process: "CMP",
+            status: "REPAIRED",
+            image: false,
+          },
+        ]);
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // --- Handlers (useCallback) ---
+  const handleStatusChange = useCallback((e) => {
+    setStatusFilter(e.target.value);
+  }, []);
+
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  // --- Filter Logic (useMemo) ---
+  const filteredLogs = useMemo(() => {
+    return defectLogs.filter((log) => {
+      const matchSearch =
+        log.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.lotId.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchStatus = statusFilter === "ALL" || log.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [defectLogs, searchTerm, statusFilter]);
+
+  return (
+    <Container>
+      {/* 1. Stats Section (Memoized) */}
+      <DefectStats stats={stats} />
+
+      {/* 2. Visualization Section */}
+      <VizSection>
+        {/* Pareto Chart (Memoized) */}
+        <DefectChart data={paretoData} />
+
+        {/* Wafer Map (Memoized) */}
+        <WaferMap />
+      </VizSection>
+
+      {/* 3. List Section (Memoized) */}
+      <DefectList
+        logs={filteredLogs}
+        statusFilter={statusFilter}
+        onStatusChange={handleStatusChange}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+      />
     </Container>
   );
 };
 
 export default DefectPage;
 
-// --- Styled Components (기존과 동일) ---
+// --- Styled Components (No Changes) ---
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -459,10 +542,10 @@ const Die = styled.div`
     props.$status === 1
       ? "#2ecc71" // Good
       : props.$status === 2
-      ? "#f1c40f" // Repairable (Yellow)
-      : props.$status === 0
-      ? "#e74c3c" // Reject
-      : "transparent"};
+        ? "#f1c40f" // Repairable (Yellow)
+        : props.$status === 0
+          ? "#e74c3c" // Reject
+          : "transparent"};
   border-radius: 1px;
   &:hover {
     opacity: 0.8;
@@ -564,14 +647,14 @@ const StatusBadge = styled.span`
     props.$status === "NEW"
       ? "#ffebee"
       : props.$status === "REPAIRED"
-      ? "#e8f5e9"
-      : "#e3f2fd"};
+        ? "#e8f5e9"
+        : "#e3f2fd"};
   color: ${(props) =>
     props.$status === "NEW"
       ? "#c62828"
       : props.$status === "REPAIRED"
-      ? "#2ecc71"
-      : "#1565c0"};
+        ? "#2ecc71"
+        : "#1565c0"};
 `;
 
 const ImgBtn = styled.button`
