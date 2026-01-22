@@ -25,10 +25,6 @@ public class Lot {
     @JoinColumn(name = "material_id", nullable = false)
     private Material material;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workorder_id")
-    private WorkOrder workOrder;
-
     @Column(length = 100)
     private String location;
 

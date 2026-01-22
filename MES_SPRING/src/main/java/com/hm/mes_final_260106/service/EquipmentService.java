@@ -48,7 +48,7 @@ public class EquipmentService {
                     .lotCode(runningLog.getLot() != null ? runningLog.getLot().getCode() : "-")
                     .workOrderNumber(
                             runningLog.getWorkOrder() != null
-                                    ? runningLog.getWorkOrder().getWorkorderNumber()
+                                    ? runningLog.getWorkOrder().getWorkOrderNumber()
                                     : "-"
                     )
                     .startTime(runningLog.getStartTime() != null ? runningLog.getStartTime().format(fmt) : "-")
@@ -64,7 +64,7 @@ public class EquipmentService {
                                 .lotCode(log.getLot() != null ? log.getLot().getCode() : "-")
                                 .workOrderNumber(
                                         log.getWorkOrder() != null
-                                                ? log.getWorkOrder().getWorkorderNumber()
+                                                ? log.getWorkOrder().getWorkOrderNumber()
                                                 : "-"
                                 )
                                 .startTime(log.getStartTime() != null ? log.getStartTime().format(fmt) : "-")
