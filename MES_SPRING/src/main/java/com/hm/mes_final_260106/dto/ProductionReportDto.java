@@ -42,8 +42,7 @@ public class ProductionReportDto {
     private MoldingInspectionDto moldingInspectionDto;
 
     // 배열([]) 대신 List<> 사용 권장
-    private List<LotMappingDto> lotMappingDtos;
+    private List<String> inputLots;
     private List<ItemDto> itemDtos;
     private List<FinalInspectionDto> finalInspectionDtos;
-
 }

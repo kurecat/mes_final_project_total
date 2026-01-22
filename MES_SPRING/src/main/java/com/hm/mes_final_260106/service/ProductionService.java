@@ -34,6 +34,8 @@ public class ProductionService {
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
     private final ProductRepository productRepo;
+    private final LotRepository lotRepo;
+    private final LotMappingRepository lotMappingRepo;
 
     private final MemberRepository memberRepo;
     private final WorkerRepository workerRepo;
@@ -315,6 +317,21 @@ public class ProductionService {
             finalInspections.add(finalInspection);
         }
 
+        List<Lot> lots = new ArrayList<>();
+        List<LotMapping>  lotMappings = new ArrayList<>();
+
+        for (String lotCode : dto.getInputLots()) {
+            Lot lot = lotRepo.findByCode(lotCode)
+                    .orElseThrow(() -> new RuntimeException("LOT를 찾을 수 없습니다. Code: " + lotCode));
+            lot.setStatus("소모됨");
+            lots.add(lot);
+
+            LotMapping lotMapping = new LotMapping();
+            lotMapping.setProductionLog(productionLog);
+            lotMapping.setLot(lot);
+            lotMappings.add(lotMapping);
+        }
+
         productionLog = logRepo.save(productionLog);
         dicing = dicingRepo.save(dicing);
         dicingInspection = dicingInspectionRepo.save(dicingInspection);
@@ -326,6 +343,8 @@ public class ProductionService {
         moldingInspection = moldingInspectionRepo.save(moldingInspection);
         items = itemRepo.saveAll(items);
         finalInspections = finalInspectionLRepo.saveAll(finalInspections);
+        lots = lotRepo.saveAll(lots);
+        lotMappings = lotMappingRepo.saveAll(lotMappings);
 
         List<Bom> boms = bomRepo.findAllByProductCode(order.getProductId());
         for (Bom bom : boms) {
