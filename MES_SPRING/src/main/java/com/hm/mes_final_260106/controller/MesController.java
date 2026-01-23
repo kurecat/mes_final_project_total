@@ -1,7 +1,13 @@
 package com.hm.mes_final_260106.controller;
 
+
+// 임시 비활성화: 다른 모듈로 인한 서버 실행 문제 해결을 위해 MesController를 임시로 주석 처리합니다.
+// 협업 중인 다른 개발자의 작업에 영향을 주지 않기 위함입니다. (백엔드 담당: 시큐리티, JWT, 멤버, 어드민 기능)
+
 import com.hm.mes_final_260106.dto.*;
+import com.hm.mes_final_260106.entity.Equipment;
 import com.hm.mes_final_260106.entity.Material;
+import com.hm.mes_final_260106.entity.Product;
 import com.hm.mes_final_260106.entity.WorkOrder;
 import com.hm.mes_final_260106.service.ProductionService;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +18,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 import java.util.List;
+// 웹 대시 보드 및 설비를 연결
 
 // 웹 대시보드 및 설비(C#)를 연결하는 Controller
 @RestController
@@ -190,29 +197,51 @@ public class MesController {
                 productionService.getWorkOrderPerformanceList(date, line)
         );
     }
-// 작업자 등록
-@PostMapping("/worker/register")
-public ResponseEntity<WorkerResDto> registerWorker(@RequestBody WorkerCreateReqDto dto) {
-    return ResponseEntity.ok(productionService.registerWorker(dto));
-}
-// 작업자 수정
-@PatchMapping("/worker/{id}")
-public ResponseEntity<WorkerResDto> updateWorker(
+    // 작업자 등록
+    @PostMapping("/worker/register")
+    public ResponseEntity<WorkerResDto> registerWorker(@RequestBody WorkerCreateReqDto dto) {
+        return ResponseEntity.ok(productionService.registerWorker(dto));
+    }
+    // 작업자 수정
+    @PatchMapping("/worker/{id}")
+    public ResponseEntity<WorkerResDto> updateWorker(
         @PathVariable("id") Long id,
         @RequestBody WorkerUpdateReqDto dto
-) {
+    ) {
     return ResponseEntity.ok(productionService.updateWorker(id, dto));
+    }
+    // 작업자 삭제
+    @DeleteMapping("/worker/{id}")
+    public ResponseEntity<String> deleteWorker(@PathVariable("id") Long id) {
+        productionService.deleteWorker(id);
+        return ResponseEntity.ok("삭제 완료");
+    }
+    // MesController.java 내부
+
+    // 1. 설비 목록 조회 API
+    @GetMapping("/equipment")
+    public ResponseEntity<List<Equipment>> getEquipmentList() {
+        // ✅ 수정 완료: getAllEquipments() 호출
+        return ResponseEntity.ok(productionService.getAllEquipments());
+    }
+
+    // 2. 자재 목록 조회 (MaterialPage.js 연동)
+    @GetMapping("/material")
+    public ResponseEntity<List<Material>> getMaterialList() {
+        return ResponseEntity.ok(productionService.getAllMaterials());
+    }
+
+    // 3. 제품 목록 조회 (ItemPage.js 연동)
+    @GetMapping("/item")
+    public ResponseEntity<List<Product>> getProductList() {
+        return ResponseEntity.ok(productionService.getAllProducts());
+    }
+
+
+
+  // 1111
+
+
 }
-// 작업자 삭제
-@DeleteMapping("/worker/{id}")
-public ResponseEntity<String> deleteWorker(@PathVariable("id") Long id) {
-    productionService.deleteWorker(id);
-    return ResponseEntity.ok("삭제 완료");
-}
 
 
-
-
-
-
-}

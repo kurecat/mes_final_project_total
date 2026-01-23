@@ -16,3 +16,4 @@ public class MaterialOutboundReqDto {
     private String targetEquipment;    // ex) Photo-Line-A
     private String workerName;         // ex) Kim
 }
+///1111111111

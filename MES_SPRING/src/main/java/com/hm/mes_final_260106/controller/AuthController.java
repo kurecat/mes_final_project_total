@@ -1,36 +1,58 @@
 package com.hm.mes_final_260106.controller;
 
-import com.hm.mes_final_260106.dto.LoginReqDto;
-import com.hm.mes_final_260106.dto.MemberResDto;
-import com.hm.mes_final_260106.dto.SignUpReqDto;
-import com.hm.mes_final_260106.dto.TokenDto;
+import com.hm.mes_final_260106.dto.*;
+import com.hm.mes_final_260106.security.SecurityUtil;
 import com.hm.mes_final_260106.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
+import java.util.List;
+
+@Slf4j
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
-@Slf4j
 @CrossOrigin(origins = "http://localhost:3000")
 public class AuthController {
+
     private final AuthService authService;
 
-    // 1. 회원가입: SignUpReqDto를 받아 성공 시 MemberResDto(비번 제외 정보) 반환
     @PostMapping("/signup")
-    public ResponseEntity<MemberResDto> signup(@RequestBody SignUpReqDto dto) {
-        log.info("signup dto {}", dto);
-        return ResponseEntity.ok(authService.signup(dto));
+    public ResponseEntity<GlobalResponseDto<MemberResDto>> signup(@RequestBody SignUpReqDto dto) {
+        return ResponseEntity.ok(GlobalResponseDto.success("회원가입 성공", authService.signup(dto)));
     }
 
-    // 2. 로그인: LoginReqDto를 받아 성공 시 TokenDto(JWT) 반환
     @PostMapping("/login")
-    public ResponseEntity<TokenDto> login(@RequestBody LoginReqDto dto) {
-        log.info("login dto {}", dto);
+    public ResponseEntity<GlobalResponseDto<TokenDto>> login(@RequestBody LoginReqDto dto) {
         return ResponseEntity.ok(authService.login(dto));
     }
 
-    // 안녕
+    @PostMapping("/refresh")
+    public ResponseEntity<GlobalResponseDto<TokenDto>> refresh(@RequestBody TokenRequestDto dto) {
+        return ResponseEntity.ok(authService.reissue(dto));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<GlobalResponseDto<?>> logout() {
+        authService.deleteRefreshToken(SecurityUtil.getCurrentMemberId());
+        return ResponseEntity.ok(GlobalResponseDto.success("로그아웃 성공", Collections.emptyMap()));
+    }
+
+    // ★ 수정: hasAuthority("ROLE_ADMIN") 사용
+    @PutMapping("/approve/{memberId}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<GlobalResponseDto<MemberResDto>> approveMember(@PathVariable Long memberId) {
+        log.info("승인 요청 - Target ID: {}", memberId);
+        return ResponseEntity.ok(authService.approveMember(memberId));
+    }
+
+    @GetMapping("/all")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<GlobalResponseDto<List<MemberResDto>>> getAllMembers() {
+        return ResponseEntity.ok(authService.findAll());
+    }
 }

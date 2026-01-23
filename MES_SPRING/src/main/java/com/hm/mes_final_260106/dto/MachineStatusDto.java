@@ -7,3 +7,4 @@ public class MachineStatusDto {
     public int Temperature;
     public LocalDateTime Timestamp;
 }
+///1111111111

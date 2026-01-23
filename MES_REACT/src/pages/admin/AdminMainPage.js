@@ -10,11 +10,11 @@ const AdminMainPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [tabs, setTabs] = useState([{ name: "MES Home", path: "/admin" }]);
+  const [tabs, setTabs] = useState([{ name: "MES Home", path: "/" }]);
 
   useEffect(() => {
     const currentMenu = MENU_LIST.find(
-      (menu) => menu.path === location.pathname,
+      (menu) => menu.path === location.pathname
     );
     if (currentMenu) {
       const exists = tabs.find((tab) => tab.path === currentMenu.path);

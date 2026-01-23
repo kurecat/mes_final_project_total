@@ -15,3 +15,4 @@ public class DieBondingInspectionDto {
     private double voidPassRatio;       // 보이드 합격률
     private double overallPassRatio;    // 전체 합격률
 }
+///1111111111

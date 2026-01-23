@@ -38,7 +38,7 @@ public class WorkerResDto {
                 .memberId(w.getMember().getId())
                 .email(w.getMember().getEmail())
                 .name(w.getMember().getName())
-                .authority(w.getMember().getAuthority())
+                .authority(w.getMember().getAuthority().name())
                 .dept(w.getDept())
                 .shift(w.getShift())
                 .status(w.getStatus())
@@ -47,3 +47,4 @@ public class WorkerResDto {
                 .build();
     }
 }
+///1111111111

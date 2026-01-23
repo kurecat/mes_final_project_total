@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.constant.Authority;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Bom;
 import com.hm.mes_final_260106.entity.Material;
@@ -9,7 +10,7 @@ import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.repository.*;
 import com.hm.mes_final_260106.mapper.Mapper;
-import com.hm.mes_final_260106.repository.*;
+import com.hm.mes_final_260106.repository.ProductionResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,9 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Service
-@RequiredArgsConstructor
-@Slf4j
+@Service @RequiredArgsConstructor @Slf4j
 public class ProductionService {
 
     private final ProductionLogRepository logRepo;
@@ -36,7 +35,7 @@ public class ProductionService {
     private final ProductRepository productRepo;
     private final LotRepository lotRepo;
     private final LotMappingRepository lotMappingRepo;
-
+    private final EquipmentRepository equipmentRepo;
     private final MemberRepository memberRepo;
     private final WorkerRepository workerRepo;
     private final PasswordEncoder passwordEncoder;
@@ -55,7 +54,9 @@ public class ProductionService {
     private final FinalInspectionLogRepository finalInspectionLRepo;
     private final ProductionResultRepository productionResultRepo;
 
-
+    private final FinalInspectionLogRepository finalInspectionLogRepo;
+    private final ProductionResultRepository productionResultRepository;
+    private final InspectionStandardRepository standardRepo;
     private final Mapper mapper;
 
     // =========================
@@ -318,6 +319,7 @@ public class ProductionService {
         MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
         moldingInspection.setMolding(molding);
 
+
         List<Item> items = new ArrayList<>();
         List<FinalInspection> finalInspections = new ArrayList<>();
 
@@ -495,7 +497,7 @@ public class ProductionService {
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .name(dto.getName())
-                .authority(dto.getAuthority() == null ? "OPERATOR" : dto.getAuthority())
+                .authority(Authority.valueOf(dto.getAuthority() == null ? "OPERATOR" : dto.getAuthority()))
                 .build();
 
         Member savedMember = memberRepo.save(member);
@@ -538,7 +540,7 @@ public class ProductionService {
         // 2) Member 수정 (name/authority)
         Member member = worker.getMember();
         if (dto.getName() != null) member.setName(dto.getName());
-        if (dto.getAuthority() != null) member.setAuthority(dto.getAuthority());
+        if (dto.getAuthority() != null) member.setAuthority(Authority.valueOf(dto.getAuthority()));
 
         // 저장 (worker만 save해도 member는 영속 상태라 반영됨)
         Worker saved = workerRepo.save(worker);
@@ -556,5 +558,96 @@ public class ProductionService {
         workerRepo.delete(worker);
     }
 
+    // ==========================================
+    //  8. 기준 정보 조회 (Frontend 연동용) - [추가됨]
+    // ==========================================
+
+    // 1) 설비 목록 조회
+    public List<Equipment> getAllEquipments() {
+        return equipmentRepo.findAll();
+    }
+
+    // 2) 자재 목록 조회
+    public List<Material> getAllMaterials() {
+        return matRepo.findAll();
+    }
+
+    // 3) 품목(제품) 목록 조회
+    public List<Product> getAllProducts() {
+        return productRepo.findAll();
+    }
+
+    // ==========================================
+    //  11. 품질(Quality) 및 BOM API 로직 - [추가됨]
+    // ==========================================
+
+    // 1) BOM 목록 조회
+    public List<Bom> getAllBoms() {
+        return bomRepo.findAll();
+    }
+
+    // 2) 불량 현황 조회 (DefectPage용)
+    public List<FinalInspection> getAllDefectLogs() {
+        return finalInspectionLRepo.findAll(); // 변수명 finalInspectionLRepo 주의
+    }
+
+    // 3) SPC 차트 데이터 (DieBonding 온도/압력 등)
+    public List<DieBonding> getAllDieBondingLogs() {
+        return dieBondingRepo.findAll();
+    }
+
+    // (선택사항) Molding SPC 데이터도 필요하다면 추가
+    public List<Molding> getAllMoldingLogs() {
+        return moldingRepo.findAll();
+    }
+    // ==========================================
+    //  12. 실시간 실적 집계 (Dashboard용) - [추가됨]
+    // ==========================================
+    private void updateProductionResult(WorkOrder order, Product product, int goodQty, int defectQty) {
+        LocalDate today = LocalDate.now();
+        int currentHour = LocalDateTime.now().getHour();
+        String line = order.getTargetLine(); // 작업지시의 라인 정보 사용
+
+        // 1. 해당 시간대의 실적 데이터가 있는지 확인
+        ProductionResult result = productionResultRepo
+                .findByResultDateAndResultHourAndLineAndProduct(today, currentHour, line, product)
+                .orElseGet(() -> {
+                    // 없으면 새로 생성
+                    ProductionResult newResult = new ProductionResult();
+                    newResult.setResultDate(today);
+                    newResult.setResultHour(currentHour);
+                    newResult.setLine(line);
+                    newResult.setProduct(product);
+                    newResult.setPlanQty(0); // 계획 수량은 별도 로직이나 0으로 시작
+                    newResult.setGoodQty(0);
+                    newResult.setDefectQty(0);
+                    newResult.setCreatedAt(LocalDateTime.now());
+                    return newResult;
+                });
+
+        // 2. 수량 누적
+        result.setGoodQty(result.getGoodQty() + goodQty);
+        result.setDefectQty(result.getDefectQty() + defectQty);
+
+        // 3. 저장
+        productionResultRepo.save(result);
+    }
+    // ==========================================
+    //  14. 품질 검사 기준 조회 (Quality Standard)
+    // ==========================================
+    public List<InspectionStandard> getInspectionStandards(String processName) {
+        // 데이터가 하나도 없으면 테스트용 더미 데이터 자동 생성 (편의상)
+        if (standardRepo.count() == 0) {
+            standardRepo.save(InspectionStandard.builder().processName("DieBonding").checkItem("Bonding Temp").lsl(150.0).usl(180.0).unit("°C").description("접합 온도 기준").build());
+            standardRepo.save(InspectionStandard.builder().processName("WireBonding").checkItem("Tensile Strength").lsl(50.0).usl(100.0).unit("N").description("와이어 인장 강도").build());
+            standardRepo.save(InspectionStandard.builder().processName("Molding").checkItem("Pressure").lsl(10.0).usl(20.0).unit("Bar").description("몰딩 압력 기준").build());
+        }
+
+        if (processName == null || "ALL".equals(processName)) {
+            return standardRepo.findAll();
+        }
+        return standardRepo.findByProcessName(processName);
+    }
+ //11
 }
 

@@ -10,15 +10,15 @@ public class SignUpReqDto {
     private String email;
     private String password;
     private String name;
-    private String authority;
+    private Authority authority;
 
     public Member toEntity(PasswordEncoder encoder) {
         return Member.builder()
                 .email(email)
                 .password(encoder.encode(password))
                 .name(name)
-                .authority(authority)
+                .authority(Authority.valueOf(String.valueOf(authority)))
                 .build();
     }
 }
-
+///1111111111
