@@ -1,3 +1,4 @@
+// src/components/layouts/AdminHeader.js
 import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -8,7 +9,7 @@ import {
   IoMdCloudy,
   IoMdRainy,
   IoMdSnow,
-} from "react-icons/io"; // ★ IoIosHome 추가
+} from "react-icons/io";
 import { FaSignOutAlt, FaClock } from "react-icons/fa";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import axios from "axios";
@@ -20,34 +21,32 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const [weather, setWeather] = useState({ temp: null, desc: "", icon: "" });
   const API_KEY = "5b6a625b25065e038c9a33e0674ea4e6";
 
-  const HOME_PATH = "/admin";
+  // ★ [수정] AdminMainPage의 탭 경로와 정확히 일치시켜야 고정됩니다.
+  const HOME_PATH = "/admin/dashboard";
+
+  // 홈 탭과 일반 탭 분리
   const homeTab = tabs.find((tab) => tab.path === HOME_PATH);
   const otherTabs = tabs.filter((tab) => tab.path !== HOME_PATH);
 
-  // 날씨 API 호출 로직
+  // 날씨 API
   useEffect(() => {
     const fetchWeather = async () => {
-      // 키가 없거나 기본값인 경우 API 호출 스킵 (Mock 데이터 유지)
-      if (!API_KEY || API_KEY === "YOUR_OPENWEATHERMAP_API_KEY") return;
-
+      if (!API_KEY) return;
       try {
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=36.815&lon=127.113&units=metric&appid=${API_KEY}`;
         const res = await axios.get(url);
-
         setWeather({
           temp: Math.round(res.data.main.temp * 10) / 10,
           desc: res.data.weather[0].main,
           icon: res.data.weather[0].icon,
         });
       } catch (err) {
-        // ★ 수정 3: API 오류(401 등) 발생 시 에러 띄우지 않고 조용히 Mock 데이터 사용
         console.warn("Weather API Failed, using mock data.");
         setWeather({ temp: 22.5, desc: "Sunny", icon: "01d" });
       }
     };
-
     fetchWeather();
-    const interval = setInterval(fetchWeather, 1800000); // 30분 주기
+    const interval = setInterval(fetchWeather, 1800000);
     return () => clearInterval(interval);
   }, []);
 
@@ -90,16 +89,12 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
             <span>{weather.temp}°C</span>
             <span className="desc">({weather.desc})</span>
           </WeatherItem>
-
           <Divider />
-
           <ClockItem>
             <FaClock size={14} style={{ marginRight: 6 }} />
             {currentTime.toLocaleTimeString()}
           </ClockItem>
-
           <Divider />
-
           <HeaderBtn onClick={handleLogout} title="Logout" $logout>
             <FaSignOutAlt size={16} />
             <span>Logout</span>
@@ -108,17 +103,18 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
       </Menubar>
 
       <Toolbar>
-        {/* ★ Home 탭: 아이콘 변경 (IoIosHome) */}
-        {homeTab ? (
+        {/* ★ 홈 탭 (고정): ScrollContainer 바깥에 배치하여 스크롤되지 않음 */}
+        {homeTab && (
           <HomeTabItem
             $active={location.pathname === HOME_PATH}
             onClick={() => navigate(HOME_PATH)}
             title="Dashboard"
           >
-            <IoIosHome size={18} />
+            <IoIosHome size={22} />
           </HomeTabItem>
-        ) : null}
+        )}
 
+        {/* 나머지 탭 (스크롤 및 드래그 가능 영역) */}
         <ScrollContainer>
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="tabs" direction="horizontal">
@@ -145,16 +141,19 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
                           title={tab.name}
                         >
                           <TabText>{tab.name}</TabText>
-                          <CloseBtn
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeTab(tab.path);
-                            }}
-                          >
-                            <IconWrapper>
-                              <IoMdClose />
-                            </IconWrapper>
-                          </CloseBtn>
+                          {/* 닫기 버튼: closable이 false가 아닐 때만 표시 */}
+                          {tab.closable !== false && (
+                            <CloseBtn
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeTab(tab.path);
+                              }}
+                            >
+                              <IconWrapper>
+                                <IoMdClose />
+                              </IconWrapper>
+                            </CloseBtn>
+                          )}
                         </TabItem>
                       )}
                     </Draggable>
@@ -172,7 +171,8 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
 
 export default AdminHeader;
 
-// --- Styled Components (기존 코드 유지) ---
+// --- 스타일 컴포넌트 ---
+
 const Container = styled.div`
   height: 100px;
   background-color: #cdd2d9;
@@ -250,7 +250,7 @@ const Toolbar = styled.div`
   background-color: #e9ecef;
   display: flex;
   align-items: flex-end;
-  padding-left: 10px;
+  /* padding-left 제거 */
   border-bottom: 1px solid #ccc;
   overflow: hidden;
 `;
@@ -304,17 +304,16 @@ const BaseTabItem = styled.div`
   }
 `;
 
+// ★ 홈 탭 스타일 (고정, flex-shrink: 0 필수)
 const HomeTabItem = styled(BaseTabItem)`
-  min-width: 40px;
-  padding: 0 15px;
+  min-width: 70px; /* 너비 조절 */
+  width: 45px;
+  padding: 0;
   justify-content: center;
-  flex-shrink: 0;
+  flex-shrink: 0; /* ★ 중요: 스크롤 영역에 의해 줄어들지 않도록 고정 */
   z-index: 10;
-  font-weight: 700;
   border-right: 1px solid #bbb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  margin-left: 0;
 `;
 
 const TabItem = styled(BaseTabItem)`
