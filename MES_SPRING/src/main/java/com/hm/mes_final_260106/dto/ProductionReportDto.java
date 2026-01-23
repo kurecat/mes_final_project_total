@@ -20,7 +20,7 @@ public class ProductionReportDto {
     // --- 기존 필드 유지 ---
     private Long workOrderId;           // 작업 지시 ID
     private Long memberId;              // 작업자 ID
-    private Long equipmentId;           // 설비 ID
+    private String equipmentCode;       // 설비 ID
     private LocalDateTime startTime;    // 작업 시작 시간
     private LocalDateTime endTime;      // 작업 시작 시간
     private String defectCode;          // 불량 코드

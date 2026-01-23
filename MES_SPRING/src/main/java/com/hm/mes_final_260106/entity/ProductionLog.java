@@ -18,10 +18,6 @@ public class ProductionLog {
     private WorkOrder workOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "lot_id")
-    private Lot lot;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_id")
     private Member member;
 
