@@ -1,0 +1,102 @@
+-- Member 등록
+INSERT INTO member (name, email, password, authority, status) VALUES
+('이용현', 'dfgr56@naver.com', '$2a$10$PBkqQ55sviBicLzQF7Dk/ONlNtLtukkK.QMGuK7WEAaTGdxObhkaW', 'ROLE_OPERATOR', 'PENDING');
+
+-- Product 등록
+INSERT INTO product (code, name) VALUES
+('DRAM-4G-DDR4-001', 'DRAM 4Gb DDR4 칩'),
+('DRAM-8G-DDR4-002', 'DRAM 8Gb DDR4 칩'),
+('DRAM-16G-DDR5-003', 'DRAM 16Gb DDR5 칩'),
+('DRAM-32G-DDR5-004', 'DRAM 32Gb DDR5 칩'),
+('DRAM-4G-LP-005', 'Low-Power DRAM 4Gb'),
+('DRAM-8G-MB-006', 'Mobile DRAM 8Gb'),
+('DRAM-16G-GR-007', 'Graphics DRAM 16Gb'),
+('DRAM-4G-EM-008', 'Embedded DRAM 4Gb');
+
+-- Material 등록
+INSERT INTO material (code, name, current_stock) VALUES
+('MAT-SUBSTRATE', '패키지 기판', 50),
+('MAT-SOLDERBALL', '솔더 볼', 2000),
+('MAT-UNDERFILL', '언더필 수지', 20),
+('MAT-MOLD', '몰딩 컴파운드', 30),
+('MAT-HEATSINK', '히트싱크', 10),
+('MAT-WIRE', '금 와이어', 500),
+('MAT-LEADFRAME', '리드프레임', 40),
+('MAT-ENCAPSULANT', '에폭시 봉지재', 25),
+('MAT-WAFER', 'DRAM 웨이퍼', 100);
+
+-- BOM 등록
+INSERT INTO bom (product_id, material_id, required_qty) VALUES
+(1, 1, 1),
+(1, 2, 200),
+(1, 3, 1),
+(1, 4, 1),
+(1, 6, 50),
+(1, 7, 1),
+(1, 8, 1),
+(2, 1, 1),
+(2, 2, 250),
+(2, 3, 1),
+(2, 4, 1),
+(2, 6, 60),
+(2, 7, 1),
+(2, 8, 1),
+(3, 1, 1),
+(3, 2, 300),
+(3, 3, 1),
+(3, 4, 1),
+(3, 6, 70),
+(3, 7, 1),
+(3, 8, 1),
+(4, 1, 1),
+(4, 2, 400),
+(4, 3, 1),
+(4, 4, 1),
+(4, 6, 80),
+(4, 7, 1),
+(4, 8, 1),
+(4, 5, 1),
+(5, 1, 1),
+(5, 2, 180),
+(5, 3, 1),
+(5, 4, 1),
+(5, 6, 40),
+(5, 7, 1),
+(5, 8, 1),
+(6, 1, 1),
+(6, 2, 220),
+(6, 3, 1),
+(6, 4, 1),
+(6, 6, 55),
+(6, 7, 1),
+(6, 8, 1),
+(7, 1, 1),
+(7, 2, 350),
+(7, 3, 1),
+(7, 4, 1),
+(7, 6, 75),
+(7, 7, 1),
+(7, 8, 1),
+(7, 5, 1),
+(8, 1, 1),
+(8, 2, 200),
+(8, 3, 1),
+(8, 4, 1),
+(8, 6, 45),
+(8, 7, 1),
+(8, 8, 1);
+
+-- Lot 등록
+INSERT INTO lot (code, material_id, location, status) VALUES
+('LOT-20260122-01', 9, '웨이퍼창고', '대기'),
+('LOT-20260122-02', 1, '클린룸', '공정중'),
+('LOT-20260122-03', 3, '창고', '대기'),
+('LOT-20260122-04', 6, '클린룸', '공정중'),
+('LOT-20260122-05', 7, '창고', '대기'),
+('LOT-20260122-06', 2, '클린룸', '공정중'),
+('LOT-20260122-07', 4, '클린룸', '공정중'),
+('LOT-20260122-08', 8, '클린룸', '공정중');
+
+-- Equipment 등록
+INSERT INTO equipment (code, name, type, location, status) VALUES
+('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', '정상');

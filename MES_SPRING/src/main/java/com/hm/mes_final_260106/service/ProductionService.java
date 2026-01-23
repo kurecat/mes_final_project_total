@@ -40,8 +40,6 @@ public class ProductionService {
     private final WorkerRepository workerRepo;
     private final PasswordEncoder passwordEncoder;
 
-    private final EquipmentRepository equipmentRepo;
-
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
     private final DieBondingRepository dieBondingRepo;
@@ -54,8 +52,6 @@ public class ProductionService {
     private final FinalInspectionLogRepository finalInspectionLRepo;
     private final ProductionResultRepository productionResultRepo;
 
-    private final FinalInspectionLogRepository finalInspectionLogRepo;
-    private final ProductionResultRepository productionResultRepository;
     private final InspectionStandardRepository standardRepo;
     private final Mapper mapper;
 
