@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import styled from "styled-components";
+import { IoIosHome } from "react-icons/io"; // 홈 아이콘 Import
 import AdminSideBar from "../../components/layouts/AdminSideBar";
 import AdminHeader from "../../components/layouts/AdminHeader";
 import { MENU_LIST } from "../../data/menuList";
@@ -10,11 +11,26 @@ const AdminMainPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [tabs, setTabs] = useState([{ name: "MES Home", path: "/" }]);
+  // ★ 탭 상태 초기화
+  // 1. name: 텍스트 없이 아이콘만 렌더링 (IconWrapper로 중앙 정렬)
+  // 2. 아이콘 크기: size={22}로 설정하여 적절한 크기로 조절
+  // 3. closable: false 설정으로 'X' 버튼 표시 방지 (AdminHeader에서 처리 필요)
+  const [tabs, setTabs] = useState([
+    {
+      name: (
+        <IconWrapper>
+          <IoIosHome size={22} />
+        </IconWrapper>
+      ),
+      path: "/admin/dashboard",
+      closable: false,
+    },
+  ]);
 
+  // URL 변경 시 탭 자동 추가
   useEffect(() => {
     const currentMenu = MENU_LIST.find(
-      (menu) => menu.path === location.pathname
+      (menu) => menu.path === location.pathname,
     );
     if (currentMenu) {
       const exists = tabs.find((tab) => tab.path === currentMenu.path);
@@ -24,21 +40,25 @@ const AdminMainPage = () => {
     }
   }, [location.pathname]);
 
+  // 탭 닫기 로직
   const removeTab = (pathToRemove) => {
+    // ★ 홈("/") 탭은 삭제 방지 (혹시 X 버튼이 눌려도 동작하지 않음)
+    if (pathToRemove === "/admin/dashboard") return;
+
     const newTabs = tabs.filter((tab) => tab.path !== pathToRemove);
     setTabs(newTabs);
+
+    // 현재 보고 있던 탭을 닫은 경우, 마지막 탭으로 이동
     if (location.pathname === pathToRemove) {
       const lastTab = newTabs[newTabs.length - 1];
-      navigate(lastTab ? lastTab.path : "/");
+      navigate(lastTab ? lastTab.path : "/admin/dashboard");
     }
   };
 
-  // ★ 추가: 탭 순서 변경 함수 (AdminHeader로 전달할 것임)
+  // 탭 순서 변경 (드래그 앤 드롭)
   const handleDragEnd = (result) => {
-    // 드롭 대상이 없으면 종료
     if (!result.destination) return;
 
-    // 배열 복사 후 순서 변경 로직
     const newTabs = Array.from(tabs);
     const [reorderedItem] = newTabs.splice(result.source.index, 1);
     newTabs.splice(result.destination.index, 0, reorderedItem);
@@ -50,7 +70,6 @@ const AdminMainPage = () => {
     <PageContainer>
       <AdminSideBar />
       <MainContent>
-        {/* ★ handleDragEnd 전달 */}
         <AdminHeader
           tabs={tabs}
           removeTab={removeTab}
@@ -66,19 +85,17 @@ const AdminMainPage = () => {
 
 export default AdminMainPage;
 
-// --- 스타일링 변경 부분 ---
+// --- 스타일 컴포넌트 ---
 
 const PageContainer = styled.div`
   display: flex;
-
-  width: 100%; /* vw 대신 % 사용 (스크롤바 생길 때 레이아웃 깨짐 방지) */
-  height: 100vh; /* 뷰포트 높이 꽉 채움 */
+  width: 100%;
+  height: 100vh;
   background-color: #f4f4f4;
 
-  /* ★ 핵심 변경: 1920x1080 해상도 고정 전략 */
-  min-width: 1280px; /* 너비가 1920px보다 작아지면 가로 스크롤 생성 */
-  min-height: 800px; /* 높이가 1080px보다 작아지면 세로 스크롤 생성 (선택 사항) */
-
+  /* 해상도 대응 (최소 1280px / 최대 QHD) */
+  min-width: 1280px;
+  min-height: 800px;
   max-width: 2560px;
   max-height: 1440px;
 
@@ -89,7 +106,6 @@ const MainContent = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  /* 부모(PageContainer)의 크기를 따라가도록 설정 */
   min-width: 0;
   border-bottom: 1px solid #ccc;
   border-right: 1px solid #ccc;
@@ -106,4 +122,13 @@ const ContentArea = styled.div`
   height: 100%;
   box-sizing: border-box;
   padding: 20px;
+`;
+
+// 아이콘을 수직/수평 중앙 정렬하기 위한 래퍼 컴포넌트 추가 및 스타일링
+const IconWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 4px; /* 아이콘 주변에 약간의 여백을 주어 균형을 맞춤 */
 `;
