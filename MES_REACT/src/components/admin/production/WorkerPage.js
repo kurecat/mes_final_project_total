@@ -15,7 +15,15 @@ import {
   FaSync,
 } from "react-icons/fa";
 
-const API_BASE = "http://localhost:8111/api/mes";
+const API_BASE = "/api/mes";
+
+// ===== 공통 유틸: authority ROLE_ 보정 =====
+const normalizeAuthority = (value) => {
+  let auth = value ?? "ROLE_OPERATOR";
+  auth = String(auth).trim().toUpperCase();
+  if (!auth.startsWith("ROLE_")) auth = "ROLE_" + auth;
+  return auth;
+};
 
 // --- [Optimized] Sub-Components with React.memo ---
 
@@ -90,13 +98,13 @@ const WorkerHeader = React.memo(
 
         <ControlBar>
           <FilterGroup>
-            {["ALL", "Engineer", "Operator", "Manager"].map((role) => (
+            {["ALL", "ROLE_ADMIN", "ROLE_OPERATOR"].map((role) => (
               <FilterBtn
                 key={role}
                 $active={filterRole === role}
                 onClick={() => onFilterChange(role)}
               >
-                {role === "ALL" ? "All" : role + "s"}
+                {role === "ALL" ? "All" : role}
               </FilterBtn>
             ))}
           </FilterGroup>
@@ -116,6 +124,8 @@ const WorkerHeader = React.memo(
 
 // 3. Worker Card Item Component
 const WorkerCardItem = React.memo(({ worker, onEdit, onDelete }) => {
+  const workerPk = worker.id ?? worker.workerId; // ✅ 둘다 대응
+
   return (
     <WorkerCard $status={worker.status}>
       <CardHeader>
@@ -133,7 +143,7 @@ const WorkerCardItem = React.memo(({ worker, onEdit, onDelete }) => {
 
       <CardBody>
         <InfoRow>
-          <FaIdBadge color="#aaa" /> <span>ID: {worker.workerId}</span>
+          <FaIdBadge color="#aaa" /> <span>ID: {workerPk ?? "-"}</span>
         </InfoRow>
         <InfoRow>
           <FaClock color="#aaa" /> <span>Shift: {worker.shift}</span>
@@ -157,7 +167,7 @@ const WorkerCardItem = React.memo(({ worker, onEdit, onDelete }) => {
           <IconBtn className="edit" onClick={() => onEdit(worker)}>
             <FaEdit />
           </IconBtn>
-          <IconBtn className="del" onClick={() => onDelete(worker.workerId)}>
+          <IconBtn className="del" onClick={() => onDelete(workerPk)}>
             <FaTrash />
           </IconBtn>
         </ActionArea>
@@ -191,12 +201,15 @@ const WorkerModal = React.memo(
             <ModalSelect
               value={editForm.authority}
               onChange={(e) =>
-                setEditForm((prev) => ({ ...prev, authority: e.target.value }))
+                setEditForm((prev) => ({
+                  ...prev,
+                  authority: normalizeAuthority(e.target.value),
+                }))
               }
             >
-              <option value="Engineer">Engineer</option>
-              <option value="Operator">Operator</option>
-              <option value="Manager">Manager</option>
+              {/* ✅ 백엔드 enum에 맞게 수정 */}
+              <option value="ROLE_OPERATOR">ROLE_OPERATOR</option>
+              <option value="ROLE_ADMIN">ROLE_ADMIN</option>
             </ModalSelect>
           </ModalRow>
 
@@ -285,7 +298,7 @@ const WorkerPage = () => {
 
   const [editForm, setEditForm] = useState({
     name: "",
-    authority: "Operator",
+    authority: "ROLE_OPERATOR",
     dept: "",
     shift: "Day",
     status: "OFF",
@@ -311,13 +324,17 @@ const WorkerPage = () => {
   }, [fetchData]);
 
   // 2) 삭제 (DELETE) - useCallback
-  const handleDelete = useCallback(async (workerId) => {
-    if (!workerId) return;
+  const handleDelete = useCallback(async (workerPk) => {
+    if (!workerPk) return;
     if (!window.confirm("해당 작업자를 삭제하시겠습니까?")) return;
 
     try {
-      await axiosInstance.delete(`${API_BASE}/worker/${workerId}`);
-      setWorkers((prev) => prev.filter((w) => w.workerId !== workerId));
+      await axiosInstance.delete(`${API_BASE}/worker/${workerPk}`);
+
+      setWorkers((prev) =>
+        prev.filter((w) => (w.id ?? w.workerId) !== workerPk),
+      );
+
       alert("삭제 완료");
     } catch (err) {
       console.error("삭제 실패:", err);
@@ -333,13 +350,14 @@ const WorkerPage = () => {
         email: `worker${Date.now()}@test.com`,
         password: "1234",
         name: "New Worker",
-        authority: "Operator",
+        authority: "ROLE_OPERATOR", // ✅ enum과 동일하게
         dept: "TBD",
         shift: "Day",
         status: "OFF",
         joinDate: today,
         certifications: ["Basic Safety"],
       });
+
       setWorkers((prev) => [res.data, ...prev]);
     } catch (err) {
       console.error("작업자 등록 실패:", err);
@@ -350,41 +368,60 @@ const WorkerPage = () => {
   // 4) 수정 모달 열기 - useCallback
   const openEditModal = useCallback((worker) => {
     setEditTarget(worker);
+
+    const auth = normalizeAuthority(worker.authority);
+
     setEditForm({
       name: worker.name ?? "",
-      authority: worker.authority ?? "Operator",
+      authority: auth,
       dept: worker.dept ?? "",
       shift: worker.shift ?? "Day",
       status: worker.status ?? "OFF",
       certificationsText: (worker.certifications ?? []).join(", "),
     });
+
     setEditOpen(true);
   }, []);
 
   // 5) 수정 저장 (UPDATE) - useCallback
   const handleSaveEdit = useCallback(async () => {
-    if (!editTarget?.workerId) return;
+    const workerPk = editTarget?.id ?? editTarget?.workerId; // ✅ 핵심
+    if (!workerPk) {
+      console.error("수정 실패: workerPk(id/workerId)가 없음", editTarget);
+      alert("수정 실패: worker id가 없습니다.");
+      return;
+    }
 
     try {
-      const certList = editForm.certificationsText
+      const certList = (editForm.certificationsText || "")
         .split(",")
         .map((v) => v.trim())
         .filter((v) => v.length > 0);
 
+      const payload = {
+        name: editForm.name,
+        authority: normalizeAuthority(editForm.authority),
+        dept: editForm.dept,
+        shift: editForm.shift,
+        status: editForm.status,
+        certifications: certList,
+      };
+
+      console.log("PATCH workerPk =", workerPk);
+      console.log("PATCH payload =", payload);
+
       const res = await axiosInstance.patch(
-        `${API_BASE}/worker/${editTarget.workerId}`,
-        {
-          name: editForm.name,
-          authority: editForm.authority,
-          dept: editForm.dept,
-          shift: editForm.shift,
-          status: editForm.status,
-          certifications: certList,
-        },
+        `${API_BASE}/worker/${workerPk}`,
+        payload,
       );
 
+      const updatedWorker = res.data;
+
       setWorkers((prev) =>
-        prev.map((w) => (w.workerId === editTarget.workerId ? res.data : w)),
+        prev.map((w) => {
+          const wPk = w.id ?? w.workerId;
+          return wPk === workerPk ? updatedWorker : w;
+        }),
       );
 
       setEditOpen(false);
@@ -411,10 +448,13 @@ const WorkerPage = () => {
   // 필터링 - useMemo
   const filteredList = useMemo(() => {
     return workers.filter((w) => {
-      const matchRole = filterRole === "ALL" || w.authority === filterRole;
+      const auth = normalizeAuthority(w.authority);
+
+      const matchRole = filterRole === "ALL" || auth === filterRole;
       const matchSearch =
         (w.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
         (w.dept ?? "").toLowerCase().includes(searchTerm.toLowerCase());
+
       return matchRole && matchSearch;
     });
   }, [workers, filterRole, searchTerm]);
@@ -424,7 +464,10 @@ const WorkerPage = () => {
     return {
       total: workers.length,
       onDuty: workers.filter((w) => w.status === "WORKING").length,
-      engineers: workers.filter((w) => w.authority === "Engineer").length,
+      // ✅ ROLE_ADMIN을 엔지니어처럼 보여주고 싶으면 이렇게
+      engineers: workers.filter(
+        (w) => normalizeAuthority(w.authority) === "ROLE_ADMIN",
+      ).length,
     };
   }, [workers]);
 
@@ -448,7 +491,7 @@ const WorkerPage = () => {
       <GridContainer>
         {filteredList.map((worker) => (
           <WorkerCardItem
-            key={worker.workerId}
+            key={worker.id ?? worker.workerId}
             worker={worker}
             onEdit={openEditModal}
             onDelete={handleDelete}

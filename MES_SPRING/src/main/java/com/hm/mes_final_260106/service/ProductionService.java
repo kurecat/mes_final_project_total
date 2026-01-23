@@ -479,6 +479,13 @@ public class ProductionService {
             );
         }).toList();
     }
+    // 작업자 조회
+    @Transactional(readOnly = true)
+    public List<WorkerResDto> getAllWorkers() {
+        return workerRepo.findAll().stream()
+                .map(WorkerResDto::fromEntity)
+                .toList();
+    }
 
     // 작업자 등록
     @Transactional
@@ -489,12 +496,22 @@ public class ProductionService {
             throw new RuntimeException("이미 존재하는 이메일입니다: " + dto.getEmail());
         });
 
+        String authorityStr = (dto.getAuthority() == null || dto.getAuthority().isBlank())
+                ? "ROLE_OPERATOR"
+                : dto.getAuthority().trim().toUpperCase();
+
+// 프론트에서 OPERATOR / ADMIN 같은 값이 오면 ROLE_ 붙여서 보정
+        if (!authorityStr.startsWith("ROLE_")) {
+            authorityStr = "ROLE_" + authorityStr;
+        }
+
         Member member = Member.builder()
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .name(dto.getName())
-                .authority(Authority.valueOf(dto.getAuthority() == null ? "OPERATOR" : dto.getAuthority()))
+                .authority(Authority.valueOf(authorityStr))
                 .build();
+
 
         Member savedMember = memberRepo.save(member);
 
