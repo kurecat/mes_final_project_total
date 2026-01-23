@@ -36,7 +36,6 @@ public class MachineSimulator
     private readonly ApiService _apiService;  // Backend Server 통신을 위해 주입 받음
     private readonly TcpClientService _tcpService;  // 장비와 연결하기 위해 주입 받음
     private WorkOrderDto? _currentWorkOrder = null;
-
     private DicingDto? _dicingDto;
     private DicingInspectionDto? _dicingInspectionDto;
     private DieBondingDto? _dieBondingDto;
@@ -287,6 +286,9 @@ public class MachineSimulator
         var report = new ProductionReportDto
         {
             WorkOrderId = _currentWorkOrder.Id,
+            MemberId = UserSession.MemberId ?? 0,
+            EquipmentCode = AppConfig.EquipmentCode,
+
             DicingDto = _dicingDto,
             DicingInspectionDto = _dicingInspectionDto,
             DieBondingDto = _dieBondingDto,
@@ -308,7 +310,6 @@ public class MachineSimulator
         _itemDtos.Clear();
         _finalInspectionDtos.Clear();
         _inputLots.Clear();
-
     }
 
     private async Task SendWorkOrderToDevice(WorkOrderDto order)

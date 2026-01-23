@@ -33,9 +33,11 @@ public class ApiService
                 if (_currentTokens != null)
                 {
                     SetAuthHeader(_currentTokens.AccessToken);
+                    UserSession.MemberId = JwtHelper.GetMemberId(_currentTokens.AccessToken);
                     Console.WriteLine("[Auth] 로그인 성공 및 토큰 저장 완료");
                     return true;
                 }
+
             }
         }
         catch (Exception ex)
