@@ -260,7 +260,7 @@ public class MachineSimulator
     {
         var status = new MachineStatusDto
         {
-            EquipmentId = AppConfig.EquipmentId,
+            EquipmentCode = AppConfig.EquipmentCode,
             Temperature = temp
         };
 
