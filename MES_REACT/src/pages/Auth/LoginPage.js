@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { useNavigate } from "react-router-dom";
 import { FaUser, FaLock, FaArrowRight, FaIndustry } from "react-icons/fa";
-import instance from "../../api/axios";
+import axiosInstance from "../../api/axios";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -25,7 +25,7 @@ const LoginPage = () => {
 
     try {
       // 1. 백엔드로 로그인 요청
-      const response = await instance.post("/auth/login", {
+      const response = await axiosInstance.post("/auth/login", {
         email: inputs.id,
         password: inputs.password,
       });

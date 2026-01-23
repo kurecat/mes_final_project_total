@@ -12,7 +12,7 @@ import {
 } from "react-icons/io";
 import { FaSignOutAlt, FaClock } from "react-icons/fa";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import axios from "axios";
+import axiosInstance from "../../api/axios";
 
 const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
       if (!API_KEY) return;
       try {
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=36.815&lon=127.113&units=metric&appid=${API_KEY}`;
-        const res = await axios.get(url);
+        const res = await axiosInstance.get(url);
         setWeather({
           temp: Math.round(res.data.main.temp * 10) / 10,
           desc: res.data.weather[0].main,

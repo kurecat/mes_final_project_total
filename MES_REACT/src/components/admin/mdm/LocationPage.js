@@ -1,7 +1,7 @@
 // src/pages/mdm/LocationPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axios from "axios";
+// import axiosInstance from "../../api/axios";
 import {
   FaWarehouse,
   FaSearch,
@@ -172,7 +172,7 @@ const LocationPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      // const res = await axios.get("http://localhost:3001/locations");
+      // const res = await axiosInstance.get("http://localhost:3001/locations");
       // setLocations(res.data);
 
       setTimeout(() => {
@@ -193,7 +193,7 @@ const LocationPage = () => {
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm("이 위치 정보를 삭제하시겠습니까?")) return;
     try {
-      // await axios.delete(`http://localhost:3001/locations/${id}`);
+      // await axiosInstance.delete(`http://localhost:3001/locations/${id}`);
       setLocations((prev) => prev.filter((loc) => loc.id !== id));
     } catch (err) {
       console.error(err);

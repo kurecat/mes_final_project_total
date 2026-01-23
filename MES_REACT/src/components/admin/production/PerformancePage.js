@@ -1,7 +1,7 @@
 // src/pages/production/PerformancePage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-import axios from "axios";
+import axiosInstance from "../../../api/axios";
 import {
   FaCalendarAlt,
   FaFileDownload,
@@ -294,9 +294,12 @@ const PerformancePage = () => {
     setLoading(true);
     try {
       // 1) KPI Summary
-      const resSummary = await axios.get(`${API_BASE}/performance/summary`, {
-        params: { date, line: selectedLine },
-      });
+      const resSummary = await axiosInstance.get(
+        `${API_BASE}/performance/summary`,
+        {
+          params: { date, line: selectedLine },
+        },
+      );
 
       setSummary({
         totalPlanQty: resSummary.data?.totalPlanQty ?? 0,
@@ -306,13 +309,16 @@ const PerformancePage = () => {
       });
 
       // 2) Hourly Chart
-      const resHourly = await axios.get(`${API_BASE}/performance/hourly`, {
-        params: { date, line: selectedLine },
-      });
+      const resHourly = await axiosInstance.get(
+        `${API_BASE}/performance/hourly`,
+        {
+          params: { date, line: selectedLine },
+        },
+      );
       setHourlyData(resHourly.data ?? []);
 
       // 3) List Data
-      const resList = await axios.get(`${API_BASE}/performance/list`, {
+      const resList = await axiosInstance.get(`${API_BASE}/performance/list`, {
         params: { date, line: selectedLine },
       });
       setListData(resList.data ?? []);

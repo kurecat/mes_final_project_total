@@ -1,7 +1,7 @@
 // src/pages/resource/MaterialPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-import axios from "axios";
+import axiosInstance from "../../../api/axios";
 import {
   FaTruckLoading,
   FaDolly,
@@ -263,7 +263,7 @@ const MaterialPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/transactions/today`);
+      const res = await axiosInstance.get(`${API_BASE}/transactions/today`);
       const rows = (res.data || []).map(mapTxToRow);
       setHistory(rows);
     } catch (err) {
@@ -317,7 +317,7 @@ const MaterialPage = () => {
             workerName: "Admin",
           };
 
-          await axios.post(`${API_BASE}/inbound`, payload);
+          await axiosInstance.post(`${API_BASE}/inbound`, payload);
           alert("입고 처리가 완료되었습니다.");
         } else {
           const payload = {
@@ -329,7 +329,7 @@ const MaterialPage = () => {
             workerName: "Admin",
           };
 
-          await axios.post(`${API_BASE}/outbound`, payload);
+          await axiosInstance.post(`${API_BASE}/outbound`, payload);
           alert("불출 처리가 완료되었습니다.");
         }
 
