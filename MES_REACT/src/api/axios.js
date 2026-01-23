@@ -63,9 +63,9 @@ axiosInstance.interceptors.response.use(
 
       if (!refreshToken || !accessToken) {
         // 토큰이 없으면 로그인 페이지로
-        // localStorage.clear();
-        // if (window.location.href !== "http://localhost:3000/")
-        //   window.location.href = "/";
+        localStorage.clear();
+        if (window.location.href !== "http://localhost:3000/")
+          window.location.href = "/";
         return Promise.reject(error);
       }
 
@@ -98,8 +98,8 @@ axiosInstance.interceptors.response.use(
         // 재발급 실패 시 로그아웃 처리
         console.error("토큰 재발급 실패:", refreshError);
         processQueue(refreshError, null);
-        // localStorage.clear();
-        // window.location.href = "/";
+        localStorage.clear();
+        window.location.href = "/";
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
