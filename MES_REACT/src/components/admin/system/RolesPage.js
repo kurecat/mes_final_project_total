@@ -8,6 +8,7 @@ import {
   FaTrashAlt,
   FaSave,
   FaUserFriends,
+  FaTimes,
 } from "react-icons/fa";
 
 // --- [Optimized] Sub-Components with React.memo ---
@@ -29,28 +30,30 @@ const RoleCardItem = React.memo(({ role, isActive, onSelect }) => {
 });
 
 // 2. Role List Panel
-const RoleListPanel = React.memo(({ roles, selectedRoleId, onSelectRole }) => {
-  return (
-    <RoleListPanelContainer>
-      <PanelHeader>
-        <h3>Roles</h3>
-        <AddButton>
-          <FaPlus />
-        </AddButton>
-      </PanelHeader>
-      <ListContainer>
-        {roles.map((role) => (
-          <RoleCardItem
-            key={role.id}
-            role={role}
-            isActive={selectedRoleId === role.id}
-            onSelect={onSelectRole}
-          />
-        ))}
-      </ListContainer>
-    </RoleListPanelContainer>
-  );
-});
+const RoleListPanel = React.memo(
+  ({ roles, selectedRoleId, onSelectRole, onAddRole }) => {
+    return (
+      <RoleListPanelContainer>
+        <PanelHeader>
+          <h3>Roles</h3>
+          <AddButton onClick={onAddRole}>
+            <FaPlus />
+          </AddButton>
+        </PanelHeader>
+        <ListContainer>
+          {roles.map((role) => (
+            <RoleCardItem
+              key={role.id}
+              role={role}
+              isActive={selectedRoleId === role.id}
+              onSelect={onSelectRole}
+            />
+          ))}
+        </ListContainer>
+      </RoleListPanelContainer>
+    );
+  },
+);
 
 // 3. Permission Item
 const PermissionItem = React.memo(({ perm, isChecked, onToggle }) => {
@@ -96,6 +99,7 @@ const PermissionMatrix = React.memo(
     editedPermissionIds,
     isDirty,
     onSave,
+    onDelete,
     onTogglePermission,
   }) => {
     if (!selectedRole) {
@@ -122,8 +126,8 @@ const PermissionMatrix = React.memo(
               </SaveBtn>
             )}
             {!selectedRole.isSystem && (
-              <DeleteBtn>
-                <FaTrashAlt />
+              <DeleteBtn onClick={() => onDelete(selectedRole.id)}>
+                <FaTrashAlt /> Delete Role
               </DeleteBtn>
             )}
           </ActionGroup>
@@ -145,6 +149,63 @@ const PermissionMatrix = React.memo(
   },
 );
 
+// --- Modal Component ---
+const RoleModal = ({ isOpen, onClose, onSave }) => {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setName("");
+      setDescription("");
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = () => {
+    if (!name.trim()) return alert("Role Name is required");
+    onSave({ name, description });
+    onClose();
+  };
+
+  return (
+    <Overlay>
+      <ModalBox>
+        <ModalHeader>
+          <h3>Add New Role</h3>
+          <button onClick={onClose}>
+            <FaTimes />
+          </button>
+        </ModalHeader>
+        <ModalBody>
+          <InputGroup>
+            <label>Role Name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. MANAGER"
+            />
+          </InputGroup>
+          <InputGroup>
+            <label>Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Role description..."
+              rows={3}
+            />
+          </InputGroup>
+        </ModalBody>
+        <ModalFooter>
+          <CancelBtn onClick={onClose}>Cancel</CancelBtn>
+          <SubmitBtn onClick={handleSubmit}>Create Role</SubmitBtn>
+        </ModalFooter>
+      </ModalBox>
+    </Overlay>
+  );
+};
+
 // --- Main Component ---
 
 const RolesPage = () => {
@@ -153,6 +214,7 @@ const RolesPage = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [editedPermissionIds, setEditedPermissionIds] = useState([]);
   const [isDirty, setIsDirty] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Fetch Data
   useEffect(() => {
@@ -171,7 +233,6 @@ const RolesPage = () => {
         setAllPermissions(permsData);
 
         if (rolesData.length > 0) {
-          // Initial selection logic (can be extracted if complex)
           const firstRole = rolesData[0];
           setSelectedRole(firstRole);
           setEditedPermissionIds([...firstRole.permissionIds]);
@@ -184,12 +245,16 @@ const RolesPage = () => {
     fetchData();
   }, []);
 
-  // Handlers (useCallback)
+  // Handlers
   const handleSelectRole = useCallback(
     (role) => {
       if (isDirty) {
-        alert("Please save changes first.");
-        return;
+        if (
+          !window.confirm(
+            "Unsaved changes will be lost. Do you want to continue?",
+          )
+        )
+          return;
       }
       setSelectedRole(role);
       setEditedPermissionIds([...role.permissionIds]);
@@ -215,7 +280,7 @@ const RolesPage = () => {
     [selectedRole],
   );
 
-  const handleSave = useCallback(() => {
+  const handleSavePermissions = useCallback(() => {
     const updatedRoles = roles.map((r) =>
       r.id === selectedRole.id
         ? { ...r, permissionIds: editedPermissionIds }
@@ -230,7 +295,42 @@ const RolesPage = () => {
     alert(`Permissions for ${selectedRole.name} saved successfully!`);
   }, [roles, selectedRole, editedPermissionIds]);
 
-  // Derived Data (useMemo)
+  // Add Role Logic
+  const handleAddRole = useCallback((newRoleData) => {
+    const newRole = {
+      id: `ROLE_${newRoleData.name.toUpperCase().replace(/\s+/g, "_")}`,
+      name: newRoleData.name,
+      description: newRoleData.description,
+      isSystem: false,
+      userCount: 0,
+      permissionIds: [], // Default empty permissions
+    };
+
+    setRoles((prev) => [...prev, newRole]);
+    setSelectedRole(newRole);
+    setEditedPermissionIds([]);
+    setIsDirty(false);
+  }, []);
+
+  // Delete Role Logic
+  const handleDeleteRole = useCallback(
+    (roleId) => {
+      if (!window.confirm("Are you sure you want to delete this role?")) return;
+
+      const updatedRoles = roles.filter((r) => r.id !== roleId);
+      setRoles(updatedRoles);
+
+      if (updatedRoles.length > 0) {
+        handleSelectRole(updatedRoles[0]);
+      } else {
+        setSelectedRole(null);
+        setEditedPermissionIds([]);
+      }
+    },
+    [roles, handleSelectRole],
+  );
+
+  // Derived Data
   const groupedPermissions = useMemo(() => {
     const groups = {};
     allPermissions.forEach((p) => {
@@ -250,23 +350,32 @@ const RolesPage = () => {
       </Header>
 
       <ContentArea>
-        {/* Left Panel (Memoized) */}
+        {/* Left Panel */}
         <RoleListPanel
           roles={roles}
           selectedRoleId={selectedRole?.id}
           onSelectRole={handleSelectRole}
+          onAddRole={() => setIsModalOpen(true)}
         />
 
-        {/* Right Panel (Memoized) */}
+        {/* Right Panel */}
         <PermissionMatrix
           selectedRole={selectedRole}
           groupedPermissions={groupedPermissions}
           editedPermissionIds={editedPermissionIds}
           isDirty={isDirty}
-          onSave={handleSave}
+          onSave={handleSavePermissions}
+          onDelete={handleDeleteRole}
           onTogglePermission={handleTogglePermission}
         />
       </ContentArea>
+
+      {/* Modal */}
+      <RoleModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleAddRole}
+      />
     </Container>
   );
 };
@@ -456,6 +565,7 @@ const DeleteBtn = styled.button`
   cursor: pointer;
   display: flex;
   align-items: center;
+  gap: 5px;
   &:hover {
     background: #ffebee;
   }
@@ -538,4 +648,110 @@ const EmptyState = styled.div`
   justify-content: center;
   color: #ccc;
   font-size: 16px;
+`;
+
+// Modal Styles
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalBox = styled.div`
+  background: white;
+  width: 400px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+`;
+
+const ModalHeader = styled.div`
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+  }
+  button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #999;
+    &:hover {
+      color: #333;
+    }
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 20px;
+`;
+
+const InputGroup = styled.div`
+  margin-bottom: 15px;
+  label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #666;
+  }
+  input,
+  textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+    &:focus {
+      outline: none;
+      border-color: #3498db;
+    }
+  }
+`;
+
+const ModalFooter = styled.div`
+  padding: 15px 20px;
+  background: #f8f9fa;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+`;
+
+const CancelBtn = styled.button`
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  &:hover {
+    background: #f1f1f1;
+  }
+`;
+
+const SubmitBtn = styled.button`
+  padding: 8px 16px;
+  border: none;
+  background: #3498db;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  &:hover {
+    background: #2980b9;
+  }
 `;

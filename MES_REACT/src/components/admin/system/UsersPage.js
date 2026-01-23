@@ -1,3 +1,4 @@
+// src/pages/admin/UsersPage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import api from "../../../api/axios";
@@ -9,6 +10,7 @@ import {
   FaEnvelope,
   FaPhoneAlt,
   FaBuilding,
+  FaTimes,
 } from "react-icons/fa";
 
 // --- Sub-Components (React.memo) ---
@@ -138,6 +140,129 @@ const UserTableRow = React.memo(({ user, onStatusToggle }) => {
   );
 });
 
+// --- Modal Component ---
+const UserModal = ({ isOpen, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    department: "",
+    position: "",
+    phone: "",
+    role: "ROLE_OPERATOR", // Default role
+  });
+
+  // 모달 열릴 때 초기화
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: "",
+        email: "",
+        password: "",
+        department: "",
+        position: "",
+        phone: "",
+        role: "ROLE_OPERATOR",
+      });
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = () => {
+    // 간단한 유효성 검사
+    if (!formData.name || !formData.email || !formData.password) {
+      alert("이름, 이메일, 비밀번호는 필수입니다.");
+      return;
+    }
+    onSave(formData);
+  };
+
+  return (
+    <Overlay>
+      <ModalBox>
+        <ModalHeader>
+          <h3>Add New User</h3>
+          <button onClick={onClose}>
+            <FaTimes />
+          </button>
+        </ModalHeader>
+        <ModalBody>
+          <InputGroup>
+            <label>Name *</label>
+            <input
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="Full Name"
+            />
+          </InputGroup>
+          <InputGroup>
+            <label>Email *</label>
+            <input
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="user@example.com"
+            />
+          </InputGroup>
+          <InputGroup>
+            <label>Password *</label>
+            <input
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="Initial Password"
+            />
+          </InputGroup>
+          <Row>
+            <InputGroup style={{ flex: 1 }}>
+              <label>Department</label>
+              <input
+                name="department"
+                value={formData.department}
+                onChange={handleChange}
+                placeholder="Ex) Production"
+              />
+            </InputGroup>
+            <InputGroup style={{ flex: 1 }}>
+              <label>Role</label>
+              <SelectInput
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+              >
+                <option value="ROLE_OPERATOR">Operator</option>
+                <option value="ROLE_ADMIN">Admin</option>
+              </SelectInput>
+            </InputGroup>
+          </Row>
+          <InputGroup>
+            <label>Phone</label>
+            <input
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="010-xxxx-xxxx"
+            />
+          </InputGroup>
+        </ModalBody>
+        <ModalFooter>
+          <CancelBtn onClick={onClose}>Cancel</CancelBtn>
+          <SubmitBtn onClick={handleSubmit}>Create User</SubmitBtn>
+        </ModalFooter>
+      </ModalBox>
+    </Overlay>
+  );
+};
+
 // --- Main Component ---
 
 const UsersPage = () => {
@@ -145,14 +270,21 @@ const UsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Data Loading
   useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = () => {
     api
       .get("/auth/all")
       .then((res) => setUsers(res.data.data || []))
       .catch((err) => console.error("Data load failed:", err));
-  }, []);
+  };
 
+  // Status Toggle (Approval)
   const handleStatusToggle = useCallback((id) => {
     if (!id) return;
     api
@@ -166,9 +298,32 @@ const UsersPage = () => {
               : u,
           ),
         );
-        alert(`${updatedUser.name} 승인 완료!`);
+        alert(`${updatedUser.name} 님의 상태가 변경되었습니다.`);
       })
-      .catch((err) => alert(err.response?.data?.message || "권한이 없습니다."));
+      .catch((err) =>
+        alert(
+          err.response?.data?.message || "권한이 없거나 오류가 발생했습니다.",
+        ),
+      );
+  }, []);
+
+  // Add User Logic
+  const handleAddUser = useCallback((newUser) => {
+    // API 호출 (회원가입 엔드포인트 사용 가정)
+    api
+      .post("/auth/signup", newUser)
+      .then((res) => {
+        alert("사용자가 성공적으로 생성되었습니다.");
+        setIsModalOpen(false);
+        loadUsers(); // 목록 새로고침
+      })
+      .catch((err) => {
+        console.error(err);
+        alert(
+          "사용자 생성 실패: " +
+            (err.response?.data?.message || "Unknown error"),
+        );
+      });
   }, []);
 
   const filteredUsers = useMemo(() => {
@@ -188,7 +343,7 @@ const UsersPage = () => {
 
   return (
     <Container>
-      <UserHeader onAddUser={() => alert("Modal Open")} />
+      <UserHeader onAddUser={() => setIsModalOpen(true)} />
       <UserToolbar
         searchTerm={searchTerm}
         onSearchChange={(e) => setSearchTerm(e.target.value)}
@@ -222,13 +377,21 @@ const UsersPage = () => {
           </tbody>
         </Table>
       </TableContainer>
+
+      {/* Modal */}
+      <UserModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleAddUser}
+      />
     </Container>
   );
 };
 
 export default UsersPage;
 
-// --- Styled Components (생략 - 기존 스타일 유지 또는 이전 답변 참조) ---
+// --- Styled Components ---
+
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -442,4 +605,106 @@ const ActionBtn = styled.button`
   background: transparent;
   color: #999;
   cursor: pointer;
+`;
+
+// Modal Styles
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+const ModalBox = styled.div`
+  background: white;
+  width: 450px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+`;
+const ModalHeader = styled.div`
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  h3 {
+    margin: 0;
+    color: #333;
+  }
+  button {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #999;
+  }
+`;
+const ModalBody = styled.div`
+  padding: 20px;
+`;
+const InputGroup = styled.div`
+  margin-bottom: 15px;
+  label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #666;
+  }
+  input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+    &:focus {
+      outline: none;
+      border-color: #1a4f8b;
+    }
+  }
+`;
+const SelectInput = styled.select`
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+`;
+const Row = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+const ModalFooter = styled.div`
+  padding: 15px 20px;
+  background: #f8f9fa;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+`;
+const CancelBtn = styled.button`
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: white;
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover {
+    background: #f1f1f1;
+  }
+`;
+const SubmitBtn = styled.button`
+  padding: 8px 16px;
+  border: none;
+  background: #1a4f8b;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  &:hover {
+    background: #133b6b;
+  }
 `;

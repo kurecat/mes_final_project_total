@@ -1,7 +1,6 @@
 // src/pages/admin/CodesPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axios from "axios";
 import {
   FaFolder,
   FaFolderOpen,
@@ -10,11 +9,13 @@ import {
   FaEdit,
   FaTrashAlt,
   FaDatabase,
+  FaTimes,
+  FaCheck,
 } from "react-icons/fa";
 
 // --- [Optimized] Sub-Components with React.memo ---
 
-// 1. Group List Item
+// 1. Group List Item (변경 없음)
 const GroupListItem = React.memo(({ group, isActive, onSelect }) => {
   return (
     <GroupItem $active={isActive} onClick={() => onSelect(group)}>
@@ -34,14 +35,14 @@ const GroupListItem = React.memo(({ group, isActive, onSelect }) => {
   );
 });
 
-// 2. Group List Panel
+// 2. Group List Panel (변경 없음)
 const GroupListPanel = React.memo(
-  ({ groups, selectedGroupId, onSelectGroup }) => {
+  ({ groups, selectedGroupId, onSelectGroup, onAddGroupClick }) => {
     return (
       <LeftPanel>
         <PanelHeader>
           <h3>Code Groups</h3>
-          <IconButton>
+          <IconButton onClick={onAddGroupClick} title="Add New Group">
             <FaPlus />
           </IconButton>
         </PanelHeader>
@@ -60,42 +61,116 @@ const GroupListPanel = React.memo(
   },
 );
 
-// 3. Code Table Row
-const CodeTableRow = React.memo(({ code, isSystemGroup, onToggleActive }) => {
-  return (
-    <tr className={!code.isActive ? "inactive" : ""}>
-      <td align="center">
-        <ToggleSwitch
-          $active={code.isActive}
-          onClick={() => onToggleActive(code.id)}
-        >
-          <div className="knob" />
-        </ToggleSwitch>
-      </td>
-      <td>
-        <CodeTag>{code.code}</CodeTag>
-      </td>
-      <td>{code.name}</td>
-      <td align="center">{code.sortOrder}</td>
-      <td>
-        <ActionBtnGroup>
-          <ActionBtn>
-            <FaEdit />
-          </ActionBtn>
-          {!isSystemGroup && (
-            <ActionBtn className="delete">
-              <FaTrashAlt />
-            </ActionBtn>
-          )}
-        </ActionBtnGroup>
-      </td>
-    </tr>
-  );
-});
+// 3. Code Table Row (Inline Edit 기능 추가)
+const CodeTableRow = React.memo(
+  ({
+    code,
+    isSystemGroup,
+    isEditing, // 현재 행이 수정 모드인지
+    editFormData, // 수정 중인 데이터
+    onToggleActive,
+    onStartEdit, // 수정 시작 핸들러
+    onEditChange, // 입력 변경 핸들러
+    onSaveEdit, // 저장 핸들러
+    onCancelEdit, // 취소 핸들러
+  }) => {
+    // --- [수정 모드] 렌더링 ---
+    if (isEditing) {
+      return (
+        <tr className="editing">
+          <td align="center">
+            {/* 수정 모드에서는 Active 스위치 비활성화 혹은 유지 */}
+            <ToggleSwitch
+              $active={editFormData.isActive}
+              style={{ opacity: 0.5 }}
+            >
+              <div className="knob" />
+            </ToggleSwitch>
+          </td>
+          <td>
+            <TableInput
+              value={editFormData.code}
+              onChange={(e) => onEditChange("code", e.target.value)}
+            />
+          </td>
+          <td>
+            <TableInput
+              value={editFormData.name}
+              onChange={(e) => onEditChange("name", e.target.value)}
+            />
+          </td>
+          <td align="center">
+            <TableInput
+              type="number"
+              width="60px"
+              style={{ textAlign: "center" }}
+              value={editFormData.sortOrder}
+              onChange={(e) => onEditChange("sortOrder", e.target.value)}
+            />
+          </td>
+          <td>
+            <ActionBtnGroup>
+              <ActionBtn onClick={() => onSaveEdit(code.id)} title="Save">
+                <FaCheck color="#2ecc71" />
+              </ActionBtn>
+              <ActionBtn onClick={onCancelEdit} title="Cancel">
+                <FaTimes color="#e74c3c" />
+              </ActionBtn>
+            </ActionBtnGroup>
+          </td>
+        </tr>
+      );
+    }
 
-// 4. Code Detail Panel
+    // --- [일반 모드] 렌더링 ---
+    return (
+      <tr className={!code.isActive ? "inactive" : ""}>
+        <td align="center">
+          <ToggleSwitch
+            $active={code.isActive}
+            onClick={() => onToggleActive(code.id)}
+          >
+            <div className="knob" />
+          </ToggleSwitch>
+        </td>
+        <td>
+          <CodeTag>{code.code}</CodeTag>
+        </td>
+        <td>{code.name}</td>
+        <td align="center">{code.sortOrder}</td>
+        <td>
+          <ActionBtnGroup>
+            <ActionBtn onClick={() => onStartEdit(code)}>
+              <FaEdit />
+            </ActionBtn>
+            {!isSystemGroup && (
+              <ActionBtn className="delete">
+                <FaTrashAlt />
+              </ActionBtn>
+            )}
+          </ActionBtnGroup>
+        </td>
+      </tr>
+    );
+  },
+);
+
+// 4. Code Detail Panel (Props 전달 추가)
 const CodeDetailPanel = React.memo(
-  ({ selectedGroup, codes, searchTerm, onSearchChange, onToggleActive }) => {
+  ({
+    selectedGroup,
+    codes,
+    searchTerm,
+    editingId, // 현재 수정중인 ID
+    editFormData, // 현재 수정중인 폼 데이터
+    onSearchChange,
+    onToggleActive,
+    onAddCodeClick,
+    onStartEdit,
+    onEditChange,
+    onSaveEdit,
+    onCancelEdit,
+  }) => {
     return (
       <RightPanel>
         <PanelHeader>
@@ -112,7 +187,11 @@ const CodeDetailPanel = React.memo(
                 onChange={onSearchChange}
               />
             </SearchBox>
-            <PrimaryBtn>
+            <PrimaryBtn
+              onClick={onAddCodeClick}
+              disabled={!selectedGroup}
+              style={{ opacity: !selectedGroup ? 0.5 : 1 }}
+            >
               <FaPlus /> Add Code
             </PrimaryBtn>
           </ActionArea>
@@ -136,13 +215,21 @@ const CodeDetailPanel = React.memo(
                     key={code.id}
                     code={code}
                     isSystemGroup={selectedGroup?.isSystem}
+                    isEditing={editingId === code.id} // 수정 모드 여부 전달
+                    editFormData={editFormData} // 폼 데이터 전달
                     onToggleActive={onToggleActive}
+                    onStartEdit={onStartEdit}
+                    onEditChange={onEditChange}
+                    onSaveEdit={onSaveEdit}
+                    onCancelEdit={onCancelEdit}
                   />
                 ))
               ) : (
                 <tr>
                   <td colSpan="5" className="empty">
-                    No codes found in this group.
+                    {selectedGroup
+                      ? "No codes found in this group."
+                      : "Please select a group first."}
                   </td>
                 </tr>
               )}
@@ -154,6 +241,32 @@ const CodeDetailPanel = React.memo(
   },
 );
 
+// --- Simple Modal Component (기존 유지) ---
+const Modal = ({ isOpen, title, onClose, onSave, children }) => {
+  if (!isOpen) return null;
+  return (
+    <ModalOverlay>
+      <ModalBox>
+        <ModalHeader>
+          <h3>{title}</h3>
+          <button onClick={onClose}>
+            <FaTimes />
+          </button>
+        </ModalHeader>
+        <ModalBody>{children}</ModalBody>
+        <ModalFooter>
+          <button className="cancel" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="save" onClick={onSave}>
+            <FaCheck /> Save
+          </button>
+        </ModalFooter>
+      </ModalBox>
+    </ModalOverlay>
+  );
+};
+
 // --- Main Component ---
 
 const CodesPage = () => {
@@ -162,36 +275,61 @@ const CodesPage = () => {
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Data Fetching
+  // Modal States
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
+
+  // New Data Form States
+  const [newGroup, setNewGroup] = useState({ id: "", name: "", desc: "" });
+  const [newCode, setNewCode] = useState({ code: "", name: "", sort: 1 });
+
+  // --- [Inline Edit States] ---
+  const [editingId, setEditingId] = useState(null); // 현재 수정중인 Row ID
+  const [editFormData, setEditFormData] = useState({}); // 수정중인 데이터 임시 저장
+
+  // Data Fetching (Mock)
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const baseUrl = "http://localhost:3001";
-        const [grpRes, codeRes] = await Promise.all([
-          fetch(`${baseUrl}/codeGroups`),
-          fetch(`${baseUrl}/commonCodes`),
-        ]);
-
-        const grpData = await grpRes.json();
-        const codeData = await codeRes.json();
-
-        setGroups(grpData);
-        setAllCodes(codeData);
-
-        if (grpData.length > 0) setSelectedGroup(grpData[0]);
-      } catch (err) {
-        console.error("Failed to load codes:", err);
-      }
-    };
-    fetchData();
+    const mockGroups = [
+      {
+        id: "GRP_COMMON",
+        name: "Common Codes",
+        description: "General use",
+        isSystem: true,
+      },
+      {
+        id: "GRP_USER",
+        name: "User Status",
+        description: "Member states",
+        isSystem: false,
+      },
+    ];
+    const mockCodes = [
+      {
+        id: 1,
+        groupId: "GRP_COMMON",
+        code: "Y",
+        name: "Yes",
+        sortOrder: 1,
+        isActive: true,
+      },
+      {
+        id: 2,
+        groupId: "GRP_COMMON",
+        code: "N",
+        name: "No",
+        sortOrder: 2,
+        isActive: true,
+      },
+    ];
+    setGroups(mockGroups);
+    setAllCodes(mockCodes);
+    setSelectedGroup(mockGroups[0]);
   }, []);
 
-  // Filtering Logic (useMemo)
+  // Filtering Logic
   const currentCodes = useMemo(() => {
     if (!selectedGroup) return [];
-
     let filtered = allCodes.filter((c) => c.groupId === selectedGroup.id);
-
     if (searchTerm) {
       const lower = searchTerm.toLowerCase();
       filtered = filtered.filter(
@@ -200,14 +338,14 @@ const CodesPage = () => {
           c.name.toLowerCase().includes(lower),
       );
     }
-
     return filtered.sort((a, b) => a.sortOrder - b.sortOrder);
   }, [selectedGroup, allCodes, searchTerm]);
 
-  // Handlers (useCallback)
+  // General Handlers
   const handleGroupSelect = useCallback((group) => {
     setSelectedGroup(group);
     setSearchTerm("");
+    setEditingId(null); // 그룹 변경 시 수정 모드 초기화
   }, []);
 
   const handleSearchChange = useCallback((e) => {
@@ -222,6 +360,97 @@ const CodesPage = () => {
     );
   }, []);
 
+  // --- [Inline Editing Handlers] ---
+
+  // 1. 수정 시작 (Edit 버튼 클릭)
+  const handleStartEdit = useCallback((code) => {
+    setEditingId(code.id);
+    setEditFormData({ ...code }); // 현재 데이터를 폼 데이터로 복사
+  }, []);
+
+  // 2. 입력 값 변경
+  const handleEditChange = useCallback((field, value) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }, []);
+
+  // 3. 수정 취소
+  const handleCancelEdit = useCallback(() => {
+    setEditingId(null);
+    setEditFormData({});
+  }, []);
+
+  // 4. 저장 (Save 버튼 클릭)
+  const handleSaveEdit = useCallback(
+    (codeId) => {
+      if (!editFormData.code || !editFormData.name) {
+        alert("Code and Name are required.");
+        return;
+      }
+
+      setAllCodes((prevCodes) =>
+        prevCodes.map((c) =>
+          c.id === codeId
+            ? { ...editFormData, sortOrder: Number(editFormData.sortOrder) }
+            : c,
+        ),
+      );
+      setEditingId(null); // 수정 모드 종료
+    },
+    [editFormData],
+  );
+
+  // --- Add Data Handlers (기존 유지) ---
+  const openGroupModal = () => {
+    setNewGroup({ id: "", name: "", desc: "" });
+    setIsGroupModalOpen(true);
+  };
+
+  const saveGroup = () => {
+    if (!newGroup.id || !newGroup.name) {
+      alert("Please fill in ID and Name.");
+      return;
+    }
+    if (groups.some((g) => g.id === newGroup.id)) {
+      alert("Group ID already exists.");
+      return;
+    }
+    const newGroupData = {
+      id: newGroup.id,
+      name: newGroup.name,
+      description: newGroup.desc,
+      isSystem: false,
+    };
+    setGroups([...groups, newGroupData]);
+    setSelectedGroup(newGroupData);
+    setIsGroupModalOpen(false);
+  };
+
+  const openCodeModal = () => {
+    if (!selectedGroup) return;
+    setNewCode({ code: "", name: "", sort: 1 });
+    setIsCodeModalOpen(true);
+  };
+
+  const saveCode = () => {
+    if (!newCode.code || !newCode.name) {
+      alert("Please fill in Code and Name.");
+      return;
+    }
+    const newCodeData = {
+      id: Date.now(),
+      groupId: selectedGroup.id,
+      code: newCode.code,
+      name: newCode.name,
+      sortOrder: parseInt(newCode.sort),
+      isActive: true,
+    };
+    setAllCodes([...allCodes, newCodeData]);
+    setIsCodeModalOpen(false);
+  };
+
   return (
     <Container>
       <Header>
@@ -232,29 +461,103 @@ const CodesPage = () => {
       </Header>
 
       <SplitView>
-        {/* Left Panel (Memoized) */}
         <GroupListPanel
           groups={groups}
           selectedGroupId={selectedGroup?.id}
           onSelectGroup={handleGroupSelect}
+          onAddGroupClick={openGroupModal}
         />
 
-        {/* Right Panel (Memoized) */}
         <CodeDetailPanel
           selectedGroup={selectedGroup}
           codes={currentCodes}
           searchTerm={searchTerm}
+          // Inline Edit Props 전달
+          editingId={editingId}
+          editFormData={editFormData}
+          onStartEdit={handleStartEdit}
+          onEditChange={handleEditChange}
+          onSaveEdit={handleSaveEdit}
+          onCancelEdit={handleCancelEdit}
           onSearchChange={handleSearchChange}
           onToggleActive={handleToggleActive}
+          onAddCodeClick={openCodeModal}
         />
       </SplitView>
+
+      {/* --- Modals (기존과 동일) --- */}
+      <Modal
+        isOpen={isGroupModalOpen}
+        title="Add Code Group"
+        onClose={() => setIsGroupModalOpen(false)}
+        onSave={saveGroup}
+      >
+        <FormGroup>
+          <label>Group ID (Unique)</label>
+          <Input
+            value={newGroup.id}
+            onChange={(e) => setNewGroup({ ...newGroup, id: e.target.value })}
+            placeholder="e.g. GRP_MEMBER"
+          />
+        </FormGroup>
+        <FormGroup>
+          <label>Group Name</label>
+          <Input
+            value={newGroup.name}
+            onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
+            placeholder="e.g. Member Types"
+          />
+        </FormGroup>
+        <FormGroup>
+          <label>Description</label>
+          <Input
+            value={newGroup.desc}
+            onChange={(e) => setNewGroup({ ...newGroup, desc: e.target.value })}
+            placeholder="Optional description"
+          />
+        </FormGroup>
+      </Modal>
+
+      <Modal
+        isOpen={isCodeModalOpen}
+        title={`Add Code to ${selectedGroup?.name}`}
+        onClose={() => setIsCodeModalOpen(false)}
+        onSave={saveCode}
+      >
+        <FormGroup>
+          <label>Code Value</label>
+          <Input
+            value={newCode.code}
+            onChange={(e) => setNewCode({ ...newCode, code: e.target.value })}
+            placeholder="e.g. 01, M, KR"
+          />
+        </FormGroup>
+        <FormGroup>
+          <label>Code Name</label>
+          <Input
+            value={newCode.name}
+            onChange={(e) => setNewCode({ ...newCode, name: e.target.value })}
+            placeholder="e.g. Male, Korea"
+          />
+        </FormGroup>
+        <FormGroup>
+          <label>Sort Order</label>
+          <Input
+            type="number"
+            value={newCode.sort}
+            onChange={(e) => setNewCode({ ...newCode, sort: e.target.value })}
+          />
+        </FormGroup>
+      </Modal>
     </Container>
   );
 };
 
 export default CodesPage;
 
-// --- Styled Components ---
+// --- Styled Components (Updated) ---
+
+// ... (기존 스타일 유지) ...
 
 const Container = styled.div`
   width: 100%;
@@ -448,6 +751,12 @@ const Table = styled.table`
     vertical-align: middle;
   }
 
+  /* Editing Row Style */
+  tr.editing td {
+    background: #fdfdfd;
+    border-bottom: 1px solid #3498db;
+  }
+
   tr.inactive td {
     color: #aaa;
     background: #fdfdfd;
@@ -525,8 +834,11 @@ const IconButton = styled.button`
   align-items: center;
   justify-content: center;
   color: #555;
+  transition: all 0.2s;
   &:hover {
-    background: #f5f5f5;
+    background: #f0f0f0;
+    border-color: #bbb;
+    color: #333;
   }
 `;
 
@@ -543,7 +855,154 @@ const PrimaryBtn = styled.button`
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: background 0.2s;
   &:hover {
     background: #133b6b;
+  }
+  &:disabled {
+    background: #9aaec4;
+    cursor: not-allowed;
+  }
+`;
+
+// --- [New] Table Inline Input ---
+const TableInput = styled.input`
+  width: ${(props) => props.width || "100%"};
+  padding: 6px 8px;
+  border: 1px solid #3498db;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  background: white;
+  box-sizing: border-box;
+
+  &:focus {
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  }
+`;
+
+// ... Modal Styled Components (기존 유지) ...
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s;
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+`;
+const ModalBox = styled.div`
+  background: white;
+  width: 400px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.2s;
+  @keyframes slideUp {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+`;
+const ModalHeader = styled.div`
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+  }
+  button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #999;
+    &:hover {
+      color: #555;
+    }
+  }
+`;
+const ModalBody = styled.div`
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+`;
+const ModalFooter = styled.div`
+  padding: 15px 20px;
+  background: #f9f9f9;
+  border-top: 1px solid #eee;
+  border-radius: 0 0 8px 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cancel {
+    background: white;
+    border: 1px solid #ddd;
+    color: #555;
+    &:hover {
+      background: #f0f0f0;
+    }
+  }
+  .save {
+    background: #1a4f8b;
+    color: white;
+    &:hover {
+      background: #133b6b;
+    }
+  }
+`;
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 600;
+  }
+`;
+const Input = styled.input`
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  &:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
   }
 `;
