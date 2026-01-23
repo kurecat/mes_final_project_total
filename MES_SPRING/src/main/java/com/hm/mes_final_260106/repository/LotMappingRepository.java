@@ -12,3 +12,4 @@ public interface LotMappingRepository extends JpaRepository<LotMapping, Long> {
     // 특정 Lot이 사용된 생산이력 조회 (역추적)
     List<LotMapping> findByLotId(Long lotId);
 }
+ ///11111

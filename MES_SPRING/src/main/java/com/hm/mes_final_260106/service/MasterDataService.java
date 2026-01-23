@@ -64,4 +64,5 @@ public class MasterDataService {
         // 재고는 여기서 수정하지 않음 (입출고 트랜잭션으로만 변경)
         materialRepo.save(material);
     }
+    /// 111111
 }

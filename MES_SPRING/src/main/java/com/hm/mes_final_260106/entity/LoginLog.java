@@ -22,3 +22,4 @@ public class LoginLog {
     private String status;      // SUCCESS / FAIL
     private LocalDateTime loginTime; // 접속 시간
 }
+///1111111

@@ -8,3 +8,5 @@ public class BomReqDto {
     private String materialCode; // 어떤 자재가 들어가는가?
     private int requiredQty;     // 몇 개가 필요한가?
 }
+
+///1111111111

@@ -17,3 +17,4 @@ public class FinalInspectionDto {
     private String visual;          // 외관 검사 결과
     private String finalPass;       // 최종합격 여부
 }
+///1111111111

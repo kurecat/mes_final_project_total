@@ -9,3 +9,4 @@ public class MaterialInboundDto {
     private String name; // 자재 이름
     private int amount;  // 자재 수량
 }
+///1111111111

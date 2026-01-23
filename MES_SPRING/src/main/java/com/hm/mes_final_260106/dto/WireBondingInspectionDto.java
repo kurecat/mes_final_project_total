@@ -21,3 +21,4 @@ public class WireBondingInspectionDto {
     private double xrayPassRatio;       // X-ray 검사 합격률 (%)
     private double overallPassRatio;    // 전체 합격률 (%)
 }
+///1111111111

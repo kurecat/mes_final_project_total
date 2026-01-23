@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.constant.Authority;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Bom;
 import com.hm.mes_final_260106.entity.Material;
@@ -9,7 +10,7 @@ import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.repository.*;
 import com.hm.mes_final_260106.mapper.Mapper;
-import com.hm.mes_final_260106.repository.*;
+import com.hm.mes_final_260106.repository.ProductionResultRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,9 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Service
-@RequiredArgsConstructor
-@Slf4j
+@Service @RequiredArgsConstructor @Slf4j
 public class ProductionService {
 
     private final ProductionLogRepository logRepo;
@@ -36,10 +35,12 @@ public class ProductionService {
     private final ProductRepository productRepo;
     private final LotRepository lotRepo;
     private final LotMappingRepository lotMappingRepo;
-
+    private final EquipmentRepository equipmentRepo;
     private final MemberRepository memberRepo;
     private final WorkerRepository workerRepo;
     private final PasswordEncoder passwordEncoder;
+
+
 
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
@@ -52,7 +53,9 @@ public class ProductionService {
     private final ItemRepository itemRepo;
     private final FinalInspectionLogRepository finalInspectionLRepo;
     private final ProductionResultRepository productionResultRepo;
-    private final EquipmentRepository equipmentRepo;
+
+    private final FinalInspectionLogRepository finalInspectionLogRepo;
+    private final ProductionResultRepository productionResultRepository;
     private final InspectionStandardRepository standardRepo;
     private final Mapper mapper;
 
@@ -77,11 +80,14 @@ public class ProductionService {
     // 2) 작업 지시 생성
     // =========================
     @Transactional
-    public WorkOrder createWorkOrder(String productId, int targetQty, String targetLine) {
+    public WorkOrder createWorkOrder(String productCode, int targetQty, String targetLine) {
+
+        Product product = productRepo.findByCode(productCode)
+                .orElseThrow(()-> new RuntimeException("품목을 찾을 수 없습니다"));
 
         WorkOrder order = WorkOrder.builder()
-                .workorder_number(generateWorkOrderNumber())
-                .productId(productId)
+                .workOrderNumber(generateWorkOrderNumber())
+                .product(product)
                 .targetQty(targetQty)
                 .currentQty(0)
                 .status("WAITING")
@@ -148,7 +154,7 @@ public class ProductionService {
         }
 
         order.setStatus("COMPLETED");
-        order.setEnd_date(LocalDateTime.now());
+        order.setEndDate(LocalDateTime.now());
 
         return orderRepo.save(order);
     }
@@ -173,16 +179,19 @@ public class ProductionService {
     // 5) 작업지시 수정
     // =========================
     @Transactional
-    public WorkOrder updateWorkOrder(Long id, String productId, int targetQty, String targetLine) {
+    public WorkOrder updateWorkOrder(Long id, String productCode, int targetQty, String targetLine) {
 
         WorkOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + id));
+
+        Product product = productRepo.findByCode(productCode)
+                .orElseThrow(()-> new RuntimeException("품목을 찾을 수 없습니다"));
 
         if ("IN_PROGRESS".equals(order.getStatus()) || "COMPLETED".equals(order.getStatus())) {
             throw new RuntimeException("진행중/완료된 작업은 수정할 수 없습니다.");
         }
 
-        order.setProductId(productId);
+        order.setProduct(product);
         order.setTargetQty(targetQty);
         order.setTargetLine(targetLine);
 
@@ -226,12 +235,12 @@ public class ProductionService {
         order.setStatus(status);
 
         // 시작/종료 시간 기록
-        if ("IN_PROGRESS".equals(status) && order.getStart_date() == null) {
-            order.setStart_date(LocalDateTime.now()); // ⭐
+        if ("IN_PROGRESS".equals(status) && order.getStartDate() == null) {
+            order.setStartDate(LocalDateTime.now()); // ⭐
         }
 
         if ("COMPLETED".equals(status)) {
-            order.setEnd_date(LocalDateTime.now()); // ⭐
+            order.setEndDate(LocalDateTime.now()); // ⭐
         }
 
         return orderRepo.save(order);
@@ -265,18 +274,18 @@ public class ProductionService {
     @Transactional
     public void reportProduction(ProductionReportDto dto) {
         log.info("reportProduction 실행 : {}", dto.getWorkOrderId());
-        log.info("{}", dto.getItemDtos());
+        log.info("itemDtos : {}", dto.getItemDtos());
+        log.info("inputLots : {}", dto.getInputLots());
         Long orderId = dto.getWorkOrderId();
 
         // 지시 정보 확인
-        WorkOrder order = orderRepo.findById(orderId)
+        WorkOrder workOrder = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
 
-        Product product = productRepo.findByCode(order.getProductId())
-                .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다. ID: " + order.getProductId()));
+        Product product = workOrder.getProduct();
 
         ProductionLog productionLog = mapper.toEntity(dto);
-        productionLog.setWorkOrder(order);
+        productionLog.setWorkOrder(workOrder);
 
         Dicing dicing = mapper.toEntity(dto.getDicingDto());
         dicing.setProductionLog(productionLog);
@@ -302,12 +311,13 @@ public class ProductionService {
         MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
         moldingInspection.setMolding(molding);
 
+
         List<Item> items = new ArrayList<>();
         List<FinalInspection> finalInspections = new ArrayList<>();
 
         for (int i = 0; i < dto.getItemDtos().size(); i++) {
             Item item = mapper.toEntity(dto.getItemDtos().get(i));
-            item.setWorkOrder(order);
+            item.setProductionLog(productionLog);
             item.setProduct(product);
             items.add(item);
 
@@ -346,7 +356,7 @@ public class ProductionService {
         lots = lotRepo.saveAll(lots);
         lotMappings = lotMappingRepo.saveAll(lotMappings);
 
-        List<Bom> boms = bomRepo.findAllByProductCode(order.getProductId());
+        List<Bom> boms = bomRepo.findAllByProductCode(workOrder.getProduct().getCode());
         for (Bom bom : boms) {
             Material mat = bom.getMaterial();
             int required = bom.getRequiredQty();
@@ -361,27 +371,18 @@ public class ProductionService {
         }
 
         // 수량 증가
-        order.setCurrentQty(order.getCurrentQty() + 1);
+        workOrder.setCurrentQty(workOrder.getCurrentQty() + 1);
 
         // 완료 처리
-        if (order.getCurrentQty() >= order.getTargetQty()) {
-            order.setStatus("COMPLETED");
-            order.setEnd_date(LocalDateTime.now()); // 생산 마감 시점 기록
+        if (workOrder.getCurrentQty() >= workOrder.getTargetQty()) {
+            workOrder.setStatus("COMPLETED");
+            workOrder.setEndDate(LocalDateTime.now()); // 생산 마감 시점 기록
         }
 
         log.info("[생산 보고] 제품:{} 상태:{} 수량:{}/{}",
-                order.getProductId(), order.getStatus(), order.getCurrentQty(), order.getTargetQty());
+                workOrder.getProduct().getCode(), workOrder.getStatus(), workOrder.getCurrentQty(), workOrder.getTargetQty());
 
-        orderRepo.save(order);
-        // ============================================================
-        // 대시보드용 실시간 실적 집계 업데이트
-        // ============================================================
-        int good = "NONE".equals(dto.getDefectCode()) ? 1 : 0;
-        int defect = "NONE".equals(dto.getDefectCode()) ? 0 : 1;
-
-        updateProductionResult(order, product, good, defect);
-
-        log.info("[집계 완료] 제품:{} 양품:{} 불량:{}", product.getName(), good, defect);
+        orderRepo.save(workOrder);
     }
 
     // =========================
@@ -462,8 +463,8 @@ public class ProductionService {
             String status = "IN_PROGRESS".equals(wo.getStatus()) ? "RUNNING" : wo.getStatus();
 
             return new WorkOrderPerformanceResDto(
-                    wo.getWorkorder_number(),   // woId
-                    wo.getProductId(),          // product (지금은 productId 그대로 출력)
+                    wo.getWorkOrderNumber(),   // woId
+                    wo.getProduct().getCode(),
                     wo.getTargetLine(),         // line
                     "wfrs",                     // unit (고정, 필요시 제품단위로 바꿀 수 있음)
                     plan,
@@ -488,7 +489,7 @@ public class ProductionService {
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .name(dto.getName())
-                .authority(dto.getAuthority() == null ? "OPERATOR" : dto.getAuthority())
+                .authority(Authority.valueOf(dto.getAuthority() == null ? "OPERATOR" : dto.getAuthority()))
                 .build();
 
         Member savedMember = memberRepo.save(member);
@@ -531,7 +532,7 @@ public class ProductionService {
         // 2) Member 수정 (name/authority)
         Member member = worker.getMember();
         if (dto.getName() != null) member.setName(dto.getName());
-        if (dto.getAuthority() != null) member.setAuthority(dto.getAuthority());
+        if (dto.getAuthority() != null) member.setAuthority(Authority.valueOf(dto.getAuthority()));
 
         // 저장 (worker만 save해도 member는 영속 상태라 반영됨)
         Worker saved = workerRepo.save(worker);
@@ -548,6 +549,7 @@ public class ProductionService {
         // ⭐ Worker만 삭제 (Member는 유지)
         workerRepo.delete(worker);
     }
+
     // ==========================================
     //  8. 기준 정보 조회 (Frontend 연동용) - [추가됨]
     // ==========================================
@@ -638,5 +640,6 @@ public class ProductionService {
         }
         return standardRepo.findByProcessName(processName);
     }
+ //11
 }
 

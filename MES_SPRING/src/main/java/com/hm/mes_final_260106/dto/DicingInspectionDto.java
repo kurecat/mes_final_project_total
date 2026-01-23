@@ -13,3 +13,4 @@ public class DicingInspectionDto {
     private double chippingPassRatio;   // 칩핑 합격률 (%)
     private double overallPassRatio;    // 전체 합격률 (%)
 }
+///1111111111

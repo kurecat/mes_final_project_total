@@ -18,3 +18,4 @@ public class EquipmentCreateReqDto {
     private Double temperature;
     private String param;
 }
+///1111111111

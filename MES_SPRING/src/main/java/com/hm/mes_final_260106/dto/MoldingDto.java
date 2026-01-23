@@ -18,3 +18,4 @@ public class MoldingDto {
     private double cureTime;        // 경화 시간 (s)
     private double clampForce;      // 클램프 압력 (kN)
 }
+///1111111111

@@ -12,5 +12,5 @@ public class DicingDto {
     private double feedRate;   // 이송 속도 (mm/s)
     private double bladeWear;  // 블레이드 마모율 (%)
     private double coolantFlow; // 냉각수 유량 (L/min)
-
+///1111111111
 }

@@ -14,3 +14,4 @@ public class EquipmentReqDto {
     private Integer temperature;
     private String param;
 }
+///1111111111

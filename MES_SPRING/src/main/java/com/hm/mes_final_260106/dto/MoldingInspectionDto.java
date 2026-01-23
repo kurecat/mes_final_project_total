@@ -21,3 +21,4 @@ public class MoldingInspectionDto {
     private double crackPassRatio;      // 크랙(균열) 합격률 (%)
     private double overallPassRatio;    // 전체 합격률 (%)
 }
+///1111111111
