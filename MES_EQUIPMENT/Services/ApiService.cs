@@ -9,7 +9,7 @@ using System.Net.Http.Headers;
 public class ApiService
 {
     private readonly HttpClient _httpClient;
-    private TokenDto _currentTokens;
+    private TokenDto? _currentTokens;
 
     public ApiService()
     {
@@ -26,10 +26,11 @@ public class ApiService
         {
             var loginDto = new LoginReqDto { Email = email, Password = password };
             var response = await _httpClient.PostAsJsonAsync("auth/login", loginDto);
+            GlobalResponseDto<TokenDto>? tokenRes = await response.Content.ReadFromJsonAsync<GlobalResponseDto<TokenDto>?>();
 
-            if (response.IsSuccessStatusCode)
+            if (tokenRes != null && tokenRes.success == true)
             {
-                _currentTokens = await response.Content.ReadFromJsonAsync<TokenDto>();
+                _currentTokens = tokenRes.data;
                 if (_currentTokens != null)
                 {
                     SetAuthHeader(_currentTokens.AccessToken);
@@ -103,7 +104,7 @@ public class ApiService
     }
 
     // 4. 폴링
-    public async Task<WorkOrderDto> PollWorkOrderAsync()
+    public async Task<WorkOrderDto?> PollWorkOrderAsync()
     {
         try
         {

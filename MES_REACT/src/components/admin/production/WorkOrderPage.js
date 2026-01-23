@@ -1,7 +1,7 @@
 // src/pages/production/WorkOrderPage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-import axios from "axios";
+import axiosInstance from "../../../api/axios";
 import {
   FaPlay,
   FaPause,
@@ -262,7 +262,7 @@ const WorkOrderPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/order`);
+      const res = await axiosInstance.get(`${API_BASE}/order`);
       setOrders(res.data);
     } catch (err) {
       console.error("작업지시 조회 실패:", err);
@@ -285,7 +285,7 @@ const WorkOrderPage = () => {
         if (newStatus === "DONE") nextStatus = "COMPLETED";
         if (newStatus === "PAUSED") nextStatus = "PAUSED";
 
-        await axios.patch(`${API_BASE}/order/${id}/status`, {
+        await axiosInstance.patch(`${API_BASE}/order/${id}/status`, {
           status: nextStatus,
         });
         await fetchData();
@@ -304,7 +304,7 @@ const WorkOrderPage = () => {
     async (id) => {
       if (!window.confirm("정말 이 작업 지시를 삭제하시겠습니까?")) return;
       try {
-        await axios.delete(`${API_BASE}/order/${id}`);
+        await axiosInstance.delete(`${API_BASE}/order/${id}`);
         alert("삭제 완료");
         await fetchData();
       } catch (err) {

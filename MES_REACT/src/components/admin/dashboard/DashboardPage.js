@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
 // axios import removed if not strictly needed for this snippet, but kept as per request
-// import axios from "axios";
+// import axiosInstance from "../../api/axios";
 import {
   FaIndustry,
   FaExclamationCircle,
@@ -303,7 +303,7 @@ const DashboardPage = () => {
     setLoading(true);
     try {
       // API call logic would go here
-      // const res = await axios.get("http://localhost:3001/dashboard");
+      // const res = await axiosInstance.get("http://localhost:3001/dashboard");
       // setData(res.data);
 
       setTimeout(() => {

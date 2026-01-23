@@ -1,7 +1,7 @@
 // src/pages/resource/WorkerPage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-import axios from "axios";
+import axiosInstance from "../../../api/axios";
 import {
   FaUserTie,
   FaSearch,
@@ -296,7 +296,7 @@ const WorkerPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/worker/list`);
+      const res = await axiosInstance.get(`${API_BASE}/worker/list`);
       setWorkers(res.data ?? []);
     } catch (err) {
       console.error("작업자 조회 실패:", err);
@@ -316,7 +316,7 @@ const WorkerPage = () => {
     if (!window.confirm("해당 작업자를 삭제하시겠습니까?")) return;
 
     try {
-      await axios.delete(`${API_BASE}/worker/${workerId}`);
+      await axiosInstance.delete(`${API_BASE}/worker/${workerId}`);
       setWorkers((prev) => prev.filter((w) => w.workerId !== workerId));
       alert("삭제 완료");
     } catch (err) {
@@ -329,7 +329,7 @@ const WorkerPage = () => {
   const handleAdd = useCallback(async () => {
     try {
       const today = new Date().toISOString().split("T")[0];
-      const res = await axios.post(`${API_BASE}/worker/register`, {
+      const res = await axiosInstance.post(`${API_BASE}/worker/register`, {
         email: `worker${Date.now()}@test.com`,
         password: "1234",
         name: "New Worker",
@@ -371,7 +371,7 @@ const WorkerPage = () => {
         .map((v) => v.trim())
         .filter((v) => v.length > 0);
 
-      const res = await axios.patch(
+      const res = await axiosInstance.patch(
         `${API_BASE}/worker/${editTarget.workerId}`,
         {
           name: editForm.name,

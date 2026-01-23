@@ -1,7 +1,7 @@
 // src/pages/dashboard/KpiPage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-// import axios from "axios";
+// import axiosInstance from "../../api/axios";
 import {
   FaChartPie,
   FaDownload,
@@ -252,7 +252,7 @@ const KpiPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // const res = await axios.get("http://localhost:3001/kpi");
+      // const res = await axiosInstance.get("http://localhost:3001/kpi");
       // setKpiData(res.data);
 
       setTimeout(() => {

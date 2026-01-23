@@ -1,7 +1,7 @@
 // src/pages/resource/MachinePage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled, { keyframes, css } from "styled-components";
-import axios from "axios";
+import axiosInstance from "../../../api/axios";
 import {
   FaSearch,
   FaThermometerHalf,
@@ -470,7 +470,7 @@ const MachinePage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/equipment/monitor`);
+      const res = await axiosInstance.get(`${API_BASE}/equipment/monitor`);
       setMachines(res.data ?? []);
     } catch (err) {
       console.error("설비 조회 실패:", err);
@@ -529,7 +529,7 @@ const MachinePage = () => {
         return;
 
       try {
-        await axios.delete(`${API_BASE}/equipment/${id}`);
+        await axiosInstance.delete(`${API_BASE}/equipment/${id}`);
         alert("설비가 삭제되었습니다.");
         await fetchData();
       } catch (err) {
@@ -565,10 +565,13 @@ const MachinePage = () => {
       };
 
       if (!editingMachine) {
-        await axios.post(`${API_BASE}/equipment`, payload);
+        await axiosInstance.post(`${API_BASE}/equipment`, payload);
         alert("설비가 DB에 저장되었습니다.");
       } else {
-        await axios.put(`${API_BASE}/equipment/${editingMachine.id}`, payload);
+        await axiosInstance.put(
+          `${API_BASE}/equipment/${editingMachine.id}`,
+          payload,
+        );
         alert("설비 정보가 수정되어 DB에 저장되었습니다.");
       }
 

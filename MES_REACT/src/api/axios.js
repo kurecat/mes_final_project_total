@@ -2,15 +2,15 @@
 
 import axios from "axios";
 
-const instance = axios.create({
-  baseURL: "",
+const axiosInstance = axios.create({
+  baseURL: "http://localhost:8111/",
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 //  Request 인터셉터: 모든 요청에 AccessToken 자동 추가
-instance.interceptors.request.use(
+axiosInstance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("accessToken");
     if (token) {
@@ -36,7 +36,7 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-instance.interceptors.response.use(
+axiosInstance.interceptors.response.use(
   (response) => response, // 성공 시 그대로 반환
   async (error) => {
     const originalRequest = error.config;
@@ -50,7 +50,7 @@ instance.interceptors.response.use(
         })
           .then((token) => {
             originalRequest.headers["Authorization"] = `Bearer ${token}`;
-            return instance(originalRequest);
+            return axiosInstance(originalRequest);
           })
           .catch((err) => Promise.reject(err));
       }
@@ -64,13 +64,14 @@ instance.interceptors.response.use(
       if (!refreshToken || !accessToken) {
         // 토큰이 없으면 로그인 페이지로
         localStorage.clear();
-        window.location.href = "/";
+        if (window.location.href !== "http://localhost:3000/")
+          window.location.href = "/";
         return Promise.reject(error);
       }
 
       try {
         //  토큰 재발급 요청
-        const response = await axios.post(
+        const response = await axiosInstance.post(
           "http://localhost:8111/auth/refresh",
           {
             accessToken,
@@ -91,7 +92,7 @@ instance.interceptors.response.use(
           // 실패했던 원래 요청 재시도
           originalRequest.headers["Authorization"] =
             `Bearer ${newTokenData.accessToken}`;
-          return instance(originalRequest);
+          return axiosInstance(originalRequest);
         }
       } catch (refreshError) {
         // 재발급 실패 시 로그아웃 처리
@@ -109,4 +110,4 @@ instance.interceptors.response.use(
   },
 );
 
-export default instance;
+export default axiosInstance;

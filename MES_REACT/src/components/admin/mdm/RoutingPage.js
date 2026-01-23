@@ -1,7 +1,7 @@
 // src/pages/mdm/RoutingPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axios from "axios";
+// import axiosInstance from "../../api/axios";
 import {
   FaProjectDiagram,
   FaSearch,
@@ -336,7 +336,7 @@ const RoutingPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      // const res = await axios.get("http://localhost:3001/routings");
+      // const res = await axiosInstance.get("http://localhost:3001/routings");
       // setRoutingList(res.data);
       // if (res.data.length > 0) { ... }
 

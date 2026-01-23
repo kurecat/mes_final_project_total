@@ -1,6 +1,7 @@
 -- Member 등록
 INSERT INTO member (name, email, password, authority, status) VALUES
-('이용현', 'dfgr56@naver.com', '$2a$10$PBkqQ55sviBicLzQF7Dk/ONlNtLtukkK.QMGuK7WEAaTGdxObhkaW', 'ROLE_OPERATOR', 'PENDING');
+('이용현', 'dfgr56@naver.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
+('이용현', 'dfgr567@naver.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_ADMIN', 'ACTIVE');
 
 -- Product 등록
 INSERT INTO product (code, name) VALUES

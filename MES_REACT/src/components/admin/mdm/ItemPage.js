@@ -1,7 +1,7 @@
 // src/pages/mdm/ItemPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axios from "axios";
+// import axiosInstance from "../../api/axios";
 import {
   FaBox,
   FaSearch,
@@ -143,7 +143,7 @@ const ItemPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      // const res = await axios.get("http://localhost:3001/items");
+      // const res = await axiosInstance.get("http://localhost:3001/items");
       // setItems(res.data);
 
       setTimeout(() => {
@@ -164,7 +164,7 @@ const ItemPage = () => {
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm(`품목 코드 [${id}]를 삭제하시겠습니까?`)) return;
     try {
-      // await axios.delete(`http://localhost:3001/items/${id}`);
+      // await axiosInstance.delete(`http://localhost:3001/items/${id}`);
       setItems((prev) => prev.filter((item) => item.id !== id));
     } catch (err) {
       console.error("Delete Error", err);

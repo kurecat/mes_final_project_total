@@ -1,7 +1,7 @@
 // src/pages/production/ProductionPlanPage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-import axios from "axios";
+import axiosInstance from "../../../api/axios";
 import {
   FaCalendarAlt,
   FaPlus,
@@ -240,7 +240,7 @@ const ProductionPlanPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/order`);
+      const res = await axiosInstance.get(`${API_BASE}/order`);
       const mapped = (res.data || []).map(mapWorkOrderToPlan);
       setPlans(mapped);
     } catch (err) {
@@ -259,11 +259,11 @@ const ProductionPlanPage = () => {
   const handleAdd = useCallback(async () => {
     try {
       const payload = {
-        productId: "P-DUMMY-001",
+        productId: "DRAM-4G-DDR4-001",
         targetQty: 500,
         targetLine: "Fab-Line-A",
       };
-      await axios.post(`${API_BASE}/order`, payload);
+      await axiosInstance.post(`${API_BASE}/order`, payload);
       alert("작업지시가 추가되었습니다.");
       fetchData();
     } catch (err) {
@@ -279,7 +279,7 @@ const ProductionPlanPage = () => {
         return;
       }
       try {
-        await axios.post(`${API_BASE}/order/${orderId}/release`);
+        await axiosInstance.post(`${API_BASE}/order/${orderId}/release`);
         alert(`Plan [${planId}] Release 완료`);
         fetchData();
       } catch (err) {
@@ -298,7 +298,7 @@ const ProductionPlanPage = () => {
       }
       if (!window.confirm("삭제하시겠습니까?")) return;
       try {
-        await axios.delete(`${API_BASE}/order/${orderId}`);
+        await axiosInstance.delete(`${API_BASE}/order/${orderId}`);
         alert("삭제 완료");
         fetchData();
       } catch (err) {
@@ -349,7 +349,7 @@ const ProductionPlanPage = () => {
           targetQty: qty,
           targetLine: editForm.targetLine.trim(),
         };
-        await axios.put(`${API_BASE}/order/${orderId}`, payload);
+        await axiosInstance.put(`${API_BASE}/order/${orderId}`, payload);
         alert(`Plan [${planId}] 수정 저장 완료`);
         setEditingPlanId(null);
         fetchData();

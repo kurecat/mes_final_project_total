@@ -1,7 +1,7 @@
 // src/pages/resource/EquipmentPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axios from "axios";
+// import axiosInstance from "../../api/axios";
 import {
   FaServer,
   FaSearch,
@@ -125,7 +125,7 @@ const EquipmentPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      // const res = await axios.get("http://localhost:3001/equipments");
+      // const res = await axiosInstance.get("http://localhost:3001/equipments");
       // setEquipments(res.data);
 
       setTimeout(() => {
@@ -146,7 +146,7 @@ const EquipmentPage = () => {
   const toggleStatus = useCallback(async (id, currentStatus) => {
     const newStatus = currentStatus === "RUN" ? "IDLE" : "RUN";
     try {
-      // await axios.patch(`http://localhost:3001/equipments/${id}`, { status: newStatus });
+      // await axiosInstance.patch(`http://localhost:3001/equipments/${id}`, { status: newStatus });
       setEquipments((prev) =>
         prev.map((eq) => (eq.id === id ? { ...eq, status: newStatus } : eq)),
       );
@@ -158,7 +158,7 @@ const EquipmentPage = () => {
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     try {
-      // await axios.delete(`http://localhost:3001/equipments/${id}`);
+      // await axiosInstance.delete(`http://localhost:3001/equipments/${id}`);
       setEquipments((prev) => prev.filter((eq) => eq.id !== id));
     } catch (err) {
       console.error("Delete Error", err);

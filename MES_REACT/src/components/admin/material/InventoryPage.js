@@ -1,7 +1,7 @@
 // src/pages/resource/InventoryPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axios from "axios";
+// import axiosInstance from "../../api/axios";
 import {
   FaBoxOpen,
   FaSearch,
@@ -192,7 +192,7 @@ const InventoryPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // const res = await axios.get("http://localhost:3001/inventory");
+      // const res = await axiosInstance.get("http://localhost:3001/inventory");
       // setInventory(res.data);
 
       setTimeout(() => {

@@ -1,7 +1,7 @@
 // src/pages/mdm/BomPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axios from "axios";
+// import axiosInstance from "../../api/axios";
 import {
   FaSearch,
   FaSitemap,
@@ -623,7 +623,7 @@ const BomPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      // const res = await axios.get("http://localhost:3001/boms");
+      // const res = await axiosInstance.get("http://localhost:3001/boms");
       // setBomList(res.data);
       // if (res.data.length > 0) setSelectedBom(res.data[0]);
 
