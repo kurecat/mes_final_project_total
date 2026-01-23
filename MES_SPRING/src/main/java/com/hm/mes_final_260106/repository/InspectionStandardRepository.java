@@ -7,3 +7,4 @@ import java.util.List;
 public interface InspectionStandardRepository extends JpaRepository<InspectionStandard, Long> {
     List<InspectionStandard> findByProcessName(String processName);
 }
+// 1111111
