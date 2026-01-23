@@ -3,7 +3,7 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: "",
+  baseURL: "http://localhost:8111/",
   headers: {
     "Content-Type": "application/json",
   },
@@ -64,7 +64,8 @@ instance.interceptors.response.use(
       if (!refreshToken || !accessToken) {
         // 토큰이 없으면 로그인 페이지로
         localStorage.clear();
-        window.location.href = "/";
+        if (window.location.href !== "http://localhost:3000/")
+          window.location.href = "/";
         return Promise.reject(error);
       }
 
