@@ -45,7 +45,7 @@ public class EquipmentService {
         if (runningLog != null) {
             currentRun = EquipmentDetailResDto.CurrentRunInfo.builder()
                     .productionLogId(runningLog.getId())
-                    .lotCode(runningLog.getLot() != null ? runningLog.getLot().getCode() : "-")
+//                    .lotCode(runningLog.getLot() != null ? runningLog.getLot().getCode() : "-")
                     .workOrderNumber(
                             runningLog.getWorkOrder() != null
                                     ? runningLog.getWorkOrder().getWorkOrderNumber()
@@ -61,7 +61,7 @@ public class EquipmentService {
                         .stream()
                         .map(log -> EquipmentDetailResDto.EquipmentLogItem.builder()
                                 .productionLogId(log.getId())
-                                .lotCode(log.getLot() != null ? log.getLot().getCode() : "-")
+//                                .lotCode(log.getLot() != null ? log.getLot().getCode() : "-")
                                 .workOrderNumber(
                                         log.getWorkOrder() != null
                                                 ? log.getWorkOrder().getWorkOrderNumber()

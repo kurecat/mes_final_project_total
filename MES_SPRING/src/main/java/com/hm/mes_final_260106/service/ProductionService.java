@@ -40,8 +40,6 @@ public class ProductionService {
     private final WorkerRepository workerRepo;
     private final PasswordEncoder passwordEncoder;
 
-
-
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
     private final DieBondingRepository dieBondingRepo;
@@ -54,8 +52,6 @@ public class ProductionService {
     private final FinalInspectionLogRepository finalInspectionLRepo;
     private final ProductionResultRepository productionResultRepo;
 
-    private final FinalInspectionLogRepository finalInspectionLogRepo;
-    private final ProductionResultRepository productionResultRepository;
     private final InspectionStandardRepository standardRepo;
     private final Mapper mapper;
 
@@ -284,8 +280,16 @@ public class ProductionService {
 
         Product product = workOrder.getProduct();
 
+        Member member = memberRepo.findById(dto.getMemberId())
+                .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다"));
+
+        Equipment equipment = equipmentRepo.findByCode(dto.getEquipmentCode())
+                .orElseThrow(() -> new RuntimeException("설비를 찾을 수 없습니다"));
+
         ProductionLog productionLog = mapper.toEntity(dto);
         productionLog.setWorkOrder(workOrder);
+        productionLog.setMember(member);
+        productionLog.setEquipment(equipment);
 
         Dicing dicing = mapper.toEntity(dto.getDicingDto());
         dicing.setProductionLog(productionLog);

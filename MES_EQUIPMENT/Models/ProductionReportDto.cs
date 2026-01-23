@@ -6,9 +6,8 @@
 public class ProductionReportDto
 {
     public long WorkOrderId { get; set; }
-    public long LotId { get; set; }
     public long MemberId { get; set; }
-    public long EquipmentId { get; set; }
+    public string? EquipmentCode { get; set; }
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
     public string? DefectCode { get; set; }
