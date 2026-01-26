@@ -197,6 +197,12 @@ public class MesController {
                 productionService.getWorkOrderPerformanceList(date, line)
         );
     }
+    // 작업자 조회
+    @GetMapping("/worker/list")
+    public ResponseEntity<List<WorkerResDto>> getWorkerList() {
+        return ResponseEntity.ok(productionService.getAllWorkers());
+    }
+
     // 작업자 등록
     @PostMapping("/worker/register")
     public ResponseEntity<WorkerResDto> registerWorker(@RequestBody WorkerCreateReqDto dto) {
