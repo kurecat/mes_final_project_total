@@ -1,3 +1,4 @@
+// src/pages/Auth/LoginPage.js
 import React, { useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { useNavigate } from "react-router-dom";
@@ -21,36 +22,57 @@ const LoginPage = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
+    // 1. [안전장치] 이미 로딩 중이라면 클릭 무시 (더블 클릭 방지)
+    if (isLoading) return;
+
+    // 2. [유효성 검사] 입력값 확인
+    if (!inputs.id || !inputs.password) {
+      setError("아이디와 비밀번호를 모두 입력해주세요.");
+      return;
+    }
+
     setIsLoading(true);
+    setError(""); // 이전 에러 메시지 초기화
 
     try {
-      // 1. 백엔드로 로그인 요청
+      console.log("🚀 로그인 요청 시작...");
       const response = await axiosInstance.post("/auth/login", {
         email: inputs.id,
         password: inputs.password,
       });
 
-      // 2. 백엔드 GlobalResponseDto 구조에 맞춰 데이터 추출
-      // response.data (전체 봉투) -> data (내용물: TokenDto)
+      console.log("✅ 로그인 성공:", response);
       const tokenData = response.data.data;
 
       if (tokenData && tokenData.accessToken) {
         localStorage.setItem("accessToken", tokenData.accessToken);
-        console.log("✅ 로그인 성공! 토큰 장전 완료.");
-
-        // 3. 관리자 페이지로 진격 (경로가 /admin 인지 /admin/dashboard 인지 확인)
         navigate("/admin");
       } else {
-        setError("인증 정보가 올바르지 않습니다.");
+        setError("서버 응답에 토큰이 없습니다.");
       }
     } catch (err) {
-      console.error("❌ 로그인 실패:", err);
-      if (err.response && err.response.status === 401) {
-        setError("아이디 또는 비밀번호가 틀렸습니다.");
+      console.error("❌ 로그인 에러 발생:", err);
+
+      // 에러 메시지 구체화
+      if (err.response) {
+        if (err.response.status === 401) {
+          setError("아이디 또는 비밀번호가 일치하지 않습니다.");
+        } else if (err.response.status === 400) {
+          setError("입력 정보를 다시 확인해주세요.");
+        } else if (err.response.status >= 500) {
+          setError("서버 오류가 발생했습니다. 관리자에게 문의하세요.");
+        } else {
+          setError(`로그인 실패 (${err.response.status})`);
+        }
+      } else if (err.request) {
+        setError("서버와 연결할 수 없습니다. 네트워크를 확인해주세요.");
       } else {
-        setError("서버와 통신할 수 없습니다.");
+        setError("로그인 중 알 수 없는 오류가 발생했습니다.");
       }
     } finally {
+      // 3. [상태 해제] 성공/실패 여부와 상관없이 무조건 로딩 끄기
+      console.log("🏁 로딩 상태 해제");
       setIsLoading(false);
     }
   };
@@ -77,7 +99,7 @@ const LoginPage = () => {
         <RightPanel>
           <FormContainer onSubmit={handleLogin}>
             <TitleHeader>
-              <WelcomeText>Welcome Back!</WelcomeText>
+              <WelcomeText>Welcome!</WelcomeText>
               <SubText>시스템 로그인을 진행해주세요.</SubText>
             </TitleHeader>
 
@@ -127,7 +149,7 @@ const LoginPage = () => {
   );
 };
 
-// --- 스타일 컴포넌트 생략 없이 그대로 유지 ---
+// --- 스타일 컴포넌트 (기존과 동일) ---
 const fadeIn = keyframes`from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); }`;
 const Container = styled.div`
   width: 100vw;
@@ -300,6 +322,7 @@ const LoginButton = styled.button`
   }
   &:disabled {
     background-color: #95a5a6;
+    cursor: not-allowed;
   }
 `;
 
