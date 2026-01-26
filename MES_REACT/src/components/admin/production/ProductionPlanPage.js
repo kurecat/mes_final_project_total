@@ -1,4 +1,3 @@
-// src/pages/production/ProductionPlanPage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import axiosInstance from "../../../api/axios";
@@ -27,7 +26,8 @@ const MOCK_PLANS = [
     id: "PP-240601-01",
     orderId: 1,
     date: "2024-06-01",
-    product: "DDR5 1znm Wafer",
+    productCode: "DRAM-4G-DDR4-001",
+    productName: "DRAM 4Gb DDR4 칩",
     line: "Fab-Line-A",
     type: "FAB",
     planQty: 1000,
@@ -37,7 +37,8 @@ const MOCK_PLANS = [
     id: "PP-240602-02",
     orderId: 2,
     date: "2024-06-02",
-    product: "16Gb DDR5 SDRAM",
+    productCode: "DRAM-16G-DDR5-003",
+    productName: "DRAM 16Gb DDR5 칩",
     line: "EDS-Line-01",
     type: "EDS",
     planQty: 50000,
@@ -45,9 +46,11 @@ const MOCK_PLANS = [
   },
 ];
 
-// --- [Optimized] Sub-Components with React.memo ---
+// =============================
+// Sub Components
+// =============================
 
-// 1. Control Bar Component
+// 1) Control Bar
 const ControlBarSection = React.memo(
   ({ filterLine, onFilterChange, searchTerm, onSearchChange }) => {
     return (
@@ -83,7 +86,7 @@ const ControlBarSection = React.memo(
   },
 );
 
-// 2. Table Row Component
+// 2) Table Row
 const PlanTableRow = React.memo(
   ({
     plan,
@@ -95,6 +98,7 @@ const PlanTableRow = React.memo(
     onEditFormChange,
     onRelease,
     onDelete,
+    products,
   }) => {
     return (
       <tr>
@@ -106,6 +110,7 @@ const PlanTableRow = React.memo(
 
         <td>{plan.date}</td>
 
+        {/* Target Line */}
         <td style={{ fontSize: 13 }}>
           {isEditing ? (
             <EditInput
@@ -117,15 +122,27 @@ const PlanTableRow = React.memo(
           )}
         </td>
 
-        {/* Product */}
+        {/* Product (드롭다운으로 변경) */}
         <td style={{ fontWeight: "600" }}>
           {isEditing ? (
-            <EditInput
-              value={editForm.product}
-              onChange={(e) => onEditFormChange("product", e.target.value)}
-            />
+            <EditSelect
+              value={editForm.productCode}
+              onChange={(e) => onEditFormChange("productCode", e.target.value)}
+            >
+              <option value="">-- Select Product --</option>
+              {products.map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.name} ({p.code})
+                </option>
+              ))}
+            </EditSelect>
           ) : (
-            plan.product
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <span>{plan.productName || "-"}</span>
+              <span style={{ fontSize: 11, color: "#999" }}>
+                {plan.productCode || "-"}
+              </span>
+            </div>
           )}
         </td>
 
@@ -148,7 +165,7 @@ const PlanTableRow = React.memo(
         {/* Action */}
         <td>
           <ActionButtons>
-            {/* Release 버튼 */}
+            {/* Release */}
             {plan.status === "WAITING" && !isEditing && (
               <IconBtn
                 className="confirm"
@@ -205,8 +222,9 @@ const PlanTableRow = React.memo(
   },
 );
 
-// --- Main Component ---
-
+// =============================
+// Main Component
+// =============================
 const ProductionPlanPage = () => {
   const [plans, setPlans] = useState(MOCK_PLANS);
   const [loading, setLoading] = useState(true);
@@ -214,34 +232,81 @@ const ProductionPlanPage = () => {
   const [filterLine, setFilterLine] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 수정 기능 상태
+  // 제품 목록 (code/name)
+  const [products, setProducts] = useState([]);
+
+  // 수정 상태
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [editForm, setEditForm] = useState({
-    product: "",
+    productCode: "",
     planQty: "",
     targetLine: "",
   });
 
-  // WorkOrder -> Plan 변환
-  const mapWorkOrderToPlan = useCallback((wo) => {
-    return {
-      id: wo.workorderNumber || `WO-${wo.id}`,
-      orderId: wo.id,
-      date: wo.startDate ? wo.startDate.split("T")[0] : "",
-      product: wo.productId || "",
-      line: wo.targetLine || "Fab-Line-A",
-      type: "FAB",
-      planQty: wo.targetQty ?? 0,
-      status: wo.status ?? "WAITING",
-    };
+  // =============================
+  // 1) 제품 목록 조회
+  // =============================
+  const fetchProducts = useCallback(async () => {
+    try {
+      // ⚠️ 백엔드에 /product API가 있어야 합니다.
+      // 없다면 아래 URL을 너 프로젝트에 맞게 수정하세요.
+      const res = await axiosInstance.get(`${API_BASE}/product`);
+      const list = Array.isArray(res.data) ? res.data : [];
+      // 기대 형태: [{ code: "...", name: "..." }, ...]
+      setProducts(list);
+    } catch (err) {
+      console.error("제품 목록 조회 실패:", err);
+
+      // fallback: DB 캡처 기준 임시 목록
+      setProducts([
+        { code: "DRAM-4G-DDR4-001", name: "DRAM 4Gb DDR4 칩" },
+        { code: "DRAM-8G-DDR4-002", name: "DRAM 8Gb DDR4 칩" },
+        { code: "DRAM-16G-DDR5-003", name: "DRAM 16Gb DDR5 칩" },
+        { code: "DRAM-32G-DDR5-004", name: "DRAM 32Gb DDR5 칩" },
+        { code: "DRAM-4G-LP-005", name: "Low-Power DRAM 4Gb" },
+        { code: "DRAM-8G-MB-006", name: "Mobile DRAM 8Gb" },
+        { code: "DRAM-16G-GR-007", name: "Graphics DRAM 16Gb" },
+        { code: "DRAM-4G-EM-008", name: "Embedded DRAM 4Gb" },
+      ]);
+    }
   }, []);
 
-  // 1) 데이터 조회 (READ) - useCallback
+  // =============================
+  // WorkOrder -> Plan 변환
+  // =============================
+  const mapWorkOrderToPlan = useCallback(
+    (wo) => {
+      // wo.productId가 code라고 가정 (백엔드 설계상 code로 보내는 게 정상)
+      const code = wo.productId || "";
+
+      // code로 name 매핑 (products가 로드되어 있으면 name 표시 가능)
+      const found = products.find((p) => p.code === code);
+      const name = found?.name || "";
+
+      return {
+        id: wo.workorderNumber || `WO-${wo.id}`,
+        orderId: wo.id,
+        date: wo.startDate ? wo.startDate.split("T")[0] : "",
+        productCode: code,
+        productName: name,
+        line: wo.targetLine || "Fab-Line-A",
+        type: "FAB",
+        planQty: wo.targetQty ?? 0,
+        status: wo.status ?? "WAITING",
+      };
+    },
+    [products],
+  );
+
+  // =============================
+  // 2) 작업지시 조회
+  // =============================
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axiosInstance.get(`${API_BASE}/order`);
-      const mapped = (res.data || []).map(mapWorkOrderToPlan);
+      const list = Array.isArray(res.data) ? res.data : [];
+      const mapped = list.map(mapWorkOrderToPlan);
       setPlans(mapped);
     } catch (err) {
       console.error("작업지시 조회 실패:", err);
@@ -251,18 +316,28 @@ const ProductionPlanPage = () => {
   }, [mapWorkOrderToPlan]);
 
   useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  useEffect(() => {
+    // 제품 목록을 먼저 불러온 뒤, name 매핑이 가능해지므로 fetchData 실행
     fetchData();
   }, [fetchData]);
 
-  // Handlers - useCallback
-
+  // =============================
+  // Handlers
+  // =============================
   const handleAdd = useCallback(async () => {
     try {
+      // 첫 번째 제품을 기본값으로 생성
+      const defaultProductCode = products?.[0]?.code || "DRAM-4G-DDR4-001";
+
       const payload = {
-        productId: "DRAM-4G-DDR4-001",
+        productId: defaultProductCode, // 서버는 code를 기대
         targetQty: 500,
         targetLine: "Fab-Line-A",
       };
+
       await axiosInstance.post(`${API_BASE}/order`, payload);
       alert("작업지시가 추가되었습니다.");
       fetchData();
@@ -270,7 +345,7 @@ const ProductionPlanPage = () => {
       console.error("작업지시 생성 실패:", err);
       alert("작업지시 추가 실패");
     }
-  }, [fetchData]);
+  }, [fetchData, products]);
 
   const handleRelease = useCallback(
     async (planId, orderId) => {
@@ -297,6 +372,7 @@ const ProductionPlanPage = () => {
         return;
       }
       if (!window.confirm("삭제하시겠습니까?")) return;
+
       try {
         await axiosInstance.delete(`${API_BASE}/order/${orderId}`);
         alert("삭제 완료");
@@ -312,7 +388,7 @@ const ProductionPlanPage = () => {
   const handleEditStart = useCallback((plan) => {
     setEditingPlanId(plan.id);
     setEditForm({
-      product: plan.product ?? "",
+      productCode: plan.productCode ?? "",
       planQty: plan.planQty ?? "",
       targetLine: plan.line ?? "",
     });
@@ -320,7 +396,7 @@ const ProductionPlanPage = () => {
 
   const handleEditCancel = useCallback(() => {
     setEditingPlanId(null);
-    setEditForm({ product: "", planQty: "", targetLine: "" });
+    setEditForm({ productCode: "", planQty: "", targetLine: "" });
   }, []);
 
   const handleEditFormChange = useCallback((field, value) => {
@@ -333,23 +409,32 @@ const ProductionPlanPage = () => {
         alert("orderId가 없습니다.");
         return;
       }
-      if (!editForm.product.trim()) {
-        alert("ProductId를 입력하세요.");
+
+      if (!editForm.productCode?.trim()) {
+        alert("제품을 선택하세요.");
         return;
       }
+
       const qty = Number(editForm.planQty);
       if (!qty || qty <= 0) {
         alert("Plan Qty는 1 이상 숫자여야 합니다.");
         return;
       }
 
+      if (!editForm.targetLine?.trim()) {
+        alert("Target Line을 입력하세요.");
+        return;
+      }
+
       try {
         const payload = {
-          productId: editForm.product.trim(),
+          productId: editForm.productCode.trim(), // ⭐ code를 전송
           targetQty: qty,
           targetLine: editForm.targetLine.trim(),
         };
+
         await axiosInstance.put(`${API_BASE}/order/${orderId}`, payload);
+
         alert(`Plan [${planId}] 수정 저장 완료`);
         setEditingPlanId(null);
         fetchData();
@@ -369,14 +454,23 @@ const ProductionPlanPage = () => {
     setSearchTerm(e.target.value);
   }, []);
 
-  // Filtering - useMemo
+  // =============================
+  // Filtering
+  // =============================
   const filteredPlans = useMemo(() => {
     return plans.filter((p) => {
       const matchLine = filterLine === "ALL" || p.type === filterLine;
-      const product = (p.product ?? "").toLowerCase();
+
+      const productName = (p.productName ?? "").toLowerCase();
+      const productCode = (p.productCode ?? "").toLowerCase();
       const id = (p.id ?? "").toLowerCase();
       const keyword = (searchTerm ?? "").toLowerCase();
-      const matchSearch = product.includes(keyword) || id.includes(keyword);
+
+      const matchSearch =
+        productName.includes(keyword) ||
+        productCode.includes(keyword) ||
+        id.includes(keyword);
+
       return matchLine && matchSearch;
     });
   }, [plans, filterLine, searchTerm]);
@@ -397,6 +491,7 @@ const ProductionPlanPage = () => {
           </PageTitle>
           <SubTitle>Fab / EDS / Module Daily Output Plan</SubTitle>
         </TitleArea>
+
         <ActionGroup>
           <AddButton onClick={handleAdd}>
             <FaPlus /> Create Plan
@@ -404,7 +499,7 @@ const ProductionPlanPage = () => {
         </ActionGroup>
       </Header>
 
-      {/* 컨트롤 바 (Memoized) */}
+      {/* 컨트롤 바 */}
       <ControlBarSection
         filterLine={filterLine}
         onFilterChange={handleFilterChange}
@@ -426,6 +521,7 @@ const ProductionPlanPage = () => {
               <th>Action</th>
             </tr>
           </thead>
+
           <tbody>
             {filteredPlans.map((plan) => (
               <PlanTableRow
@@ -439,6 +535,7 @@ const ProductionPlanPage = () => {
                 onEditFormChange={handleEditFormChange}
                 onRelease={handleRelease}
                 onDelete={handleDelete}
+                products={products}
               />
             ))}
           </tbody>
@@ -706,6 +803,20 @@ const IconBtn = styled.button`
 `;
 
 const EditInput = styled.input`
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  outline: none;
+  font-size: 13px;
+  background: #fff;
+
+  &:focus {
+    border-color: #1a4f8b;
+  }
+`;
+
+const EditSelect = styled.select`
   width: 100%;
   padding: 6px 8px;
   border: 1px solid #ddd;
