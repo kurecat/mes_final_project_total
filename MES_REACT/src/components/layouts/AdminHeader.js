@@ -19,6 +19,9 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const location = useLocation();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState({ temp: null, desc: "", icon: "" });
+
+  // ★ [중요] 여기에 본인의 유효한 OpenWeatherMap API Key를 입력하세요.
+  // 기존 키는 401 에러(Invalid API key)가 발생하여 사용할 수 없습니다.
   const API_KEY = "5b6a625b25065e038c9a33e0674ea4e6";
 
   // ★ [수정] AdminMainPage의 탭 경로와 정확히 일치시켜야 고정됩니다.
@@ -28,27 +31,41 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const homeTab = tabs.find((tab) => tab.path === HOME_PATH);
   const otherTabs = tabs.filter((tab) => tab.path !== HOME_PATH);
 
-  // 날씨 API
+  // 날씨 API (천안 기준) - axiosInstance 대신 fetch 사용
   useEffect(() => {
     const fetchWeather = async () => {
+      // API 키 확인
       if (!API_KEY) return;
+
       try {
-        const url = `https://api.openweathermap.org/data/2.5/weather?lat=36.815&lon=127.113&units=metric&appid=${API_KEY}`;
-        const res = await axiosInstance.get(url);
+        const lat = "36.815";
+        const lon = "127.113";
+        // axiosInstance 대신 순수 fetch 사용 (인터셉터/헤더 충돌 방지)
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        // fetch는 401, 404 에러에도 catch로 가지 않으므로 수동 확인
+        if (!response.ok) {
+          throw new Error(`API Error: ${data.message}`);
+        }
+
         setWeather({
-          temp: Math.round(res.data.main.temp * 10) / 10,
-          desc: res.data.weather[0].main,
-          icon: res.data.weather[0].icon,
+          temp: Math.round(data.main.temp * 10) / 10,
+          desc: data.weather[0].main,
+          icon: data.weather[0].icon,
         });
       } catch (err) {
-        console.warn("Weather API Failed, using mock data.");
+        console.warn("Weather API Failed:", err);
         setWeather({ temp: 22.5, desc: "Sunny", icon: "01d" });
       }
     };
+
     fetchWeather();
     const interval = setInterval(fetchWeather, 1800000);
     return () => clearInterval(interval);
-  }, []);
+  }, [API_KEY]);
 
   const renderWeatherIcon = (code) => {
     if (!code) return <IoMdSunny />;
@@ -86,7 +103,7 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
         <RightSection>
           <WeatherItem>
             {renderWeatherIcon(weather.icon)}
-            <span>{weather.temp}°C</span>
+            <span>{weather.temp ? `${weather.temp}°C` : "-"}</span>
             <span className="desc">({weather.desc})</span>
           </WeatherItem>
           <Divider />
@@ -103,7 +120,7 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
       </Menubar>
 
       <Toolbar>
-        {/* ★ 홈 탭 (고정): ScrollContainer 바깥에 배치하여 스크롤되지 않음 */}
+        {/* ★ 홈 탭 (고정) */}
         {homeTab && (
           <HomeTabItem
             $active={location.pathname === HOME_PATH}
@@ -141,7 +158,6 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
                           title={tab.name}
                         >
                           <TabText>{tab.name}</TabText>
-                          {/* 닫기 버튼: closable이 false가 아닐 때만 표시 */}
                           {tab.closable !== false && (
                             <CloseBtn
                               onClick={(e) => {
@@ -171,8 +187,7 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
 
 export default AdminHeader;
 
-// --- 스타일 컴포넌트 ---
-
+// --- 스타일 컴포넌트 (변경 사항 없음) ---
 const Container = styled.div`
   height: 100px;
   background-color: #cdd2d9;
@@ -250,7 +265,6 @@ const Toolbar = styled.div`
   background-color: #e9ecef;
   display: flex;
   align-items: flex-end;
-  /* padding-left 제거 */
   border-bottom: 1px solid #ccc;
   overflow: hidden;
 `;
@@ -304,13 +318,12 @@ const BaseTabItem = styled.div`
   }
 `;
 
-// ★ 홈 탭 스타일 (고정, flex-shrink: 0 필수)
 const HomeTabItem = styled(BaseTabItem)`
-  min-width: 70px; /* 너비 조절 */
+  min-width: 70px;
   width: 45px;
   padding: 0;
   justify-content: center;
-  flex-shrink: 0; /* ★ 중요: 스크롤 영역에 의해 줄어들지 않도록 고정 */
+  flex-shrink: 0;
   z-index: 10;
   border-right: 1px solid #bbb;
   margin-left: 0;
