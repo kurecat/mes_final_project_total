@@ -1,7 +1,8 @@
 // src/pages/resource/InventoryPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axiosInstance from "../../api/axios";
+import axiosInstance from "../../../api/axios";
+
 import {
   FaBoxOpen,
   FaSearch,
@@ -13,6 +14,11 @@ import {
   FaFlask,
   FaMicrochip,
 } from "react-icons/fa";
+
+// =============================
+// API Base (⭐ 파일 최상단으로 이동)
+// =============================
+const API_BASE = "http://localhost:8111/api/mes";
 
 // --- Fallback Mock Data ---
 const MOCK_INVENTORY = [
@@ -73,9 +79,9 @@ const MOCK_INVENTORY = [
   },
 ];
 
-// --- [Optimized] Sub-Components with React.memo ---
-
+// =============================
 // 1. Stats Section
+// =============================
 const InventoryStats = React.memo(
   ({ totalItems, lowStockItems, totalValue }) => {
     return (
@@ -89,6 +95,7 @@ const InventoryStats = React.memo(
             <Value>{totalItems}</Value>
           </StatInfo>
         </StatCard>
+
         <StatCard>
           <IconBox $color="#e74c3c">
             <FaExclamationTriangle />
@@ -100,6 +107,7 @@ const InventoryStats = React.memo(
             </Value>
           </StatInfo>
         </StatCard>
+
         <StatCard>
           <IconBox $color="#2ecc71">
             <FaThermometerHalf />
@@ -109,6 +117,7 @@ const InventoryStats = React.memo(
             <Value style={{ fontSize: 18 }}>All Good</Value>
           </StatInfo>
         </StatCard>
+
         <StatCard>
           <IconBox $color="#f39c12">
             <FaMicrochip />
@@ -125,14 +134,20 @@ const InventoryStats = React.memo(
   },
 );
 
+// =============================
 // 2. Table Row Component
-const InventoryRow = React.memo(({ item }) => {
-  const percent = Math.min((item.qty / (item.safety * 2)) * 100, 100);
+// ⭐ onIssue를 props로 받도록 수정
+// =============================
+const InventoryRow = React.memo(({ item, onIssue }) => {
+  const percent =
+    item.safety > 0 ? Math.min((item.qty / (item.safety * 2)) * 100, 100) : 0;
+
   const isLow = item.qty <= item.safety;
 
   return (
     <tr>
       <td style={{ fontFamily: "monospace", color: "#555" }}>{item.id}</td>
+
       <td
         style={{
           fontWeight: "600",
@@ -148,11 +163,14 @@ const InventoryRow = React.memo(({ item }) => {
         )}
         {item.name}
       </td>
+
       <td>
         <TypeBadge $type={item.type}>{item.type}</TypeBadge>
       </td>
+
       <td>{item.loc}</td>
       <td style={{ fontSize: 12, color: "#666" }}>{item.condition}</td>
+
       <td>
         <ProgressWrapper>
           <ProgressBar>
@@ -163,9 +181,11 @@ const InventoryRow = React.memo(({ item }) => {
           </ProgressLabel>
         </ProgressWrapper>
       </td>
+
       <td style={{ fontWeight: "bold" }}>
         {item.qty} <small>{item.unit}</small>
       </td>
+
       <td>
         {isLow ? (
           <StatusBadge $status="LOW">Refill Req</StatusBadge>
@@ -173,8 +193,9 @@ const InventoryRow = React.memo(({ item }) => {
           <StatusBadge $status="NORMAL">Normal</StatusBadge>
         )}
       </td>
+
       <td>
-        <TableActionBtn>
+        <TableActionBtn onClick={() => onIssue(item)}>
           <FaMinus /> Issue
         </TableActionBtn>
       </td>
@@ -182,25 +203,24 @@ const InventoryRow = React.memo(({ item }) => {
   );
 });
 
+// =============================
+// Main Component
+// =============================
 const InventoryPage = () => {
   const [inventory, setInventory] = useState(MOCK_INVENTORY);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // [Optimization] fetchData with useCallback
+  // ✅ 재고 조회
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // const res = await axiosInstance.get("http://localhost:3001/inventory");
-      // setInventory(res.data);
-
-      setTimeout(() => {
-        setInventory(MOCK_INVENTORY);
-        setLoading(false);
-      }, 500);
+      const res = await axiosInstance.get("/api/mes/material/inventory");
+      setInventory(res.data);
     } catch (err) {
-      console.error(err);
+      console.error("재고 조회 실패:", err);
+    } finally {
       setLoading(false);
     }
   }, []);
@@ -209,24 +229,57 @@ const InventoryPage = () => {
     fetchData();
   }, [fetchData]);
 
-  // [Optimization] Memoize filteredData
-  // This computation is skipped if inventory, filterType, and searchTerm haven't changed
+  // ✅ 출고 처리 (Issue)
+  const handleIssue = useCallback(
+    async (item) => {
+      try {
+        // 테스트용: 1개 출고
+        const qty = 1;
+
+        if (
+          !window.confirm(
+            `[${item.id}] 자재를 ${qty}${item.unit} 출고하시겠습니까?`,
+          )
+        ) {
+          return;
+        }
+
+        await axiosInstance.post(`${API_BASE}/material/out`, {
+          materialCode: item.id,
+          qty,
+          unit: item.unit,
+          targetLocation: item.loc,
+          workerName: "tester",
+          targetEquipment: null,
+        });
+
+        alert("출고 완료");
+        fetchData();
+      } catch (err) {
+        console.error("출고 실패:", err);
+        alert("출고 실패 (재고 부족/자재코드 확인 필요)");
+      }
+    },
+    [fetchData],
+  );
+
+  // 필터링
   const filteredData = useMemo(() => {
     return inventory.filter((item) => {
       const matchType = filterType === "ALL" || item.type === filterType;
       const matchSearch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.id.toLowerCase().includes(searchTerm.toLowerCase());
+        (item.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.id ?? "").toLowerCase().includes(searchTerm.toLowerCase());
       return matchType && matchSearch;
     });
   }, [inventory, filterType, searchTerm]);
 
-  // [Optimization] Memoize KPI calculations
+  // KPI
   const kpiStats = useMemo(() => {
     return {
       totalItems: inventory.length,
       lowStockItems: inventory.filter((i) => i.qty <= i.safety).length,
-      totalValue: 15.4, // Fixed value for now
+      totalValue: 15.4,
     };
   }, [inventory]);
 
@@ -237,9 +290,13 @@ const InventoryPage = () => {
         <TitleArea>
           <PageTitle>
             <FaBoxOpen /> Material Inventory
+            {loading && (
+              <span style={{ fontSize: 12, color: "#999" }}> (Loading...)</span>
+            )}
           </PageTitle>
           <SubTitle>Warehouse Real-time Stock Monitoring</SubTitle>
         </TitleArea>
+
         <HeaderActions>
           <ActionButton>
             <FaHistory /> Transaction Log
@@ -250,7 +307,7 @@ const InventoryPage = () => {
         </HeaderActions>
       </Header>
 
-      {/* 2. KPI Summary (Memoized Component) */}
+      {/* 2. KPI Summary */}
       <InventoryStats
         totalItems={kpiStats.totalItems}
         lowStockItems={kpiStats.lowStockItems}
@@ -279,6 +336,7 @@ const InventoryPage = () => {
               </FilterBtn>
             ))}
           </FilterGroup>
+
           <SearchBox>
             <FaSearch color="#aaa" />
             <input
@@ -304,9 +362,14 @@ const InventoryPage = () => {
                 <th width="8%">Action</th>
               </tr>
             </thead>
+
             <tbody>
               {filteredData.map((item) => (
-                <InventoryRow key={item.id} item={item} />
+                <InventoryRow
+                  key={item.id}
+                  item={item}
+                  onIssue={handleIssue} // ⭐ props로 전달
+                />
               ))}
             </tbody>
           </Table>
@@ -318,7 +381,9 @@ const InventoryPage = () => {
 
 export default InventoryPage;
 
-// --- Styled Components (No changes needed, keeping same styles) ---
+/* =============================
+   Styled Components (기존 그대로)
+============================= */
 const Container = styled.div`
   width: 100%;
   height: 100%;
