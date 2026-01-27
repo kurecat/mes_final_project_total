@@ -1,7 +1,6 @@
 // src/pages/quality/DefectPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axiosInstance from "../../api/axios";
 import {
   FaBug,
   FaSearch,
@@ -52,7 +51,7 @@ const generateWaferMap = () => {
 
 const WAFER_MAP = generateWaferMap();
 
-// --- [Optimized] Sub-Components with React.memo ---
+// --- Sub-Components ---
 
 // 1. Stats Component
 const DefectStats = React.memo(({ stats }) => {
@@ -278,7 +277,6 @@ const DefectList = React.memo(
 // --- Main Component ---
 
 const DefectPage = () => {
-  // --- State for Data ---
   const [stats, setStats] = useState({
     totalDefects: 0,
     worstStep: "-",
@@ -287,73 +285,50 @@ const DefectPage = () => {
   });
   const [paretoData, setParetoData] = useState([]);
   const [defectLogs, setDefectLogs] = useState([]);
-
-  // --- State for Filters ---
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
-  // --- Data Fetching ---
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Mocking fetch logic for demo (Replace with actual API calls)
-        /*
-        const baseUrl = "http://localhost:3001";
-        const [statsRes, paretoRes, logsRes] = await Promise.all([
-          fetch(`${baseUrl}/stats`),
-          fetch(`${baseUrl}/paretoData`),
-          fetch(`${baseUrl}/defectLogs`),
-        ]);
-        // ... json parsing ...
-        */
-
-        // Using Mock Data
-        setStats({
-          totalDefects: 124,
-          worstStep: "Etch-Gate",
-          repairedCount: 45,
-          primeYield: 92.5,
-        });
-        setParetoData([
-          { name: "Particle", count: 45, cum: 36 },
-          { name: "Scratch", count: 30, cum: 60 },
-          { name: "Pattern", count: 20, cum: 76 },
-          { name: "Overlay", count: 15, cum: 88 },
-          { name: "Bridge", count: 14, cum: 100 },
-        ]);
-        setDefectLogs([
-          {
-            id: "DEF-001",
-            time: "10:23:41",
-            lotId: "LOT-A01",
-            waferId: "WF-05",
-            coord: "(12, 45)",
-            type: "Particle",
-            process: "Etch",
-            status: "NEW",
-            image: true,
-          },
-          {
-            id: "DEF-002",
-            time: "11:05:12",
-            lotId: "LOT-A02",
-            waferId: "WF-12",
-            coord: "(08, 22)",
-            type: "Scratch",
-            process: "CMP",
-            status: "REPAIRED",
-            image: false,
-          },
-        ]);
-      } catch (error) {
-        console.error("Failed to fetch data:", error);
-      }
-    };
-
-    fetchData();
+    // Mock Data Load
+    setStats({
+      totalDefects: 124,
+      worstStep: "Etch-Gate",
+      repairedCount: 45,
+      primeYield: 92.5,
+    });
+    setParetoData([
+      { name: "Particle", count: 45, cum: 36 },
+      { name: "Scratch", count: 30, cum: 60 },
+      { name: "Pattern", count: 20, cum: 76 },
+      { name: "Overlay", count: 15, cum: 88 },
+      { name: "Bridge", count: 14, cum: 100 },
+    ]);
+    setDefectLogs([
+      {
+        id: "DEF-001",
+        time: "10:23:41",
+        lotId: "LOT-A01",
+        waferId: "WF-05",
+        coord: "(12, 45)",
+        type: "Particle",
+        process: "Etch",
+        status: "NEW",
+        image: true,
+      },
+      {
+        id: "DEF-002",
+        time: "11:05:12",
+        lotId: "LOT-A02",
+        waferId: "WF-12",
+        coord: "(08, 22)",
+        type: "Scratch",
+        process: "CMP",
+        status: "REPAIRED",
+        image: false,
+      },
+    ]);
   }, []);
 
-  // --- Handlers (useCallback) ---
   const handleStatusChange = useCallback((e) => {
     setStatusFilter(e.target.value);
   }, []);
@@ -362,7 +337,6 @@ const DefectPage = () => {
     setSearchTerm(e.target.value);
   }, []);
 
-  // --- Filter Logic (useMemo) ---
   const filteredLogs = useMemo(() => {
     return defectLogs.filter((log) => {
       const matchSearch =
@@ -375,19 +349,26 @@ const DefectPage = () => {
 
   return (
     <Container>
-      {/* 1. Stats Section (Memoized) */}
+      {/* 1. Header (추가됨) */}
+      <Header>
+        <TitleArea>
+          <PageTitle>
+            <FaBug /> Defect Management
+          </PageTitle>
+          <SubTitle>Real-time Defect Monitoring & Analysis</SubTitle>
+        </TitleArea>
+      </Header>
+
+      {/* 2. Stats Section */}
       <DefectStats stats={stats} />
 
-      {/* 2. Visualization Section */}
+      {/* 3. Visualization Section */}
       <VizSection>
-        {/* Pareto Chart (Memoized) */}
         <DefectChart data={paretoData} />
-
-        {/* Wafer Map (Memoized) */}
         <WaferMap />
       </VizSection>
 
-      {/* 3. List Section (Memoized) */}
+      {/* 4. List Section */}
       <DefectList
         logs={filteredLogs}
         statusFilter={statusFilter}
@@ -401,7 +382,7 @@ const DefectPage = () => {
 
 export default DefectPage;
 
-// --- Styled Components (No Changes) ---
+// --- Styled Components ---
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -411,6 +392,33 @@ const Container = styled.div`
   flex-direction: column;
   box-sizing: border-box;
   overflow-y: auto;
+`;
+
+// ★ Header Styles Added
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+`;
+const TitleArea = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+const PageTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+const SubTitle = styled.span`
+  font-size: 13px;
+  color: #888;
+  margin-top: 5px;
+  margin-left: 34px;
 `;
 
 const StatsRow = styled.div`
@@ -540,11 +548,11 @@ const Die = styled.div`
   height: 16px;
   background-color: ${(props) =>
     props.$status === 1
-      ? "#2ecc71" // Good
+      ? "#2ecc71"
       : props.$status === 2
-        ? "#f1c40f" // Repairable (Yellow)
+        ? "#f1c40f"
         : props.$status === 0
-          ? "#e74c3c" // Reject
+          ? "#e74c3c"
           : "transparent"};
   border-radius: 1px;
   &:hover {
