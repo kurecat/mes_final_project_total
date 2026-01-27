@@ -1,19 +1,18 @@
-// src/pages/admin/UsersPage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import api from "../../../api/axios";
 import {
+  FaUserTie,
   FaUserPlus,
   FaSearch,
-  FaEllipsisH,
-  FaUserTie,
+  FaBuilding,
   FaEnvelope,
   FaPhoneAlt,
-  FaBuilding,
+  FaEllipsisH,
   FaTimes,
 } from "react-icons/fa";
 
-// --- Sub-Components (React.memo) ---
+// --- [Sub-Components] ---
 
 const UserHeader = React.memo(({ onAddUser }) => (
   <Header>
@@ -28,21 +27,13 @@ const UserHeader = React.memo(({ onAddUser }) => (
 ));
 
 const UserToolbar = React.memo(
-  ({
-    searchTerm,
-    onSearchChange,
-    roleFilter,
-    onRoleChange,
-    statusFilter,
-    onStatusChange,
-    totalCount,
-  }) => (
+  ({ searchTerm, onSearchChange, roleFilter, onRoleChange, totalCount }) => (
     <Toolbar>
       <FilterGroup>
         <SearchBox>
           <FaSearch color="#999" />
           <input
-            placeholder="Search Name, Email, ID..."
+            placeholder="Search Name, Email..."
             value={searchTerm}
             onChange={onSearchChange}
           />
@@ -52,11 +43,6 @@ const UserToolbar = React.memo(
           <option value="ADMIN">Admin</option>
           <option value="OPERATOR">Operator</option>
         </Select>
-        <Select value={statusFilter} onChange={onStatusChange}>
-          <option value="ALL">All Status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="PENDING">Pending</option>
-        </Select>
       </FilterGroup>
       <TotalCount>
         Total: <b>{totalCount}</b> users
@@ -65,71 +51,48 @@ const UserToolbar = React.memo(
   ),
 );
 
-const UserTableRow = React.memo(({ user, onStatusToggle }) => {
-  const getInitials = (name) => {
-    if (!name) return "??";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .substring(0, 2);
-  };
-
-  const displayId = user.id || user.memberId;
+const UserTableRow = React.memo(({ user, onToggleStatus }) => {
+  // DB 상태가 ACTIVE면 true(초록), 아니면 false(회색)
+  const isActive = user.status === "ACTIVE";
+  const userRole = user.authority
+    ? user.authority.replace("ROLE_", "")
+    : "OPERATOR";
 
   return (
     <tr>
       <td>
         <ProfileCell>
-          <Avatar>
-            {user.avatar ? (
-              <img src={user.avatar} alt={user.name} />
-            ) : (
-              <Initials>{getInitials(user.name)}</Initials>
-            )}
-          </Avatar>
+          <Avatar>{user.name ? user.name.substring(0, 1) : "U"}</Avatar>
           <UserInfo>
             <div className="name">{user.name}</div>
-            <div className="id">#{displayId}</div>
+            <div className="email">{user.email}</div>
           </UserInfo>
         </ProfileCell>
       </td>
       <td>
         <DeptInfo>
-          <FaBuilding size={10} color="#999" /> {user.department || "MES 부서"}
+          <FaBuilding size={10} color="#999" /> {user.department || "MES Team"}
         </DeptInfo>
       </td>
       <td>
-        <RoleBadge
-          $role={
-            user.authority ? user.authority.replace("ROLE_", "") : "OPERATOR"
-          }
-        >
-          {user.authority ? user.authority.replace("ROLE_", "") : "OPERATOR"}
-        </RoleBadge>
+        <RoleBadge $role={userRole}>{userRole}</RoleBadge>
       </td>
       <td>
-        <ContactCell>
-          <div>
-            <FaEnvelope size={10} /> {user.email}
-          </div>
-          <div>
-            <FaPhoneAlt size={10} /> {user.phone || "010-0000-0000"}
-          </div>
-        </ContactCell>
-      </td>
-      <td style={{ fontSize: "13px", color: "#666" }}>
-        {user.lastLogin || "기록 없음"}
+        <div style={{ fontSize: "13px", color: "#555" }}>
+          <FaPhoneAlt size={10} /> {user.phone || "-"}
+        </div>
       </td>
       <td>
-        <StatusToggle
-          $active={user.status === "ACTIVE"}
-          onClick={() => onStatusToggle(displayId)}
-        >
-          <div className="knob" />
-          <span className="label">{user.status}</span>
-        </StatusToggle>
+        {/* ★ 슬라이드 토글 스위치 적용 ★ */}
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <StatusToggle
+            $active={isActive}
+            onClick={() => onToggleStatus(user, isActive)}
+          >
+            <div className="knob" />
+          </StatusToggle>
+          <StatusText $active={isActive}>{user.status}</StatusText>
+        </div>
       </td>
       <td>
         <ActionBtn>
@@ -140,47 +103,34 @@ const UserTableRow = React.memo(({ user, onStatusToggle }) => {
   );
 });
 
-// --- Modal Component ---
 const UserModal = ({ isOpen, onClose, onSave }) => {
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     department: "",
-    position: "",
-    phone: "",
-    role: "ROLE_OPERATOR", // Default role
+    role: "ROLE_OPERATOR",
   });
 
-  // 모달 열릴 때 초기화
   useEffect(() => {
-    if (isOpen) {
-      setFormData({
+    if (isOpen)
+      setForm({
         name: "",
         email: "",
         password: "",
         department: "",
-        position: "",
-        phone: "",
         role: "ROLE_OPERATOR",
       });
-    }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleSubmit = () => {
-    // 간단한 유효성 검사
-    if (!formData.name || !formData.email || !formData.password) {
-      alert("이름, 이메일, 비밀번호는 필수입니다.");
+    if (!form.name || !form.email || !form.password) {
+      alert("필수 입력값을 확인해주세요.");
       return;
     }
-    onSave(formData);
+    onSave(form);
   };
 
   return (
@@ -194,152 +144,124 @@ const UserModal = ({ isOpen, onClose, onSave }) => {
         </ModalHeader>
         <ModalBody>
           <InputGroup>
-            <label>Name *</label>
+            <label>Name</label>
             <input
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Full Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </InputGroup>
           <InputGroup>
-            <label>Email *</label>
+            <label>Email</label>
             <input
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="user@example.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
           </InputGroup>
           <InputGroup>
-            <label>Password *</label>
+            <label>Password</label>
             <input
-              name="password"
               type="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Initial Password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
             />
           </InputGroup>
-          <Row>
-            <InputGroup style={{ flex: 1 }}>
-              <label>Department</label>
-              <input
-                name="department"
-                value={formData.department}
-                onChange={handleChange}
-                placeholder="Ex) Production"
-              />
-            </InputGroup>
-            <InputGroup style={{ flex: 1 }}>
-              <label>Role</label>
-              <SelectInput
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-              >
-                <option value="ROLE_OPERATOR">Operator</option>
-                <option value="ROLE_ADMIN">Admin</option>
-              </SelectInput>
-            </InputGroup>
-          </Row>
           <InputGroup>
-            <label>Phone</label>
+            <label>Department</label>
             <input
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              placeholder="010-xxxx-xxxx"
+              value={form.department}
+              onChange={(e) => setForm({ ...form, department: e.target.value })}
             />
           </InputGroup>
         </ModalBody>
         <ModalFooter>
           <CancelBtn onClick={onClose}>Cancel</CancelBtn>
-          <SubmitBtn onClick={handleSubmit}>Create User</SubmitBtn>
+          <SubmitBtn onClick={handleSubmit}>Create</SubmitBtn>
         </ModalFooter>
       </ModalBox>
     </Overlay>
   );
 };
 
-// --- Main Component ---
+// --- [Main Component] ---
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Data Loading
+  // 데이터 로딩
+  const loadUsers = useCallback(() => {
+    api
+      .get("/api/mes/system/role")
+      .then((res) => setUsers(res.data.data || res.data || []))
+      .catch((err) => console.error("Load Error:", err));
+  }, []);
+
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
-  const loadUsers = () => {
-    api
-      .get("/auth/all")
-      .then((res) => setUsers(res.data.data || []))
-      .catch((err) => console.error("Data load failed:", err));
-  };
+  // ★ 상태 변경 (승인 <-> 취소)
+  // ★ 상태 변경 (승인 <-> 취소 토글)
+  const handleToggleStatus = useCallback(
+    (user, currentIsActive) => {
+      // 1. 사용자에게 먼저 물어보기 (실수 방지)
+      const actionName = currentIsActive ? "승인 취소(대기)" : "승인(활성화)";
+      if (
+        !window.confirm(`'${user.name}' 님을 ${actionName} 처리하시겠습니까?`)
+      )
+        return;
 
-  // Status Toggle (Approval)
-  const handleStatusToggle = useCallback((id) => {
-    if (!id) return;
-    api
-      .put(`/auth/approve/${id}`)
-      .then((res) => {
-        const updatedUser = res.data.data;
-        setUsers((prev) =>
-          prev.map((u) =>
-            (u.id || u.memberId) == id
-              ? { ...u, status: updatedUser.status }
-              : u,
-          ),
+      // 2. 자바 백엔드로 요청 보내기
+      // 형님 자바 서비스 approveMember(memberId) 호출하는 API 경로 확인!
+      api
+        .put(`/auth/approve/${user.id || user.memberId}`)
+        .then((res) => {
+          if (res.data.success) {
+            // alert(res.data.message); // "회원 승인 취소" 등의 메시지 뜸
+
+            // 3. ★ 핵심: 자바에서 DB 바꿨으니 리액트도 데이터를 다시 받아와야 함!
+            loadUsers();
+          }
+        })
+        .catch((err) => {
+          console.error("상태 변경 실패:", err);
+          alert(
+            "처리에 실패했습니다: " +
+              (err.response?.data?.message || "서버 오류"),
+          );
+        });
+    },
+    [loadUsers],
+  );
+
+  const handleAddUser = useCallback(
+    (newUser) => {
+      api
+        .post("/auth/signup", newUser)
+        .then(() => {
+          alert("생성 완료");
+          setIsModalOpen(false);
+          loadUsers();
+        })
+        .catch((err) =>
+          alert("실패: " + (err.response?.data?.message || "오류")),
         );
-        alert(`${updatedUser.name} 님의 상태가 변경되었습니다.`);
-      })
-      .catch((err) =>
-        alert(
-          err.response?.data?.message || "권한이 없거나 오류가 발생했습니다.",
-        ),
-      );
-  }, []);
-
-  // Add User Logic
-  const handleAddUser = useCallback((newUser) => {
-    // API 호출 (회원가입 엔드포인트 사용 가정)
-    api
-      .post("/auth/signup", newUser)
-      .then((res) => {
-        alert("사용자가 성공적으로 생성되었습니다.");
-        setIsModalOpen(false);
-        loadUsers(); // 목록 새로고침
-      })
-      .catch((err) => {
-        console.error(err);
-        alert(
-          "사용자 생성 실패: " +
-            (err.response?.data?.message || "Unknown error"),
-        );
-      });
-  }, []);
+    },
+    [loadUsers],
+  );
 
   const filteredUsers = useMemo(() => {
-    return users.filter((user) => {
+    return users.filter((u) => {
       const matchSearch =
-        (user.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.email || "").toLowerCase().includes(searchTerm.toLowerCase());
-      const userRole = user.authority
-        ? user.authority.replace("ROLE_", "")
-        : "OPERATOR";
-      const matchRole = roleFilter === "ALL" || userRole === roleFilter;
-      const matchStatus =
-        statusFilter === "ALL" || user.status === statusFilter;
-      return matchSearch && matchRole && matchStatus;
+        (u.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (u.email || "").toLowerCase().includes(searchTerm.toLowerCase());
+      const uRole = u.authority ? u.authority.replace("ROLE_", "") : "OPERATOR";
+      const matchRole = roleFilter === "ALL" || uRole === roleFilter;
+      return matchSearch && matchRole;
     });
-  }, [users, searchTerm, roleFilter, statusFilter]);
+  }, [users, searchTerm, roleFilter]);
 
   return (
     <Container>
@@ -349,20 +271,17 @@ const UsersPage = () => {
         onSearchChange={(e) => setSearchTerm(e.target.value)}
         roleFilter={roleFilter}
         onRoleChange={(e) => setRoleFilter(e.target.value)}
-        statusFilter={statusFilter}
-        onStatusChange={(e) => setStatusFilter(e.target.value)}
         totalCount={filteredUsers.length}
       />
       <TableContainer>
         <Table>
           <thead>
             <tr>
-              <th>User Profile</th>
-              <th>Department</th>
+              <th>User</th>
+              <th>Dept</th>
               <th>Role</th>
               <th>Contact</th>
-              <th>Login</th>
-              <th>Status</th>
+              <th>Status (Approve)</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -371,14 +290,12 @@ const UsersPage = () => {
               <UserTableRow
                 key={u.id || u.memberId}
                 user={u}
-                onStatusToggle={handleStatusToggle}
+                onToggleStatus={handleToggleStatus}
               />
             ))}
           </tbody>
         </Table>
       </TableContainer>
-
-      {/* Modal */}
       <UserModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -390,8 +307,7 @@ const UsersPage = () => {
 
 export default UsersPage;
 
-// --- Styled Components ---
-
+// --- [Styled Components] ---
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -400,7 +316,6 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  overflow: hidden;
 `;
 const Header = styled.div`
   display: flex;
@@ -420,10 +335,11 @@ const TitleGroup = styled.div`
   }
 `;
 const PrimaryBtn = styled.button`
-  background: #1a4f8b;
+  background: #3498db;
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 0 16px;
+  height: 36px;
   border-radius: 6px;
   font-weight: 600;
   cursor: pointer;
@@ -431,18 +347,14 @@ const PrimaryBtn = styled.button`
   align-items: center;
   gap: 8px;
   &:hover {
-    background: #133b6b;
+    background: #2980b9;
   }
 `;
 const Toolbar = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  flex-shrink: 0;
+  margin-bottom: 15px;
 `;
 const FilterGroup = styled.div`
   display: flex;
@@ -451,25 +363,29 @@ const FilterGroup = styled.div`
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
-  background: #f8f9fa;
-  padding: 8px 12px;
+  background: white;
+  padding: 0 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
-  width: 280px;
+  height: 36px;
+  svg {
+    color: #999;
+  }
   input {
     border: none;
-    background: transparent;
     margin-left: 8px;
     outline: none;
-    width: 100%;
+    font-size: 14px;
+    width: 200px;
   }
 `;
 const Select = styled.select`
-  padding: 8px 12px;
+  height: 36px;
+  padding: 0 10px;
   border: 1px solid #ddd;
   border-radius: 6px;
+  outline: none;
   background: white;
-  cursor: pointer;
 `;
 const TotalCount = styled.div`
   font-size: 14px;
@@ -479,12 +395,11 @@ const TotalCount = styled.div`
   }
 `;
 const TableContainer = styled.div`
+  flex: 1;
   background: white;
   border-radius: 8px;
-  flex: 1;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   overflow: auto;
-  display: flex;
-  flex-direction: column;
 `;
 const Table = styled.table`
   width: 100%;
@@ -492,19 +407,21 @@ const Table = styled.table`
   thead {
     position: sticky;
     top: 0;
+    background: #f8f9fa;
     z-index: 10;
-    background: #fcfcfc;
   }
   th {
     text-align: left;
     padding: 15px;
     font-size: 13px;
-    color: #888;
-    border-bottom: 1px solid #eee;
+    color: #666;
+    border-bottom: 2px solid #eee;
   }
   td {
-    padding: 15px;
-    border-bottom: 1px solid #f5f5f5;
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+    color: #333;
   }
 `;
 const ProfileCell = styled.div`
@@ -513,98 +430,78 @@ const ProfileCell = styled.div`
   gap: 12px;
 `;
 const Avatar = styled.div`
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
+  background: #ecf0f1;
+  color: #7f8c8d;
   border-radius: 50%;
-  background: #eee;
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-`;
-const Initials = styled.span`
   font-weight: bold;
-  color: #555;
 `;
 const UserInfo = styled.div`
-  display: flex;
-  flex-direction: column;
   .name {
     font-weight: 600;
-    color: #333;
+    font-size: 14px;
   }
-  .id {
+  .email {
     font-size: 12px;
     color: #888;
+  }
+`;
+const RoleBadge = styled.span`
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  background: ${(props) => (props.$role === "ADMIN" ? "#fadbd8" : "#d6eaf8")};
+  color: ${(props) => (props.$role === "ADMIN" ? "#c0392b" : "#2980b9")};
+`;
+const ActionBtn = styled.button`
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  &:hover {
+    color: #333;
   }
 `;
 const DeptInfo = styled.div`
   display: flex;
   align-items: center;
-  gap: 6px;
-  color: #555;
-  font-size: 13px;
-`;
-const RoleBadge = styled.span`
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  background-color: ${(p) => (p.$role === "ADMIN" ? "#e8daef" : "#e8f6f3")};
-  color: ${(p) => (p.$role === "ADMIN" ? "#8e44ad" : "#16a085")};
-`;
-const ContactCell = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   font-size: 13px;
   color: #555;
-  div {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
 `;
+
+// ★ 토글 스위치 스타일 (공통 코드랑 똑같은 디자인)
 const StatusToggle = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  width: 40px;
+  height: 22px;
+  background: ${(props) => (props.$active ? "#2ecc71" : "#bdc3c7")};
+  border-radius: 20px;
+  position: relative;
   cursor: pointer;
+  transition: background 0.3s;
+  margin-right: 8px;
+
   .knob {
-    width: 32px;
+    width: 18px;
     height: 18px;
-    background: ${(p) => (p.$active ? "#2ecc71" : "#ccc")};
-    border-radius: 9px;
-    position: relative;
-    transition: 0.3s;
-    &::after {
-      content: "";
-      position: absolute;
-      top: 2px;
-      left: ${(p) => (p.$active ? "16px" : "2px")};
-      width: 14px;
-      height: 14px;
-      background: white;
-      border-radius: 50%;
-      transition: 0.3s;
-    }
-  }
-  .label {
-    font-size: 12px;
-    font-weight: 600;
-    color: ${(p) => (p.$active ? "#2ecc71" : "#aaa")};
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: ${(props) => (props.$active ? "20px" : "2px")};
+    transition: left 0.3s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   }
 `;
-const ActionBtn = styled.button`
-  border: none;
-  background: transparent;
-  color: #999;
-  cursor: pointer;
+const StatusText = styled.span`
+  font-size: 12px;
+  font-weight: bold;
+  color: ${(props) => (props.$active ? "#2ecc71" : "#95a5a6")};
 `;
 
 // Modal Styles
@@ -614,18 +511,21 @@ const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 999;
 `;
 const ModalBox = styled.div`
   background: white;
-  width: 450px;
+  width: 400px;
   border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  animation: slideUp 0.2s;
 `;
 const ModalHeader = styled.div`
   padding: 15px 20px;
@@ -635,76 +535,113 @@ const ModalHeader = styled.div`
   align-items: center;
   h3 {
     margin: 0;
-    color: #333;
+    font-size: 16px;
   }
   button {
     background: none;
     border: none;
-    font-size: 18px;
     cursor: pointer;
-    color: #999;
   }
 `;
 const ModalBody = styled.div`
   padding: 20px;
-`;
-const InputGroup = styled.div`
-  margin-bottom: 15px;
-  label {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 13px;
-    color: #666;
-  }
-  input {
-    width: 100%;
-    padding: 8px 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    box-sizing: border-box;
-    &:focus {
-      outline: none;
-      border-color: #1a4f8b;
-    }
-  }
-`;
-const SelectInput = styled.select`
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-`;
-const Row = styled.div`
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 15px;
 `;
 const ModalFooter = styled.div`
   padding: 15px 20px;
-  background: #f8f9fa;
+  background: #f9f9f9;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 `;
-const CancelBtn = styled.button`
-  padding: 8px 16px;
-  border: 1px solid #ddd;
-  background: white;
-  border-radius: 4px;
-  cursor: pointer;
-  &:hover {
-    background: #f1f1f1;
+const InputGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+  }
+  input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    outline: none;
+    &:focus {
+      border-color: #3498db;
+    }
   }
 `;
+
 const SubmitBtn = styled.button`
-  padding: 8px 16px;
-  border: none;
-  background: #1a4f8b;
+  background: #3498db;
   color: white;
+  border: none;
+  padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
-  font-weight: 600;
   &:hover {
-    background: #133b6b;
+    background: #2980b9;
+  }
+`;
+const LogTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  /* ★ 여기가 핵심: 헤더 글자색 노란색(오렌지) 적용 ★ */
+  th {
+    text-align: left;
+    background: #fff;
+    padding: 12px 15px;
+    font-size: 13px;
+    color: #e67e22; /* 글자색 변경! */
+    font-weight: 800;
+    border-bottom: 2px solid #f39c12;
+  }
+
+  td {
+    padding: 10px 15px;
+    font-size: 14px;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    vertical-align: middle;
+  }
+  .mono {
+    font-family: monospace;
+    font-size: 13px;
+    color: #555;
+  }
+  .category {
+    font-weight: 600;
+    font-size: 12px;
+    color: #e67e22;
+  }
+  .message {
+    color: #222;
+  }
+  .empty {
+    text-align: center;
+    padding: 40px;
+    color: #aaa;
+  }
+`;
+const CancelBtn = styled.button`
+  background: white;
+  border: 1px solid #ddd;
+  color: #555;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover {
+    background: #eee;
   }
 `;
