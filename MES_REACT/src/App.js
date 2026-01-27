@@ -63,7 +63,12 @@ const EquipmentPage = lazy(
   () => import("./components/admin/mdm/EquipmentPage"),
 );
 const LocationPage = lazy(() => import("./components/admin/mdm/LocationPage"));
-const ItemPage = lazy(() => import("./components/admin/mdm/ItemPage"));
+const MaterialoMasterPage = lazy(
+  () => import("./components/admin/mdm/MaterialMasterPage"),
+);
+const ProductMasterPage = lazy(
+  () => import("./components/admin/mdm/ProductMasterPage"),
+);
 const RoutingPage = lazy(() => import("./components/admin/mdm/RoutingPage"));
 
 // System
@@ -126,7 +131,8 @@ const App = () => {
             <Route path="mdm/bom" element={<BOMPage />} />
             <Route path="mdm/equipment" element={<EquipmentPage />} />
             <Route path="mdm/location" element={<LocationPage />} />
-            <Route path="mdm/item" element={<ItemPage />} />
+            <Route path="mdm/material" element={<MaterialoMasterPage />} />
+            <Route path="mdm/product" element={<ProductMasterPage />} />
             <Route path="mdm/routing" element={<RoutingPage />} />
 
             {/* System */}

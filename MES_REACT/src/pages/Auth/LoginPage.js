@@ -46,6 +46,7 @@ const LoginPage = () => {
       const tokenData = response.data.data;
 
       if (tokenData && tokenData.accessToken) {
+        localStorage.setItem("refreshToken", tokenData.refreshToken);
         localStorage.setItem("accessToken", tokenData.accessToken);
         navigate("/admin");
       } else {

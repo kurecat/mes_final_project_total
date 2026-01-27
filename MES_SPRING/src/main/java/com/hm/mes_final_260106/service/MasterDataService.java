@@ -2,6 +2,12 @@ package com.hm.mes_final_260106.service;
 
 import com.hm.mes_final_260106.dto.BomReqDto;
 import com.hm.mes_final_260106.dto.ProductReqDto;
+import com.hm.mes_final_260106.dto.bom.BomCreateReqDto;
+import com.hm.mes_final_260106.dto.bom.BomItemResDto;
+import com.hm.mes_final_260106.dto.bom.BomUpdateReqDto;
+import com.hm.mes_final_260106.dto.product.ProductCreateReqDto;
+import com.hm.mes_final_260106.dto.product.ProductResDto;
+import com.hm.mes_final_260106.dto.product.ProductUpdateReqDto;
 import com.hm.mes_final_260106.entity.Bom;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.Product;
@@ -11,6 +17,9 @@ import com.hm.mes_final_260106.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -64,5 +73,131 @@ public class MasterDataService {
         // 재고는 여기서 수정하지 않음 (입출고 트랜잭션으로만 변경)
         materialRepo.save(material);
     }
+
+    // CREATE PRODUCT
+    public void createProduct(ProductCreateReqDto dto) {
+        if (productRepo.findByCode(dto.getCode()).isPresent()) {
+            throw new RuntimeException("이미 존재하는 제품 코드입니다: " + dto.getCode());
+        }
+
+        Product product = Product.builder()
+                .code(dto.getCode())
+                .name(dto.getName())
+                .category(dto.getCategory())
+                .spec(dto.getSpec())
+                .build();
+
+        productRepo.save(product);
+    }
+
+    // READ (단건 조회) PRODUCT
+    public ProductResDto getProduct(Long id) {
+        Product product = productRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("제품을 찾을 수 없습니다: " + id));
+
+        return ProductResDto.builder()
+                .id(product.getId())
+                .code(product.getCode())
+                .name(product.getName())
+                .category(product.getCategory())
+                .spec(product.getSpec())
+                .build();
+    }
+
+    // READ (전체 조회) PRODUCT
+    public List<ProductResDto> getAllProducts() {
+        return productRepo.findAll().stream()
+                .map(product -> ProductResDto.builder()
+                        .id(product.getId())
+                        .code(product.getCode())
+                        .name(product.getName())
+                        .category(product.getCategory())
+                        .spec(product.getSpec())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    // UPDATE PRODUCT
+    public void updateProduct(Long id, ProductUpdateReqDto dto) {
+        Product product = productRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("제품을 찾을 수 없습니다: " + id));
+
+        product.setName(dto.getName());
+        product.setCategory(dto.getCategory());
+        product.setSpec(dto.getSpec());
+
+        productRepo.save(product);
+    }
+
+    // DELETE PRODUCT
+    public void deleteProduct(Long id) {
+        Product product = productRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("제품을 찾을 수 없습니다: " + id));
+
+        productRepo.delete(product);
+    }
+
+    // CREATE BOM
+    public void createBom(BomCreateReqDto dto) {
+        Product product = productRepo.findByCode(dto.getProductCode())
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        Material material = materialRepo.findByCode(dto.getMaterialCode())
+                .orElseThrow(() -> new RuntimeException("Material not found"));
+
+        Bom bom = new Bom();
+        bom.setProduct(product);
+        bom.setMaterial(material);
+        bom.setRequiredQty(dto.getQuantity());
+
+        bomRepo.save(bom);
+    }
+
+    // READ BOM (특정 Product 기준)
+    public List<BomItemResDto> getBomByProduct(Long productId) {
+        Product product = productRepo.findById(productId)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        return bomRepo.findAllByProductId(productId)
+                .stream()
+                .map(b -> new BomItemResDto(
+                        b.getId(),
+                        b.getMaterial().getCode(),
+                        b.getMaterial().getName(),
+                        b.getMaterial().getCategory(),
+                        b.getRequiredQty(),
+                        ""
+                ))
+                .toList();
+    }
+
+    // UPDATE BOM
+    public void updateBom(Long id, BomUpdateReqDto dto) {
+        Bom bom = bomRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("BOM not found"));
+
+        Product product = productRepo.findById(dto.getProductId())
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        Material material = materialRepo.findById(dto.getMaterialId())
+                .orElseThrow(() -> new RuntimeException("Material not found"));
+
+        bom.setProduct(product);
+        bom.setMaterial(material);
+        bom.setRequiredQty(dto.getQuantity());
+
+        bomRepo.save(bom);
+    }
+
+    // DELETE BOM
+    public void deleteBom(Long id) {
+        bomRepo.deleteById(id);
+    }
+
+
+
+
+
+
     /// 111111
 }

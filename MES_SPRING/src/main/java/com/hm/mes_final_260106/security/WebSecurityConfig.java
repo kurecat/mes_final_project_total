@@ -49,7 +49,7 @@ public class WebSecurityConfig {
                         // ★ 수정: hasAuthority("ROLE_ADMIN") 사용
                         .requestMatchers("/auth/approve/**", "/auth/all")
                         .hasAuthority("ROLE_ADMIN")
-
+                        .requestMatchers("/auth/approve/**").permitAll()
                         .requestMatchers("/api/mes/order/**", "/api/mes/material/**")
                         .hasAuthority("ROLE_ADMIN")
 

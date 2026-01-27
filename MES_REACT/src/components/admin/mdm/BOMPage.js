@@ -1,7 +1,6 @@
-// src/pages/mdm/BomPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axiosInstance from "../../api/axios";
+import axiosInstance from "../../../api/axios.js";
 import {
   FaSearch,
   FaSitemap,
@@ -14,157 +13,6 @@ import {
   FaMicrochip,
   FaSync,
 } from "react-icons/fa";
-
-// --- Fallback Mock Data ---
-const MOCK_BOMS = [
-  {
-    id: "BOM-DDR5-MOD-16G",
-    name: "DDR5 16GB UDIMM 5600MHz",
-    revision: "Rev. B",
-    status: "ACTIVE",
-    type: "FG",
-    lastUpdated: "2024-06-01",
-    children: [
-      {
-        level: 1,
-        id: "PCB-DDR5-U08",
-        name: "DDR5 UDIMM PCB",
-        type: "PART",
-        qty: 1,
-        unit: "ea",
-        spec: "8-Layer, OSP",
-      },
-      {
-        level: 1,
-        id: "IC-DDR5-16Gb",
-        name: "DDR5 16Gb SDRAM",
-        type: "ASSY",
-        qty: 8,
-        unit: "ea",
-        spec: "x8 Component",
-      },
-      {
-        level: 1,
-        id: "IC-SPD-HUB",
-        name: "SPD Hub + PMIC",
-        type: "PART",
-        qty: 1,
-        unit: "ea",
-        spec: "Renesas",
-      },
-      {
-        level: 1,
-        id: "PASSIVE-R-0402",
-        name: "Chip Resistor",
-        type: "MAT",
-        qty: 32,
-        unit: "ea",
-        spec: "100 ohm",
-      },
-      {
-        level: 1,
-        id: "PASSIVE-C-0402",
-        name: "MLCC",
-        type: "MAT",
-        qty: 16,
-        unit: "ea",
-        spec: "10uF",
-      },
-    ],
-  },
-  {
-    id: "BOM-DDR5-IC-16Gb",
-    name: "DDR5 16Gb SDRAM Component",
-    revision: "Rev. A",
-    status: "ACTIVE",
-    type: "ASSY",
-    lastUpdated: "2024-05-20",
-    children: [
-      {
-        level: 1,
-        id: "WF-DDR5-PROC",
-        name: "Processed D-RAM Wafer",
-        type: "ASSY",
-        qty: 1,
-        unit: "ea",
-        spec: "1znm Node",
-      },
-      {
-        level: 1,
-        id: "LF-BGA-78",
-        name: "BGA Substrate",
-        type: "PART",
-        qty: 1,
-        unit: "ea",
-        spec: "78-Ball",
-      },
-      {
-        level: 1,
-        id: "MAT-EMC-G700",
-        name: "Epoxy Molding Compound",
-        type: "MAT",
-        qty: 0.5,
-        unit: "g",
-        spec: "Low Warpage",
-      },
-      {
-        level: 1,
-        id: "MAT-WIRE-AU",
-        name: "Bonding Wire",
-        type: "MAT",
-        qty: 25,
-        unit: "mm",
-        spec: "Au 99.99%",
-      },
-    ],
-  },
-  {
-    id: "BOM-WF-DDR5-PROC",
-    name: "Processed D-RAM Wafer (Fab)",
-    revision: "Rev. C",
-    status: "ACTIVE",
-    type: "ASSY",
-    lastUpdated: "2024-05-15",
-    children: [
-      {
-        level: 1,
-        id: "RM-WF-12-P",
-        name: "12-inch Prime Wafer",
-        type: "MAT",
-        qty: 1,
-        unit: "ea",
-        spec: "Si (100) P-Type",
-      },
-      {
-        level: 1,
-        id: "CHM-PR-ARF",
-        name: "Photo Resist (ArF)",
-        type: "CHEM",
-        qty: 15,
-        unit: "ml",
-        spec: "Immersion Grade",
-      },
-      {
-        level: 1,
-        id: "GAS-C4F6",
-        name: "Etching Gas (C4F6)",
-        type: "CHEM",
-        qty: 500,
-        unit: "sccm",
-        spec: "99.999%",
-      },
-      {
-        level: 1,
-        id: "TGT-CU-01",
-        name: "Copper Target",
-        type: "MAT",
-        qty: 0.01,
-        unit: "ea",
-        spec: "PVD Deposition",
-      },
-    ],
-  },
-];
 
 /* =========================================================================
    Styled Components (Defined top-level to avoid ReferenceError in sub-components)
@@ -445,16 +293,16 @@ const EmptyState = styled.div`
    ========================================================================= */
 
 // 1. Sidebar Item Component (Memoized)
-const SidebarItem = React.memo(({ bom, isActive, onClick }) => {
+const SidebarItem = React.memo(({ product, isActive, onClick }) => {
   return (
-    <BomItem $active={isActive} onClick={() => onClick(bom)}>
+    <BomItem $active={isActive} onClick={() => onClick(product)}>
       <ItemTop>
-        <ItemName>{bom.name}</ItemName>
-        <StatusBadge $status={bom.status}>{bom.status}</StatusBadge>
+        <ItemName>{product.name}</ItemName>
+        <StatusBadge $status={product.status}>{product.status}</StatusBadge>
       </ItemTop>
       <ItemBottom>
-        <span>{bom.id}</span>
-        <span>{bom.revision}</span>
+        <span>{product.code}</span>
+        <span>{product.revision}</span>
       </ItemBottom>
     </BomItem>
   );
@@ -466,8 +314,8 @@ const SidebarPanel = React.memo(
     loading,
     searchTerm,
     onSearchChange,
-    filteredBoms,
-    selectedBomId,
+    filteredProducts,
+    selectedProductId,
     onSelect,
   }) => {
     return (
@@ -493,11 +341,11 @@ const SidebarPanel = React.memo(
         </SidebarHeader>
 
         <BomList>
-          {filteredBoms.map((bom) => (
+          {filteredProducts.map((product) => (
             <SidebarItem
-              key={bom.id}
-              bom={bom}
-              isActive={selectedBomId === bom.id}
+              key={product.id}
+              product={product}
+              isActive={selectedProductId === product.id}
               onClick={onSelect}
             />
           ))}
@@ -512,49 +360,51 @@ const SidebarPanel = React.memo(
 );
 
 // 3. Detail View - Table Row (Memoized)
-const BomTableRow = React.memo(({ child }) => {
+const BomTableRow = React.memo(({ bomItem }) => {
   return (
     <tr>
-      <td style={{ textAlign: "center", color: "#888" }}>{child.level}</td>
-      <td style={{ fontFamily: "monospace", color: "#555" }}>{child.id}</td>
+      <td style={{ textAlign: "center", color: "#888" }}>{1}</td>
+      <td style={{ fontFamily: "monospace", color: "#555" }}>
+        {bomItem.materialCode}
+      </td>
       <td className="name">
-        <Indent $level={child.level}>
+        <Indent $level={1}>
           <LCorner />
           {/* 자재 타입별 아이콘 분기 */}
-          {child.type === "CHEM" ? (
+          {bomItem.category === "CHEM" ? (
             <FaFlask color="#e74c3c" size={12} style={{ marginRight: 5 }} />
-          ) : child.type === "ASSY" ? (
+          ) : bomItem.category === "ASSY" ? (
             <FaMicrochip color="#f39c12" size={12} style={{ marginRight: 5 }} />
           ) : (
             <FaCube color="#3498db" size={12} style={{ marginRight: 5 }} />
           )}
-          <span>{child.name}</span>
+          <span>{bomItem.materialName}</span>
         </Indent>
       </td>
       <td>
-        <TypeLabel $type={child.type}>{child.type}</TypeLabel>
+        <TypeLabel $category={bomItem.category}>{bomItem.category}</TypeLabel>
       </td>
-      <td style={{ fontWeight: "600" }}>{child.qty}</td>
-      <td style={{ color: "#666" }}>{child.unit}</td>
-      <td style={{ color: "#666", fontSize: "13px" }}>{child.spec}</td>
+      <td style={{ fontWeight: "600" }}>{bomItem.quantity}</td>
+      <td style={{ color: "#666" }}>{bomItem.unit}</td>
     </tr>
   );
 });
 
 // 4. Detail View Component (Memoized)
-const DetailView = React.memo(({ bom }) => {
-  if (!bom) return <EmptyState>Select a BOM to view details</EmptyState>;
+const DetailView = React.memo(({ product, bom }) => {
+  if (!product)
+    return <EmptyState>Select a Product to view details</EmptyState>;
 
   return (
     <>
       <DetailHeader>
         <HeaderLeft>
           <ProductName>
-            {bom.name} <RevBadge>{bom.revision}</RevBadge>
+            {product.name} <RevBadge>{product.revision}</RevBadge>
           </ProductName>
           <ProductMeta>
-            Code: <strong>{bom.id}</strong> | Type: {bom.type} | Last Updated:{" "}
-            {bom.lastUpdated}
+            Code: <strong>{product.code}</strong> | Type: {product.type} | Last
+            Updated: {product.lastUpdated}
           </ProductMeta>
         </HeaderLeft>
         <HeaderRight>
@@ -572,35 +422,33 @@ const DetailView = React.memo(({ bom }) => {
           <thead>
             <tr>
               <th width="5%">Lv.</th>
-              <th width="15%">Part Number</th>
-              <th width="25%">Item Name</th>
+              <th width="25%">Material Code</th>
+              <th width="25%">Material Name</th>
               <th width="10%">Type</th>
               <th width="10%">Qty</th>
               <th width="10%">Unit</th>
-              <th width="25%">Specification</th>
             </tr>
           </thead>
           <tbody>
             {/* Root Item */}
             <RootRow>
               <td>0</td>
-              <td>{bom.id}</td>
+              <td>{product.code}</td>
               <td className="name">
                 <FaCubes style={{ marginRight: 8, color: "#1a4f8b" }} />
-                {bom.name}
+                {product.name}
               </td>
               <td>
                 <TypeLabel $type="FG">FG</TypeLabel>
               </td>
               <td>1</td>
               <td>ea</td>
-              <td>Finished Product</td>
             </RootRow>
-
             {/* Children Items */}
-            {bom.children.map((child, index) => (
-              <BomTableRow key={index} child={child} />
-            ))}
+            {bom &&
+              bom.map((child) => (
+                <BomTableRow key={child.id} bomItem={child} />
+              ))}
           </tbody>
         </BomTable>
       </TableContainer>
@@ -613,52 +461,72 @@ const DetailView = React.memo(({ bom }) => {
    ========================================================================= */
 
 const BomPage = () => {
-  const [bomList, setBomList] = useState(MOCK_BOMS);
-  const [selectedBom, setSelectedBom] = useState(null);
+  const [productList, setProductList] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [bom, setBom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
   // [Optimization] fetchData with useCallback
-  const fetchData = useCallback(async () => {
+  const fetchProductList = useCallback(async () => {
     setLoading(true);
     try {
       // API call logic...
-      // const res = await axiosInstance.get("http://localhost:3001/boms");
-      // setBomList(res.data);
-      // if (res.data.length > 0) setSelectedBom(res.data[0]);
-
-      setTimeout(() => {
-        setBomList(MOCK_BOMS);
-        setSelectedBom(MOCK_BOMS[0]);
-        setLoading(false);
-      }, 500);
+      const res = await axiosInstance.get(
+        "http://localhost:8111/api/mes/master/product/list",
+      );
+      setProductList(res.data);
+      if (res.data.length > 0) setSelectedProduct(res.data[0]);
+      setLoading(false);
     } catch (err) {
       console.error(err);
       setLoading(false);
     }
   }, []);
 
+  const fetchBom = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (selectedProduct) {
+        // API call logic...
+        const productId = selectedProduct.id;
+        const res = await axiosInstance.get(
+          `http://localhost:8111/api/mes/master/bom/${productId}`,
+        );
+        setBom(res.data);
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setLoading(false);
+    }
+  }, [selectedProduct]);
+
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchProductList();
+  }, [fetchProductList]);
+
+  useEffect(() => {
+    fetchBom();
+  }, [fetchBom]);
 
   // [Optimization] Handlers with useCallback
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
   }, []);
 
-  const handleSelectBom = useCallback((bom) => {
-    setSelectedBom(bom);
+  const handleSelectProduct = useCallback((bom) => {
+    setSelectedProduct(bom);
   }, []);
 
   // [Optimization] Filtering with useMemo
-  const filteredBoms = useMemo(() => {
-    return bomList.filter(
-      (bom) =>
-        bom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bom.id.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredProducts = useMemo(() => {
+    return productList.filter(
+      (product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.id.toLowerCase().includes(searchTerm.toLowerCase()),
     );
-  }, [bomList, searchTerm]);
+  }, [productList, searchTerm]);
 
   return (
     <Container>
@@ -667,14 +535,14 @@ const BomPage = () => {
         loading={loading}
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
-        filteredBoms={filteredBoms}
-        selectedBomId={selectedBom?.id}
-        onSelect={handleSelectBom}
+        filteredProducts={filteredProducts}
+        selectedProductId={selectedProduct?.id}
+        onSelect={handleSelectProduct}
       />
 
       {/* 2. Detail View */}
       <ContentArea>
-        <DetailView bom={selectedBom} />
+        <DetailView product={selectedProduct} bom={bom} />
       </ContentArea>
     </Container>
   );
