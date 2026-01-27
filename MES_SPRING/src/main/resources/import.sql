@@ -15,16 +15,16 @@ INSERT INTO product (code, name) VALUES
 ('DRAM-4G-EM-008', 'Embedded DRAM 4Gb');
 
 -- Material 등록
-INSERT INTO material (code, name, current_stock) VALUES
-('MAT-SUBSTRATE', '패키지 기판', 50),
-('MAT-SOLDERBALL', '솔더 볼', 2000),
-('MAT-UNDERFILL', '언더필 수지', 20),
-('MAT-MOLD', '몰딩 컴파운드', 30),
-('MAT-HEATSINK', '히트싱크', 10),
-('MAT-WIRE', '금 와이어', 500),
-('MAT-LEADFRAME', '리드프레임', 40),
-('MAT-ENCAPSULANT', '에폭시 봉지재', 25),
-('MAT-WAFER', 'DRAM 웨이퍼', 100);
+INSERT INTO material (code, name, current_stock, safety_stock) VALUES
+('MAT-SUBSTRATE', '패키지 기판', 50,30),
+('MAT-SOLDERBALL', '솔더 볼', 2000,500),
+('MAT-UNDERFILL', '언더필 수지', 300,500),
+('MAT-MOLD', '몰딩 컴파운드', 30,400),
+('MAT-HEATSINK', '히트싱크', 10,300),
+('MAT-WIRE', '금 와이어', 500,600),
+('MAT-LEADFRAME', '리드프레임', 400,500),
+('MAT-ENCAPSULANT', '에폭시 봉지재', 250,300),
+('MAT-WAFER', 'DRAM 웨이퍼', 100,100);
 
 -- MaterialTransaction 등록 (초기 입고 기록)
 INSERT INTO material_transaction
@@ -32,13 +32,14 @@ INSERT INTO material_transaction
 VALUES
 ('INBOUND', (SELECT id FROM material WHERE code='MAT-SUBSTRATE'), 50, 'ea', 'WH-A-01', NULL, 'SYSTEM', NOW()),
 ('INBOUND', (SELECT id FROM material WHERE code='MAT-SOLDERBALL'), 2000, 'ea', 'WH-A-01', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-UNDERFILL'), 20, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-UNDERFILL'), 300, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
 ('INBOUND', (SELECT id FROM material WHERE code='MAT-MOLD'), 30, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
 ('INBOUND', (SELECT id FROM material WHERE code='MAT-HEATSINK'), 10, 'ea', 'WH-B-05', NULL, 'SYSTEM', NOW()),
 ('INBOUND', (SELECT id FROM material WHERE code='MAT-WIRE'), 500, 'm', 'WH-B-05', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-LEADFRAME'), 40, 'ea', 'WH-A-02', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-ENCAPSULANT'), 25, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-LEADFRAME'), 400, 'ea', 'WH-A-02', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-ENCAPSULANT'), 250, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
 ('INBOUND', (SELECT id FROM material WHERE code='MAT-WAFER'), 100, 'ea', 'WH-A-01', NULL, 'SYSTEM', NOW());
+
 
 -- BOM 등록
 INSERT INTO bom (product_id, material_id, required_qty) VALUES

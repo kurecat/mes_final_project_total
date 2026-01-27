@@ -35,4 +35,10 @@ public class Material {
 
     @Column(name = "current_stock")
     private Integer currentStock;
+
+    @Column(name = "safety_stock")
+    private Integer safetyStock;
+
+    @Column(name = "location", length = 50)
+    private String location;
 }

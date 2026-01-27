@@ -42,19 +42,27 @@ public class WebSecurityConfig {
                         .accessDeniedHandler(jwtAccessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        // 공개 엔드포인트
+
+                        // 인증 없이
                         .requestMatchers("/auth/login", "/auth/signup", "/auth/refresh")
                         .permitAll()
 
-                        // ★ 수정: hasAuthority("ROLE_ADMIN") 사용
-                        .requestMatchers("/auth/approve/**", "/auth/all")
-                        .hasAuthority("ROLE_ADMIN")
-                        .requestMatchers("/auth/approve/**").permitAll()
-                        .requestMatchers("/api/mes/order/**", "/api/mes/material/**")
-                        .hasAuthority("ROLE_ADMIN")
+                        // 관리자 전용
+                        .requestMatchers(
+                                "/api/mes/material/in",
+                                "/api/mes/material/out",
+                                "/api/mes/order/**"
+                        ).hasAuthority("ROLE_ADMIN")
+
+                        // ⭐ 로그 / 조회 (로그인만)
+                        .requestMatchers(
+                                "/api/mes/material/inventory",
+                                "/api/mes/material-tx/**"
+                        ).authenticated()
 
                         .anyRequest().authenticated()
                 )
+
                 .with(new JwtSecurityConfig(tokenProvider), Customizer.withDefaults());
 
         return http.build();
