@@ -35,6 +35,7 @@ const LoginPage = () => {
       const tokenData = response.data.data;
 
       if (tokenData && tokenData.accessToken) {
+        localStorage.setItem("refreshToken", tokenData.refreshToken);
         localStorage.setItem("accessToken", tokenData.accessToken);
         console.log("✅ 로그인 성공! 토큰 장전 완료.");
 

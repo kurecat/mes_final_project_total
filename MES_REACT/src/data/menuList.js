@@ -16,7 +16,8 @@ export const MENU_LIST = [
   { name: "자재 입/출고", path: "/admin/resource/material" },
   { name: "재고 현황", path: "/admin/resource/inventory" },
 
-  { name: "품목 관리", path: "/admin/mdm/item" },
+  { name: "자재 관리", path: "/admin/mdm/material" },
+  { name: "제품 관리", path: "/admin/mdm/product" },
   { name: "BOM 관리", path: "/admin/mdm/bom" },
   { name: "공정/라우팅", path: "/admin/mdm/routing" },
   { name: "설비 관리", path: "/admin/mdm/equipment" },
