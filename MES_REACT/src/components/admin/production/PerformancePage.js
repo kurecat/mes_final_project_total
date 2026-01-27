@@ -59,9 +59,20 @@ const MOCK_LIST = [
     rate: 97.0,
     status: "RUNNING",
   },
+  {
+    woId: "WO-MOD-099",
+    product: "DDR5 Module",
+    line: "Mod-Line-C",
+    unit: "ea",
+    planQty: 2000,
+    actualQty: 2000,
+    lossQty: 0,
+    rate: 100.0,
+    status: "COMPLETED",
+  },
 ];
 
-// --- [Optimized] Sub-Components with React.memo ---
+// --- Sub-Components ---
 
 // 1. Header Component
 const PerformanceHeader = React.memo(
@@ -74,7 +85,7 @@ const PerformanceHeader = React.memo(
             {loading && (
               <FaSync
                 className="spin"
-                style={{ fontSize: 14, marginLeft: 10 }}
+                style={{ fontSize: 14, marginLeft: 10, color: "#aaa" }}
               />
             )}
           </PageTitle>
@@ -82,11 +93,11 @@ const PerformanceHeader = React.memo(
         </TitleArea>
         <FilterGroup>
           <DateInput>
-            <FaCalendarAlt color="#666" />
+            <FaCalendarAlt color="#666" size={14} />
             <input type="date" value={date} onChange={onDateChange} />
           </DateInput>
           <SelectWrapper>
-            <FaFilter color="#666" style={{ marginLeft: 10 }} />
+            <FaFilter color="#666" size={14} style={{ marginLeft: 10 }} />
             <Select value={selectedLine} onChange={onLineChange}>
               <option value="ALL">All Lines</option>
               <option value="Fab-Line-A">Fab-Line-A</option>
@@ -163,64 +174,85 @@ const KpiBoard = React.memo(({ summary }) => {
   );
 });
 
-// 3. Chart Component
+// 3. Chart Component (높이 100%로 수정)
 const HourlyChart = React.memo(({ data }) => {
   return (
     <ChartSection>
       <SectionHeader>
         <SectionTitle>Hourly Output Trend (Fab Wafer Out)</SectionTitle>
       </SectionHeader>
-      <ResponsiveContainer width="100%" height={320}>
-        <ComposedChart
-          data={data}
-          margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
-        >
-          <CartesianGrid stroke="#f5f5f5" strokeDasharray="3 3" />
-          <XAxis dataKey="time" />
-          <YAxis
-            yAxisId="left"
-            label={{
-              value: "Wafer (wfrs)",
-              angle: -90,
-              position: "insideLeft",
-            }}
-          />
-          <YAxis
-            yAxisId="right"
-            orientation="right"
-            label={{ value: "Scrap", angle: 90, position: "insideRight" }}
-          />
-          <Tooltip />
-          <Legend />
-          <Bar
-            yAxisId="left"
-            dataKey="plan"
-            name="Plan"
-            fill="#a79d9d"
-            barSize={20}
-          />
-          <Bar
-            yAxisId="left"
-            dataKey="actual"
-            name="Actual"
-            fill="#1a4f8b"
-            barSize={20}
-          />
-          <Line
-            yAxisId="right"
-            type="monotone"
-            dataKey="scrap"
-            name="Scrap/Loss"
-            stroke="#e74c3c"
-            strokeWidth={2}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      <ChartWrapper>
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
+            data={data}
+            margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
+          >
+            <CartesianGrid stroke="#f5f5f5" strokeDasharray="3 3" />
+            <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+            <YAxis
+              yAxisId="left"
+              tick={{ fontSize: 12 }}
+              label={{
+                value: "Wafer (wfrs)",
+                angle: -90,
+                position: "insideLeft",
+                fontSize: 12,
+                fill: "#999",
+              }}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tick={{ fontSize: 12 }}
+              label={{
+                value: "Scrap",
+                angle: 90,
+                position: "insideRight",
+                fontSize: 12,
+                fill: "#999",
+              }}
+            />
+            <Tooltip
+              contentStyle={{
+                borderRadius: 8,
+                border: "none",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
+            <Bar
+              yAxisId="left"
+              dataKey="plan"
+              name="Plan"
+              fill="#e0e0e0"
+              barSize={16}
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar
+              yAxisId="left"
+              dataKey="actual"
+              name="Actual"
+              fill="#1a4f8b"
+              barSize={16}
+              radius={[4, 4, 0, 0]}
+            />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="scrap"
+              name="Scrap/Loss"
+              stroke="#e74c3c"
+              strokeWidth={2}
+              dot={{ r: 3 }}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </ChartWrapper>
     </ChartSection>
   );
 });
 
-// 4. List Table Row (for virtualization/performance)
+// 4. List Table Row
 const WorkOrderRow = React.memo(({ row }) => {
   return (
     <tr>
@@ -289,18 +321,13 @@ const PerformancePage = () => {
 
   const API_BASE = "http://localhost:8111/api/mes";
 
-  // 1. fetchData with useCallback
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1) KPI Summary
       const resSummary = await axiosInstance.get(
         `${API_BASE}/performance/summary`,
-        {
-          params: { date, line: selectedLine },
-        },
+        { params: { date, line: selectedLine } },
       );
-
       setSummary({
         totalPlanQty: resSummary.data?.totalPlanQty ?? 0,
         totalGoodQty: resSummary.data?.totalGoodQty ?? 0,
@@ -308,16 +335,12 @@ const PerformancePage = () => {
         yieldRate: resSummary.data?.yieldRate ?? 0,
       });
 
-      // 2) Hourly Chart
       const resHourly = await axiosInstance.get(
         `${API_BASE}/performance/hourly`,
-        {
-          params: { date, line: selectedLine },
-        },
+        { params: { date, line: selectedLine } },
       );
       setHourlyData(resHourly.data ?? []);
 
-      // 3) List Data
       const resList = await axiosInstance.get(`${API_BASE}/performance/list`, {
         params: { date, line: selectedLine },
       });
@@ -326,12 +349,11 @@ const PerformancePage = () => {
       setLoading(false);
     } catch (err) {
       console.error(err);
-      // Fallback
       setSummary({
-        totalPlanQty: 0,
-        totalGoodQty: 0,
-        totalDefectQty: 0,
-        yieldRate: 0,
+        totalPlanQty: 52400,
+        totalGoodQty: 51050,
+        totalDefectQty: 25,
+        yieldRate: 97.4,
       });
       setHourlyData(MOCK_HOURLY);
       setListData(MOCK_LIST);
@@ -339,12 +361,10 @@ const PerformancePage = () => {
     }
   }, [date, selectedLine]);
 
-  // 2. useEffect depends on fetchData
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // 3. Handlers with useCallback
   const handleDateChange = useCallback((e) => {
     setDate(e.target.value);
   }, []);
@@ -357,7 +377,6 @@ const PerformancePage = () => {
     alert("Exporting data...");
   }, []);
 
-  // 4. Memoize Summary Object
   const summaryData = useMemo(
     () => ({
       totalPlan: summary.totalPlanQty,
@@ -370,7 +389,6 @@ const PerformancePage = () => {
 
   return (
     <Container>
-      {/* 1. Header (Memoized) */}
       <PerformanceHeader
         loading={loading}
         date={date}
@@ -380,15 +398,10 @@ const PerformancePage = () => {
         onExport={handleExport}
       />
 
-      {/* 2. KPI Section (Memoized) */}
       <KpiBoard summary={summaryData} />
 
-      {/* 3. Main Content */}
       <ContentBody>
-        {/* Left: Chart (Memoized) */}
         <HourlyChart data={hourlyData} />
-
-        {/* Right: List (Memoized) */}
         <WorkOrderTable data={listData} />
       </ContentBody>
     </Container>
@@ -403,33 +416,35 @@ const Container = styled.div`
   width: 100%;
   height: 100%;
   background-color: #f5f6fa;
-  padding: 20px;
+  padding: 16px;
+  /* padding-bottom 제거: 화면 꽉 차게 하기 위함 */
+  padding-bottom: 0;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  overflow-y: auto;
+  overflow: hidden; /* 이중 스크롤 방지 */
+  gap: 16px;
 `;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  flex-shrink: 0; /* 헤더 크기 고정 */
 `;
 const TitleArea = styled.div`
   display: flex;
   flex-direction: column;
 `;
 const PageTitle = styled.h2`
-  font-size: 22px;
+  font-size: 20px;
   color: #333;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   .spin {
     animation: spin 1s linear infinite;
-    color: #aaa;
   }
   @keyframes spin {
     100% {
@@ -438,57 +453,60 @@ const PageTitle = styled.h2`
   }
 `;
 const SubTitle = styled.span`
-  font-size: 13px;
+  font-size: 12px;
   color: #888;
-  margin-top: 5px;
-  margin-left: 32px;
+  margin-top: 4px;
+  margin-left: 28px;
 `;
 
 const FilterGroup = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 8px;
 `;
 const DateInput = styled.div`
   background: white;
   border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: 4px;
+  padding: 6px 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   input {
     border: none;
     outline: none;
     font-family: inherit;
     color: #333;
+    font-size: 13px;
   }
 `;
 const SelectWrapper = styled.div`
   background: white;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
 `;
 const Select = styled.select`
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: none;
   outline: none;
   background: transparent;
   color: #555;
+  font-size: 13px;
 `;
 
 const ExportButton = styled.button`
   background-color: #2e7d32;
   color: white;
   border: none;
-  padding: 8px 15px;
-  border-radius: 6px;
+  padding: 6px 12px;
+  border-radius: 4px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 6px;
+  font-size: 13px;
   &:hover {
     background-color: #1b5e20;
   }
@@ -497,28 +515,28 @@ const ExportButton = styled.button`
 const KpiGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 20px;
+  gap: 16px;
+  flex-shrink: 0; /* KPI 카드 크기 고정 */
 `;
 const KpiCard = styled.div`
   background: white;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
 `;
 const IconBox = styled.div`
-  width: 50px;
-  height: 50px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   background-color: ${(props) => `${props.$color}15`};
   color: ${(props) => props.$color};
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 20px;
 `;
 const KpiInfo = styled.div`
   display: flex;
@@ -526,17 +544,17 @@ const KpiInfo = styled.div`
   flex: 1;
 `;
 const Label = styled.span`
-  font-size: 13px;
+  font-size: 12px;
   color: #888;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 `;
 const Value = styled.span`
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   color: #333;
 `;
 const Unit = styled.span`
-  font-size: 14px;
+  font-size: 13px;
   color: #999;
   font-weight: 500;
 `;
@@ -545,18 +563,18 @@ const Row = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 `;
 const PercentValue = styled.span`
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: #1a4f8b;
 `;
 const ProgressBar = styled.div`
   width: 100%;
-  height: 8px;
+  height: 6px;
   background-color: #eee;
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
 `;
 const ProgressFill = styled.div`
@@ -566,68 +584,88 @@ const ProgressFill = styled.div`
   transition: width 0.5s ease;
 `;
 
+// 컨텐츠 영역: flex: 1로 남은 공간 모두 차지
 const ContentBody = styled.div`
   flex: 1;
   display: flex;
-  gap: 20px;
+  gap: 16px;
+  min-height: 0; /* 자식 요소의 스크롤을 위해 필수 */
+  margin-bottom: 16px; /* 하단에 약간의 여백 */
+`;
+
+const ChartSection = styled.div`
+  flex: 1.2;
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  /* 고정 높이 제거하고 부모(ContentBody) 높이에 맞춤 */
+  height: 100%;
+  overflow: hidden;
+`;
+
+// 차트 감싸는 div (높이 100% 필수)
+const ChartWrapper = styled.div`
+  flex: 1;
+  width: 100%;
+  height: 100%;
   min-height: 0;
 `;
-const ChartSection = styled.div`
-  flex: 3;
-  background: white;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-`;
+
 const ListSection = styled.div`
-  flex: 2;
+  flex: 1;
   background: white;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
+  height: 100%;
+  overflow: hidden;
 `;
 
 const SectionHeader = styled.div`
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
 `;
 const SectionTitle = styled.h3`
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   color: #333;
   font-weight: 700;
 `;
 
 const TableWrapper = styled.div`
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* 테이블 내용만 스크롤 */
+  min-height: 0;
 `;
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 13px;
   th {
     text-align: left;
-    padding: 12px;
+    padding: 10px;
     background-color: #f9f9f9;
     color: #666;
     font-weight: 600;
     border-bottom: 1px solid #eee;
     position: sticky;
     top: 0;
+    z-index: 1;
   }
   td {
-    padding: 12px;
+    padding: 10px;
     border-bottom: 1px solid #f5f5f5;
     color: #333;
   }
 `;
 
 const StatusBadge = styled.span`
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 700;

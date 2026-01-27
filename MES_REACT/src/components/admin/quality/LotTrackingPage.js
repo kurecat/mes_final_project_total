@@ -33,7 +33,7 @@ const getProgressColor = (percent) => {
   return "#2ecc71";
 };
 
-// --- [Optimized] Sub-Components with React.memo ---
+// --- Sub-Components ---
 
 // 1. Header Stats Component
 const LotTrackingHeader = React.memo(({ stats }) => {
@@ -205,7 +205,6 @@ const DetailView = React.memo(({ selectedLot }) => {
 // --- Main Component ---
 
 const LotTrackingPage = () => {
-  // --- State ---
   const [stats, setStats] = useState({
     runningLots: 0,
     holdLots: 0,
@@ -216,32 +215,59 @@ const LotTrackingPage = () => {
   const [selectedLot, setSelectedLot] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // --- Fetch Data ---
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const baseUrl = "http://localhost:3001";
-        const [statsRes, lotsRes] = await Promise.all([
-          fetch(`${baseUrl}/trackingStats`),
-          fetch(`${baseUrl}/lots`),
-        ]);
-
-        const statsData = await statsRes.json();
-        const lotsData = await lotsRes.json();
-
-        setStats(statsData);
-        setLots(lotsData);
-
-        // 초기 로딩 시 첫 번째 Lot 자동 선택
-        if (lotsData.length > 0) setSelectedLot(lotsData[0]);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    };
-    fetchData();
+    // Mock Data Load (For Demo)
+    setStats({
+      runningLots: 12,
+      holdLots: 2,
+      waitLots: 5,
+      avgTat: "4.5 Days",
+    });
+    const mockLots = [
+      {
+        id: "LOT-2026-A001",
+        product: "DDR5-16Gb",
+        status: "RUNNING",
+        currentStep: "Photo-02",
+        progress: 45,
+        priority: "High",
+        waferQty: 25,
+        equipmentId: "PH-EQ-02",
+        startTime: "2026-01-26 08:30",
+        eta: "2026-01-29 14:00",
+        route: [
+          { step: "Clean", status: "DONE" },
+          { step: "Deposition", status: "DONE" },
+          { step: "Photo", status: "RUNNING" },
+          { step: "Etch", status: "WAIT" },
+          { step: "EDS", status: "WAIT" },
+        ],
+      },
+      {
+        id: "LOT-2026-B005",
+        product: "NAND-1TB",
+        status: "HOLD",
+        currentStep: "Etch-01",
+        progress: 60,
+        priority: "Normal",
+        waferQty: 24,
+        equipmentId: "ET-EQ-01",
+        startTime: "2026-01-25 10:00",
+        eta: "Unknown",
+        holdReason: "Recipe Mismatch Error",
+        route: [
+          { step: "Clean", status: "DONE" },
+          { step: "Deposition", status: "DONE" },
+          { step: "Photo", status: "DONE" },
+          { step: "Etch", status: "HOLD" },
+          { step: "EDS", status: "WAIT" },
+        ],
+      },
+    ];
+    setLots(mockLots);
+    if (mockLots.length > 0) setSelectedLot(mockLots[0]);
   }, []);
 
-  // --- Handlers (useCallback) ---
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
   }, []);
@@ -250,7 +276,6 @@ const LotTrackingPage = () => {
     setSelectedLot(lot);
   }, []);
 
-  // --- Filtering (useMemo) ---
   const filteredLots = useMemo(() => {
     return lots.filter(
       (lot) =>
@@ -261,12 +286,21 @@ const LotTrackingPage = () => {
 
   return (
     <Container>
-      {/* 1. Header Stats (Memoized) */}
+      {/* 1. Header (추가됨) */}
+      <Header>
+        <TitleArea>
+          <PageTitle>
+            <FaMicrochip /> Lot Tracking
+          </PageTitle>
+          <SubTitle>Real-time WIP Tracking & History</SubTitle>
+        </TitleArea>
+      </Header>
+
+      {/* 2. Stats Section */}
       <LotTrackingHeader stats={stats} />
 
-      {/* 2. Main Content */}
+      {/* 3. Main Content */}
       <MainContent>
-        {/* Left: Lot List (Memoized) */}
         <LotListPanel
           searchTerm={searchTerm}
           onSearchChange={handleSearchChange}
@@ -274,8 +308,6 @@ const LotTrackingPage = () => {
           selectedLotId={selectedLot?.id}
           onLotClick={handleLotClick}
         />
-
-        {/* Right: Detail View (Memoized) */}
         <DetailView selectedLot={selectedLot} />
       </MainContent>
     </Container>
@@ -296,7 +328,33 @@ const Container = styled.div`
   box-sizing: border-box;
 `;
 
-// Header Stats
+// ★ Header Styles Added
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+`;
+const TitleArea = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+const PageTitle = styled.h2`
+  margin: 0;
+  font-size: 24px;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+const SubTitle = styled.span`
+  font-size: 13px;
+  color: #888;
+  margin-top: 5px;
+  margin-left: 34px;
+`;
+
 const HeaderStats = styled.div`
   display: flex;
   gap: 20px;
@@ -338,15 +396,14 @@ const StatLabel = styled.div`
   color: #888;
 `;
 
-// Main Layout
 const MainContent = styled.div`
   display: flex;
   gap: 20px;
   flex: 1;
-  overflow: hidden; // 중요: 내부 스크롤을 위해
+  overflow: hidden;
+  margin-bottom: 70px;
 `;
 
-// Left List Panel
 const ListPanel = styled.div`
   flex: 1;
   background: white;
@@ -463,7 +520,6 @@ const ProgressLabel = styled.div`
   text-align: right;
 `;
 
-// Right Detail Panel
 const DetailPanel = styled.div`
   flex: 2;
   background: white;
