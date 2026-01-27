@@ -1,6 +1,7 @@
 // src/pages/resource/InventoryPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
+// useNavigate 제거됨
 import axiosInstance from "../../../api/axios";
 
 import {
@@ -9,18 +10,19 @@ import {
   FaExclamationTriangle,
   FaThermometerHalf,
   FaHistory,
-  FaPlus,
-  FaMinus,
   FaFlask,
   FaMicrochip,
+  FaTimes, // 모달 닫기 아이콘 추가
+  FaArrowUp,
+  FaArrowDown,
 } from "react-icons/fa";
 
 // =============================
-// API Base (⭐ 파일 최상단으로 이동)
+// API Base
 // =============================
 const API_BASE = "http://localhost:8111/api/mes";
 
-// --- Fallback Mock Data ---
+// --- Fallback Mock Data (Inventory) ---
 const MOCK_INVENTORY = [
   {
     id: "RM-WF-12",
@@ -76,6 +78,55 @@ const MOCK_INVENTORY = [
     unit: "kg",
     status: "NORMAL",
     condition: "Dry Box",
+  },
+];
+
+// --- Fallback Mock Data (Transaction Logs) ---
+const MOCK_LOGS = [
+  {
+    id: 1,
+    date: "2023-10-25 14:30",
+    type: "OUT",
+    material: "12-inch Prime Wafer",
+    qty: 50,
+    loc: "Line-A",
+    worker: "Operator Kim",
+  },
+  {
+    id: 2,
+    date: "2023-10-25 10:15",
+    type: "IN",
+    material: "Photo Resist (ArF)",
+    qty: 20,
+    loc: "WH-Cold-02",
+    worker: "Manager Lee",
+  },
+  {
+    id: 3,
+    date: "2023-10-24 16:45",
+    type: "OUT",
+    material: "Copper Target (Cu)",
+    qty: 2,
+    loc: "Line-B",
+    worker: "Operator Park",
+  },
+  {
+    id: 4,
+    date: "2023-10-24 09:20",
+    type: "IN",
+    material: "Etching Gas (C4F6)",
+    qty: 100,
+    loc: "Gas-Bunker",
+    worker: "Vendor Supply",
+  },
+  {
+    id: 5,
+    date: "2023-10-23 11:00",
+    type: "OUT",
+    material: "Epoxy Molding Comp.",
+    qty: 200,
+    loc: "Line-C",
+    worker: "Operator Choi",
   },
 ];
 
@@ -136,9 +187,8 @@ const InventoryStats = React.memo(
 
 // =============================
 // 2. Table Row Component
-// ⭐ onIssue를 props로 받도록 수정
 // =============================
-const InventoryRow = React.memo(({ item, onIssue }) => {
+const InventoryRow = React.memo(({ item }) => {
   const percent =
     item.safety > 0 ? Math.min((item.qty / (item.safety * 2)) * 100, 100) : 0;
 
@@ -193,15 +243,63 @@ const InventoryRow = React.memo(({ item, onIssue }) => {
           <StatusBadge $status="NORMAL">Normal</StatusBadge>
         )}
       </td>
-
-      <td>
-        <TableActionBtn onClick={() => onIssue(item)}>
-          <FaMinus /> Issue
-        </TableActionBtn>
-      </td>
     </tr>
   );
 });
+
+// =============================
+// 3. Transaction Log Modal
+// =============================
+const TransactionHistoryModal = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+
+  return (
+    <ModalOverlay>
+      <ModalContainer>
+        <ModalHeader>
+          <ModalTitle>
+            <FaHistory /> Transaction History (Recent 5)
+          </ModalTitle>
+          <CloseButton onClick={onClose}>
+            <FaTimes />
+          </CloseButton>
+        </ModalHeader>
+
+        <ModalBody>
+          <LogTable>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Material</th>
+                <th>Qty</th>
+                <th>Location</th>
+                <th>Worker</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MOCK_LOGS.map((log) => (
+                <tr key={log.id}>
+                  <td style={{ color: "#666", fontSize: 13 }}>{log.date}</td>
+                  <td>
+                    <LogTypeBadge $type={log.type}>
+                      {log.type === "IN" ? <FaArrowDown /> : <FaArrowUp />}
+                      {log.type}
+                    </LogTypeBadge>
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{log.material}</td>
+                  <td style={{ fontWeight: "bold" }}>{log.qty}</td>
+                  <td>{log.loc}</td>
+                  <td style={{ color: "#555" }}>{log.worker}</td>
+                </tr>
+              ))}
+            </tbody>
+          </LogTable>
+        </ModalBody>
+      </ModalContainer>
+    </ModalOverlay>
+  );
+};
 
 // =============================
 // Main Component
@@ -211,6 +309,9 @@ const InventoryPage = () => {
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // ⭐ 모달 상태 추가
+  const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
   // ✅ 재고 조회
   const fetchData = useCallback(async () => {
@@ -228,40 +329,6 @@ const InventoryPage = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // ✅ 출고 처리 (Issue)
-  const handleIssue = useCallback(
-    async (item) => {
-      try {
-        // 테스트용: 1개 출고
-        const qty = 1;
-
-        if (
-          !window.confirm(
-            `[${item.id}] 자재를 ${qty}${item.unit} 출고하시겠습니까?`,
-          )
-        ) {
-          return;
-        }
-
-        await axiosInstance.post(`${API_BASE}/material/out`, {
-          materialCode: item.id,
-          qty,
-          unit: item.unit,
-          targetLocation: item.loc,
-          workerName: "tester",
-          targetEquipment: null,
-        });
-
-        alert("출고 완료");
-        fetchData();
-      } catch (err) {
-        console.error("출고 실패:", err);
-        alert("출고 실패 (재고 부족/자재코드 확인 필요)");
-      }
-    },
-    [fetchData],
-  );
 
   // 필터링
   const filteredData = useMemo(() => {
@@ -298,11 +365,9 @@ const InventoryPage = () => {
         </TitleArea>
 
         <HeaderActions>
-          <ActionButton>
+          {/* ⭐ 버튼 클릭 시 모달 오픈 */}
+          <ActionButton onClick={() => setIsLogModalOpen(true)}>
             <FaHistory /> Transaction Log
-          </ActionButton>
-          <ActionButton $primary>
-            <FaPlus /> Stock In
           </ActionButton>
         </HeaderActions>
       </Header>
@@ -351,7 +416,7 @@ const InventoryPage = () => {
           <Table>
             <thead>
               <tr>
-                <th width="15%">Material ID</th>
+                <th width="10%">Material ID</th>
                 <th>Material Name</th>
                 <th width="10%">Type</th>
                 <th width="12%">Location</th>
@@ -359,22 +424,23 @@ const InventoryPage = () => {
                 <th width="20%">Stock Level (Curr / Safety)</th>
                 <th width="10%">Qty</th>
                 <th width="10%">Status</th>
-                <th width="8%">Action</th>
               </tr>
             </thead>
 
             <tbody>
               {filteredData.map((item) => (
-                <InventoryRow
-                  key={item.id}
-                  item={item}
-                  onIssue={handleIssue} // ⭐ props로 전달
-                />
+                <InventoryRow key={item.id} item={item} />
               ))}
             </tbody>
           </Table>
         </TableContainer>
       </ContentSection>
+
+      {/* ⭐ 로그 모달 컴포넌트 렌더링 */}
+      <TransactionHistoryModal
+        isOpen={isLogModalOpen}
+        onClose={() => setIsLogModalOpen(false)}
+      />
     </Container>
   );
 };
@@ -382,7 +448,7 @@ const InventoryPage = () => {
 export default InventoryPage;
 
 /* =============================
-   Styled Components (기존 그대로)
+    Styled Components
 ============================= */
 const Container = styled.div`
   width: 100%;
@@ -611,17 +677,106 @@ const StatusBadge = styled.span`
   padding: 3px 6px;
   border-radius: 4px;
 `;
-const TableActionBtn = styled.button`
-  border: 1px solid #ddd;
-  background: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  cursor: pointer;
+
+// --- Modal Styled Components ---
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  &:hover {
-    background: #f5f5f5;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+`;
+
+const ModalContainer = styled.div`
+  background: white;
+  width: 800px;
+  max-width: 90%;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-out;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
+`;
+
+const ModalHeader = styled.div`
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fcfcfc;
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  &:hover {
+    color: #333;
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 20px;
+  overflow-y: auto;
+  max-height: 60vh;
+`;
+
+const LogTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  th {
+    text-align: left;
+    padding: 12px;
+    background: #f9f9f9;
+    color: #666;
+    font-size: 13px;
+    border-bottom: 1px solid #eee;
+  }
+  td {
+    padding: 12px;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 14px;
+    color: #333;
+  }
+`;
+
+const LogTypeBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  background: ${(props) => (props.$type === "IN" ? "#e8f5e9" : "#ffebee")};
+  color: ${(props) => (props.$type === "IN" ? "#2e7d32" : "#c62828")};
 `;
