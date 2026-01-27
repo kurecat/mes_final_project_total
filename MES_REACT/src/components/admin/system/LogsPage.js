@@ -1,6 +1,6 @@
-// src/pages/system/LogsPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
+import api from "../../../api/axios";
 import {
   FaServer,
   FaSearch,
@@ -8,13 +8,12 @@ import {
   FaExclamationTriangle,
   FaInfoCircle,
   FaBug,
-  FaShieldAlt,
   FaDownload,
   FaChevronDown,
   FaChevronUp,
 } from "react-icons/fa";
 
-// --- Helper Functions ---
+// --- Helper & Sub-Components ---
 const getLevelBadge = (level) => {
   switch (level) {
     case "INFO":
@@ -35,12 +34,6 @@ const getLevelBadge = (level) => {
           <FaBug /> ERROR
         </Badge>
       );
-    case "SECURITY":
-      return (
-        <Badge $color="#9b59b6" $bg="#f5eef8">
-          <FaShieldAlt /> SEC
-        </Badge>
-      );
     default:
       return (
         <Badge $color="#95a5a6" $bg="#f4f6f7">
@@ -50,126 +43,110 @@ const getLevelBadge = (level) => {
   }
 };
 
-// --- [Optimized] Sub-Components with React.memo ---
-
-// 1. Header Component
 const LogHeader = React.memo(
-  ({ levelFilter, onFilterChange, searchTerm, onSearchChange, onExport }) => {
-    return (
-      <Header>
-        <TitleGroup>
-          <FaServer size={22} color="#34495e" />
-          <h1>System Logs & Audit</h1>
-        </TitleGroup>
-        <Controls>
-          <FilterGroup>
-            <FaFilter color="#666" />
-            <Select value={levelFilter} onChange={onFilterChange}>
-              <option value="ALL">All Levels</option>
-              <option value="INFO">INFO</option>
-              <option value="WARN">WARN</option>
-              <option value="ERROR">ERROR</option>
-              <option value="SECURITY">SECURITY</option>
-            </Select>
-          </FilterGroup>
-          <SearchBox>
-            <FaSearch color="#aaa" />
-            <input
-              placeholder="Search Message, User, Category..."
-              value={searchTerm}
-              onChange={onSearchChange}
-            />
-          </SearchBox>
-          <DownloadBtn onClick={onExport}>
-            <FaDownload /> Export
-          </DownloadBtn>
-        </Controls>
-      </Header>
-    );
-  },
+  ({ levelFilter, onFilterChange, searchTerm, onSearchChange, onExport }) => (
+    <Header>
+      <TitleGroup>
+        {/* [복구] 근본 남색 아이콘 */}
+        <FaServer size={22} color="#34495e" />
+        <h1>System Logs & Audit</h1>
+      </TitleGroup>
+      <Controls>
+        <FilterGroup>
+          <FaFilter color="#666" />
+          <Select value={levelFilter} onChange={onFilterChange}>
+            <option value="ALL">All Levels</option>
+            <option value="INFO">INFO</option>
+            <option value="WARN">WARN</option>
+          </Select>
+        </FilterGroup>
+        <SearchBox>
+          <FaSearch color="#aaa" />
+          <input
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={onSearchChange}
+          />
+        </SearchBox>
+        {/* [복구] 근본 남색 버튼 */}
+        <DownloadBtn onClick={onExport}>
+          <FaDownload /> Export
+        </DownloadBtn>
+      </Controls>
+    </Header>
+  ),
 );
 
-// 2. Detail Row Component
-const LogDetailRow = React.memo(({ log }) => {
-  return (
-    <DetailRow>
-      <td colSpan="7">
-        <DetailBox>
-          <div className="label">Log ID: {log.id}</div>
-          <pre>{log.details || "No additional details available."}</pre>
-        </DetailBox>
+const LogTableRow = React.memo(({ log, isExpanded, onToggleExpand }) => (
+  <>
+    <LogRow
+      $level={log.level}
+      onClick={() => onToggleExpand(log.id)}
+      $expanded={isExpanded}
+    >
+      <td className="mono">{log.timestamp}</td>
+      <td>{getLevelBadge(log.level)}</td>
+      <td className="category">{log.category}</td>
+      <td className="message">{log.message}</td>
+      <td>{log.userId}</td>
+      <td className="mono">{log.userIp}</td>
+      <td>
+        {isExpanded ? (
+          <FaChevronUp color="#999" />
+        ) : (
+          <FaChevronDown color="#ccc" />
+        )}
       </td>
-    </DetailRow>
-  );
-});
-
-// 3. Table Row Component
-const LogTableRow = React.memo(({ log, isExpanded, onToggleExpand }) => {
-  return (
-    <>
-      <LogRow
-        $level={log.level}
-        onClick={() => onToggleExpand(log.id)}
-        $expanded={isExpanded}
-      >
-        <td className="mono">{log.timestamp.replace("T", " ")}</td>
-        <td>{getLevelBadge(log.level)}</td>
-        <td className="category">{log.category}</td>
-        <td className="message">{log.message}</td>
-        <td>{log.userId}</td>
-        <td className="mono">{log.userIp}</td>
-        <td>
-          {isExpanded ? (
-            <FaChevronUp color="#999" />
-          ) : (
-            <FaChevronDown color="#ccc" />
-          )}
+    </LogRow>
+    {isExpanded && (
+      <DetailRow>
+        <td colSpan="7">
+          <DetailBox>
+            <div className="label">Log ID: {log.id}</div>
+            <pre>{JSON.stringify(log, null, 2)}</pre>
+          </DetailBox>
         </td>
-      </LogRow>
-      {isExpanded && <LogDetailRow log={log} />}
-    </>
-  );
-});
+      </DetailRow>
+    )}
+  </>
+));
 
-// 4. Table Component
 const LogTableComponent = React.memo(
-  ({ logs, expandedLogId, onToggleExpand }) => {
-    return (
-      <TableContainer>
-        <LogTable>
-          <thead>
+  ({ logs, expandedLogId, onToggleExpand }) => (
+    <TableContainer>
+      <LogTable>
+        <thead>
+          <tr>
+            <th width="180">Timestamp</th>
+            <th width="100">Level</th>
+            <th width="120">Category</th>
+            <th>Message</th>
+            <th width="120">User</th>
+            <th width="120">IP</th>
+            <th width="50"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {logs.length > 0 ? (
+            logs.map((log) => (
+              <LogTableRow
+                key={log.id}
+                log={log}
+                isExpanded={expandedLogId === log.id}
+                onToggleExpand={onToggleExpand}
+              />
+            ))
+          ) : (
             <tr>
-              <th width="180">Timestamp</th>
-              <th width="100">Level</th>
-              <th width="120">Category</th>
-              <th>Message</th>
-              <th width="120">User</th>
-              <th width="120">IP</th>
-              <th width="50"></th>
+              <td colSpan="7" className="empty">
+                No logs found.
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {logs.length > 0 ? (
-              logs.map((log) => (
-                <LogTableRow
-                  key={log.id}
-                  log={log}
-                  isExpanded={expandedLogId === log.id}
-                  onToggleExpand={onToggleExpand}
-                />
-              ))
-            ) : (
-              <tr>
-                <td colSpan="7" className="empty">
-                  No logs found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </LogTable>
-      </TableContainer>
-    );
-  },
+          )}
+        </tbody>
+      </LogTable>
+    </TableContainer>
+  ),
 );
 
 // --- Main Component ---
@@ -180,50 +157,48 @@ const LogsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedLogId, setExpandedLogId] = useState(null);
 
-  // Data Fetching
   useEffect(() => {
-    fetch("http://localhost:3001/systemLogs")
-      .then((res) => res.json())
-      .then((data) => {
-        const sorted = data.sort(
-          (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
-        );
-        setLogs(sorted);
+    api
+      .get("/api/mes/system/log")
+      .then((res) => {
+        const mappedData = res.data.map((item) => ({
+          id: item.id,
+          timestamp: new Date(item.loginTime).toLocaleString(),
+          level: item.status === "SUCCESS" ? "INFO" : "WARN",
+          category: "LOGIN",
+          message: `Login ${item.status}`,
+          userId: item.email,
+          userIp: item.ipAddress,
+          details: `Login attempt by ${item.email}`,
+        }));
+        setLogs(mappedData);
       })
       .catch((err) => console.error("Failed to fetch logs:", err));
   }, []);
 
-  // Handlers (useCallback)
-  const toggleExpand = useCallback((id) => {
-    setExpandedLogId((prevId) => (prevId === id ? null : id));
-  }, []);
+  const toggleExpand = useCallback(
+    (id) => setExpandedLogId((prevId) => (prevId === id ? null : id)),
+    [],
+  );
+  const handleFilterChange = useCallback(
+    (e) => setLevelFilter(e.target.value),
+    [],
+  );
+  const handleSearchChange = useCallback(
+    (e) => setSearchTerm(e.target.value),
+    [],
+  );
+  const handleExport = useCallback(() => alert("Exporting logs..."), []);
 
-  const handleFilterChange = useCallback((e) => {
-    setLevelFilter(e.target.value);
-  }, []);
-
-  const handleSearchChange = useCallback((e) => {
-    setSearchTerm(e.target.value);
-  }, []);
-
-  const handleExport = useCallback(() => {
-    alert("Exporting logs...");
-  }, []);
-
-  // Filtering Logic (useMemo)
   const filteredLogs = useMemo(() => {
     let result = logs;
-
-    if (levelFilter !== "ALL") {
+    if (levelFilter !== "ALL")
       result = result.filter((log) => log.level === levelFilter);
-    }
-
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase();
       result = result.filter(
         (log) =>
           log.message.toLowerCase().includes(lowerTerm) ||
-          log.category.toLowerCase().includes(lowerTerm) ||
           log.userId.toLowerCase().includes(lowerTerm),
       );
     }
@@ -239,7 +214,6 @@ const LogsPage = () => {
         onSearchChange={handleSearchChange}
         onExport={handleExport}
       />
-
       <LogTableComponent
         logs={filteredLogs}
         expandedLogId={expandedLogId}
@@ -251,7 +225,7 @@ const LogsPage = () => {
 
 export default LogsPage;
 
-// --- Styled Components ---
+// --- Styled Components (오리지널 디자인 복구) ---
 
 const Container = styled.div`
   width: 100%;
@@ -317,7 +291,6 @@ const SearchBox = styled.div`
   border: 1px solid #ddd;
   border-radius: 6px;
   width: 300px;
-
   input {
     border: none;
     background: transparent;
@@ -359,13 +332,13 @@ const LogTable = styled.table`
   border-collapse: collapse;
   white-space: nowrap;
 
+  /* [복구] 회색 헤더, 기본 글씨 */
   thead {
     position: sticky;
     top: 0;
     z-index: 10;
     background: #f8f9fa;
   }
-
   th {
     text-align: left;
     background: #f8f9fa;
@@ -375,6 +348,7 @@ const LogTable = styled.table`
     border-bottom: 2px solid #eee;
   }
 
+  /* [복구] 기본 검은색 글씨 */
   td {
     padding: 10px 15px;
     font-size: 14px;
@@ -388,17 +362,14 @@ const LogTable = styled.table`
     font-size: 13px;
     color: #555;
   }
-
   .category {
     font-weight: 600;
     font-size: 12px;
     color: #2c3e50;
   }
-
   .message {
     color: #222;
   }
-
   .empty {
     text-align: center;
     padding: 40px;
@@ -409,6 +380,8 @@ const LogTable = styled.table`
 const LogRow = styled.tr`
   cursor: pointer;
   background-color: ${(props) => (props.$expanded ? "#f8f9fa" : "white")};
+
+  /* 상태별 왼쪽 라인 색상은 유지 (이건 기능이니까) */
   border-left: 4px solid
     ${(props) => {
       switch (props.$level) {
@@ -422,7 +395,6 @@ const LogRow = styled.tr`
           return "transparent";
       }
     }};
-
   &:hover {
     background-color: #f1f5f9;
   }
@@ -458,7 +430,6 @@ const DetailBox = styled.div`
   margin-left: 40px;
   position: relative;
   white-space: pre-wrap;
-
   .label {
     position: absolute;
     top: -10px;
@@ -470,7 +441,6 @@ const DetailBox = styled.div`
     font-size: 10px;
     font-weight: bold;
   }
-
   pre {
     margin: 0;
     white-space: pre-wrap;
