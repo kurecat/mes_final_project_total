@@ -416,7 +416,7 @@ const InventoryPage = () => {
           <Table>
             <thead>
               <tr>
-                <th width="10%">Material ID</th>
+                <th width="15%">Material ID</th>
                 <th>Material Name</th>
                 <th width="10%">Type</th>
                 <th width="12%">Location</th>
