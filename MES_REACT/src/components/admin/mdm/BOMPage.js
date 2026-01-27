@@ -28,6 +28,7 @@ const Container = styled.div`
 
 const Sidebar = styled.div`
   width: 320px;
+  max-height: calc(100vh - 140px);
   background: white;
   border-right: 1px solid #ddd;
   display: flex;
@@ -73,8 +74,8 @@ const SearchBox = styled.div`
   }
 `;
 
-const BomList = styled.div`
-  flex: 1;
+const ProductList = styled.div`
+  flex: 0 1 auto;
   overflow-y: auto;
 `;
 
@@ -115,6 +116,11 @@ const StatusBadge = styled.span`
   background-color: ${(props) =>
     props.$status === "ACTIVE" ? "#e8f5e9" : "#eee"};
   color: ${(props) => (props.$status === "ACTIVE" ? "#2e7d32" : "#888")};
+`;
+
+const AddButtonContainer = styled.div`
+  display: flex;
+  flex-direction: column;
 `;
 
 const AddButton = styled.button`
@@ -302,7 +308,7 @@ const SidebarItem = React.memo(({ product, isActive, onClick }) => {
       </ItemTop>
       <ItemBottom>
         <span>{product.code}</span>
-        <span>{product.revision}</span>
+        <span>product.revision : 1</span>
       </ItemBottom>
     </BomItem>
   );
@@ -339,8 +345,7 @@ const SidebarPanel = React.memo(
             />
           </SearchBox>
         </SidebarHeader>
-
-        <BomList>
+        <ProductList>
           {filteredProducts.map((product) => (
             <SidebarItem
               key={product.id}
@@ -349,8 +354,7 @@ const SidebarPanel = React.memo(
               onClick={onSelect}
             />
           ))}
-        </BomList>
-
+        </ProductList>
         <AddButton>
           <FaPlus /> New Product BOM
         </AddButton>
@@ -450,6 +454,13 @@ const DetailView = React.memo(({ product, bom }) => {
                 <BomTableRow key={child.id} bomItem={child} />
               ))}
           </tbody>
+          <td colSpan="6">
+            <AddButtonContainer>
+              <AddButton>
+                <FaPlus /> New BOM Item
+              </AddButton>
+            </AddButtonContainer>
+          </td>
         </BomTable>
       </TableContainer>
     </>
@@ -519,12 +530,14 @@ const BomPage = () => {
     setSelectedProduct(bom);
   }, []);
 
+  const handleAddBom = useCallback((e) => {});
+
   // [Optimization] Filtering with useMemo
   const filteredProducts = useMemo(() => {
     return productList.filter(
       (product) =>
         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.id.toLowerCase().includes(searchTerm.toLowerCase()),
+        product.code.toLowerCase().includes(searchTerm.toLowerCase()),
     );
   }, [productList, searchTerm]);
 

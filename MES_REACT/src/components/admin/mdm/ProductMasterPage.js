@@ -63,7 +63,15 @@ const ProductTableRow = React.memo(
           }}
         >
           <FaBarcode style={{ marginRight: 5, color: "#999" }} />
-          {product.code}
+          {isEditing ? (
+            <InlineInput
+              value={editValues.code || ""}
+              placeholder={product.code}
+              onChange={(e) => onChangeEdit("code", e.target.value)}
+            />
+          ) : (
+            product.code
+          )}
         </td>
         <td style={{ fontWeight: "600" }}>
           {isEditing ? (
@@ -124,6 +132,8 @@ const ProductMasterPage = () => {
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
 
+  const [reqFetch, setReqFetch] = useState(false);
+
   const handleEdit = useCallback(
     async (product) => {
       if (editingId === product.id) {
@@ -147,6 +157,7 @@ const ProductMasterPage = () => {
         // 수정 시작
         setEditingId(product.id);
         setEditValues({
+          code: product.code,
           name: product.name,
           category: product.category,
           spec: product.spec,
@@ -173,16 +184,14 @@ const ProductMasterPage = () => {
       console.error(err);
     } finally {
       setLoading(false);
+      setReqFetch(true);
     }
   }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   // 2. Handlers - useCallback
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm(`품목 코드 [${id}]를 삭제하시겠습니까?`)) return;
+    setLoading(true);
     try {
       await axiosInstance.delete(
         `http://localhost:8111/api/mes/master/product/${id}`,
@@ -190,17 +199,30 @@ const ProductMasterPage = () => {
       setProducts((prev) => prev.filter((product) => product.id !== id));
     } catch (err) {
       console.error("Delete Error", err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const handleAdd = useCallback(() => {
+  const handleAdd = useCallback(async () => {
+    setLoading(true);
     const newProduct = {
-      code: `ITM-NEW-${Math.floor(Math.random() * 1000)}`,
+      code: `ITM-NEW-0000`,
       name: "New Product Entry",
       category: "ROH",
       spec: "TBD",
     };
-    setProducts((prev) => [newProduct, ...prev]);
+    try {
+      await axiosInstance.post(
+        `http://localhost:8111/api/mes/master/product`,
+        newProduct,
+      );
+    } catch (err) {
+      console.error("Create Error", err);
+    } finally {
+      setLoading(false);
+      setReqFetch(true);
+    }
   }, []);
 
   const handleFilterChange = useCallback((category) => {
@@ -210,6 +232,10 @@ const ProductMasterPage = () => {
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData, reqFetch]);
 
   // 3. Filtering - useMemo
   const filteredProducts = useMemo(() => {
@@ -258,9 +284,9 @@ const ProductMasterPage = () => {
         <Table>
           <thead>
             <tr>
-              <th width="23%">Product Code</th>
+              <th width="25%">Product Code</th>
               <th width="25%">Product Name</th>
-              <th width="10%">Type</th>
+              <th width="11%">Type</th>
               <th width="25%">Specification</th>
               <th width="7%" className="center">
                 Action
@@ -398,6 +424,7 @@ const SearchBox = styled.div`
 `;
 
 const TableContainer = styled.div`
+  max-height: calc(100vh - 340px);
   flex: 1;
   background: white;
   border-radius: 12px;
@@ -493,7 +520,7 @@ const IconButton = styled.button`
 `;
 
 const InlineInput = styled.input`
-  width: 100%;
+  width: calc(100% - 20px);
   padding: 6px 10px;
   border: 1px solid #ddd;
   border-radius: 6px;

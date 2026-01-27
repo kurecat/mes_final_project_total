@@ -67,11 +67,9 @@ axiosInstance.interceptors.response.use(
       const accessToken = localStorage.getItem("accessToken");
 
       if (!refreshToken || !accessToken) {
-        // 토큰이 없으면 로그인 페이지로 (로그인 페이지가 아닐 때만 이동)
+        // 토큰이 없으면 로그인 페이지로
         localStorage.clear();
-        if (window.location.pathname !== "/") {
-          window.location.href = "/";
-        }
+        window.location.href = "/";
         return Promise.reject(error);
       }
 
