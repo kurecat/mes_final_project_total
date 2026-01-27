@@ -1,7 +1,6 @@
 // src/pages/dashboard/KpiPage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-// import axiosInstance from "../../api/axios";
 import {
   FaChartPie,
   FaDownload,
@@ -27,59 +26,161 @@ import {
   ComposedChart,
 } from "recharts";
 
-// --- Fallback Mock Data ---
-const MOCK_KPI_DATA = {
-  summary: {
-    avgYield: 94.5,
-    yieldTarget: 96.0,
-    totalOutput: 15400,
-    cycleTime: 45.2,
-    avgOee: 88.2,
+// --- Mock Data Variants (Base Data) ---
+const MOCK_DATA_VARIANTS = {
+  DAILY: {
+    summary: {
+      avgYield: 95.2,
+      yieldTarget: 96.0,
+      totalOutput: 2100,
+      cycleTime: 44.5,
+      avgOee: 89.5,
+    },
+    yieldTrend: [
+      { date: "09:00", prime: 92, final: 95, target: 96 },
+      { date: "11:00", prime: 91, final: 94, target: 96 },
+      { date: "13:00", prime: 93, final: 96, target: 96 },
+      { date: "15:00", prime: 94, final: 97, target: 96 },
+      { date: "17:00", prime: 92, final: 95, target: 96 },
+      { date: "19:00", prime: 95, final: 98, target: 96 },
+    ],
+    binLoss: [
+      { type: "Single Bit", count: 150, desc: "Repairable" },
+      { type: "Multi Bit", count: 120, desc: "Non-Repair" },
+      { type: "Open/Short", count: 80, desc: "Hard Fail" },
+      { type: "Func Fail", count: 60, desc: "Logic Error" },
+      { type: "Leakage", count: 40, desc: "Power Spec" },
+    ],
+    equipmentOee: [
+      {
+        group: "Photo",
+        availability: 96,
+        performance: 93,
+        quality: 99,
+        oee: 88,
+      },
+      {
+        group: "Etch",
+        availability: 91,
+        performance: 89,
+        quality: 98,
+        oee: 79,
+      },
+      {
+        group: "Depo",
+        availability: 93,
+        performance: 96,
+        quality: 99,
+        oee: 88,
+      },
+      { group: "CMP", availability: 87, performance: 91, quality: 97, oee: 76 },
+    ],
   },
-  yieldTrend: [
-    { date: "W20", prime: 88.5, final: 93.2, target: 95 },
-    { date: "W21", prime: 89.1, final: 93.8, target: 95 },
-    { date: "W22", prime: 88.0, final: 92.5, target: 95 },
-    { date: "W23", prime: 90.2, final: 94.5, target: 95 },
-    { date: "W24", prime: 91.5, final: 95.8, target: 95 },
-    { date: "W25", prime: 92.0, final: 96.2, target: 95 },
-  ],
-  binLoss: [
-    { type: "Single Bit", count: 1250, desc: "Repairable" },
-    { type: "Multi Bit", count: 850, desc: "Non-Repair" },
-    { type: "Open/Short", count: 620, desc: "Hard Fail" },
-    { type: "Func Fail", count: 450, desc: "Logic Error" },
-    { type: "Leakage", count: 300, desc: "Power Spec" },
-  ],
-  equipmentOee: [
-    {
-      group: "Photo",
-      availability: 95,
-      performance: 92,
-      quality: 99,
-      oee: 86.5,
+  WEEKLY: {
+    summary: {
+      avgYield: 94.5,
+      yieldTarget: 96.0,
+      totalOutput: 15400,
+      cycleTime: 45.2,
+      avgOee: 88.2,
     },
-    {
-      group: "Etch",
-      availability: 90,
-      performance: 88,
-      quality: 98,
-      oee: 77.6,
+    yieldTrend: [
+      { date: "Mon", prime: 88.5, final: 93.2, target: 96 },
+      { date: "Tue", prime: 89.1, final: 93.8, target: 96 },
+      { date: "Wed", prime: 88.0, final: 92.5, target: 96 },
+      { date: "Thu", prime: 90.2, final: 94.5, target: 96 },
+      { date: "Fri", prime: 91.5, final: 95.8, target: 96 },
+      { date: "Sat", prime: 92.0, final: 96.2, target: 96 },
+      { date: "Sun", prime: 93.0, final: 96.5, target: 96 },
+    ],
+    binLoss: [
+      { type: "Single Bit", count: 1250, desc: "Repairable" },
+      { type: "Multi Bit", count: 850, desc: "Non-Repair" },
+      { type: "Open/Short", count: 620, desc: "Hard Fail" },
+      { type: "Func Fail", count: 450, desc: "Logic Error" },
+      { type: "Leakage", count: 300, desc: "Power Spec" },
+    ],
+    equipmentOee: [
+      {
+        group: "Photo",
+        availability: 95,
+        performance: 92,
+        quality: 99,
+        oee: 86.5,
+      },
+      {
+        group: "Etch",
+        availability: 90,
+        performance: 88,
+        quality: 98,
+        oee: 77.6,
+      },
+      {
+        group: "Depo",
+        availability: 92,
+        performance: 95,
+        quality: 99,
+        oee: 86.5,
+      },
+      {
+        group: "CMP",
+        availability: 85,
+        performance: 90,
+        quality: 97,
+        oee: 74.2,
+      },
+    ],
+  },
+  MONTHLY: {
+    summary: {
+      avgYield: 93.8,
+      yieldTarget: 96.0,
+      totalOutput: 62000,
+      cycleTime: 46.1,
+      avgOee: 87.5,
     },
-    {
-      group: "Depo",
-      availability: 92,
-      performance: 95,
-      quality: 99,
-      oee: 86.5,
-    },
-    { group: "CMP", availability: 85, performance: 90, quality: 97, oee: 74.2 },
-  ],
+    yieldTrend: [
+      { date: "Week 1", prime: 87.5, final: 92.0, target: 96 },
+      { date: "Week 2", prime: 88.2, final: 93.5, target: 96 },
+      { date: "Week 3", prime: 90.5, final: 94.8, target: 96 },
+      { date: "Week 4", prime: 92.1, final: 96.0, target: 96 },
+    ],
+    binLoss: [
+      { type: "Single Bit", count: 5200, desc: "Repairable" },
+      { type: "Multi Bit", count: 3100, desc: "Non-Repair" },
+      { type: "Open/Short", count: 2400, desc: "Hard Fail" },
+      { type: "Func Fail", count: 1800, desc: "Logic Error" },
+      { type: "Leakage", count: 1200, desc: "Power Spec" },
+    ],
+    equipmentOee: [
+      {
+        group: "Photo",
+        availability: 94,
+        performance: 91,
+        quality: 99,
+        oee: 85,
+      },
+      {
+        group: "Etch",
+        availability: 89,
+        performance: 87,
+        quality: 98,
+        oee: 76,
+      },
+      {
+        group: "Depo",
+        availability: 91,
+        performance: 94,
+        quality: 99,
+        oee: 85,
+      },
+      { group: "CMP", availability: 84, performance: 89, quality: 97, oee: 73 },
+    ],
+  },
 };
 
-// --- [Optimized] Sub-Components with React.memo ---
+// --- Sub-Components ---
 
-// 1. Summary Section
 const SummaryBoard = React.memo(({ summary }) => {
   return (
     <SummaryGrid>
@@ -101,7 +202,7 @@ const SummaryBoard = React.memo(({ summary }) => {
         <CardContent>
           <Label>Total Output</Label>
           <BigValue>{summary.totalOutput.toLocaleString()}</BigValue>
-          <SubValue>Wafer / Week</SubValue>
+          <SubValue>Wafer / Period</SubValue>
         </CardContent>
       </SummaryCard>
 
@@ -130,7 +231,6 @@ const SummaryBoard = React.memo(({ summary }) => {
   );
 });
 
-// 2. Yield Trend Chart
 const YieldTrendChart = React.memo(({ data }) => {
   return (
     <ChartCard className="wide">
@@ -174,7 +274,6 @@ const YieldTrendChart = React.memo(({ data }) => {
   );
 });
 
-// 3. OEE Breakdown Chart
 const OeeBreakdownChart = React.memo(({ data }) => {
   return (
     <ChartCard className="wide">
@@ -213,7 +312,6 @@ const OeeBreakdownChart = React.memo(({ data }) => {
   );
 });
 
-// 4. Bin Loss Chart
 const BinLossAnalysisChart = React.memo(({ data }) => {
   return (
     <ChartCard>
@@ -243,33 +341,88 @@ const BinLossAnalysisChart = React.memo(({ data }) => {
   );
 });
 
+// --- Main Component ---
+
 const KpiPage = () => {
-  const [kpiData, setKpiData] = useState(MOCK_KPI_DATA);
-  const [loading, setLoading] = useState(true);
+  const [kpiData, setKpiData] = useState(MOCK_DATA_VARIANTS.WEEKLY);
+  const [loading, setLoading] = useState(false);
   const [period, setPeriod] = useState("WEEKLY");
 
-  // [Optimization] fetchData with useCallback
+  // [기능 추가] 랜덤 데이터 생성 유틸리티
+  // 새로고침 시 데이터가 변하는 느낌을 주기 위해 미세한 변동을 줍니다.
+  const randomizeData = (baseData) => {
+    // 1. Summary 랜덤 변동 (± 값)
+    const randomYield = +(
+      baseData.summary.avgYield +
+      (Math.random() * 2 - 1)
+    ).toFixed(1);
+    const randomOutput = Math.floor(
+      baseData.summary.totalOutput + (Math.random() * 200 - 100),
+    );
+
+    // 2. Trend 차트 랜덤 변동
+    const randomTrend = baseData.yieldTrend.map((item) => ({
+      ...item,
+      prime: +(item.prime + (Math.random() * 2 - 1)).toFixed(1),
+      final: +(item.final + (Math.random() * 1 - 0.5)).toFixed(1),
+    }));
+
+    return {
+      ...baseData,
+      summary: {
+        ...baseData.summary,
+        avgYield: randomYield,
+        totalOutput: randomOutput,
+      },
+      yieldTrend: randomTrend,
+    };
+  };
+
+  // [수정] fetchData에 랜덤 로직 적용
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // const res = await axiosInstance.get("http://localhost:3001/kpi");
-      // setKpiData(res.data);
-
+      // API 호출 시뮬레이션 (0.6초 딜레이)
       setTimeout(() => {
-        setKpiData(MOCK_KPI_DATA);
+        const baseData = MOCK_DATA_VARIANTS[period];
+        const newData = randomizeData(baseData); // 데이터 변동 적용
+
+        setKpiData(newData);
         setLoading(false);
       }, 600);
     } catch (err) {
       console.error(err);
       setLoading(false);
     }
-  }, []);
+  }, [period]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // [Optimization] Memoize data slices
+  // Report 다운로드
+  const handleDownloadReport = () => {
+    if (!kpiData || !kpiData.yieldTrend) {
+      alert("No data to export.");
+      return;
+    }
+    const headers = Object.keys(kpiData.yieldTrend[0]).join(",");
+    const rows = kpiData.yieldTrend
+      .map((row) => Object.values(row).join(","))
+      .join("\n");
+    const csvContent = `data:text/csv;charset=utf-8,${headers}\n${rows}`;
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `KPI_Report_${period}_${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const summaryData = useMemo(() => kpiData.summary, [kpiData.summary]);
   const yieldData = useMemo(() => kpiData.yieldTrend, [kpiData.yieldTrend]);
   const oeeData = useMemo(() => kpiData.equipmentOee, [kpiData.equipmentOee]);
@@ -306,27 +459,25 @@ const KpiPage = () => {
               Monthly
             </PeriodBtn>
           </ButtonGroup>
-          <RefreshBtn onClick={fetchData}>
+
+          {/* 새로고침 버튼 */}
+          <RefreshBtn onClick={fetchData} title="Refresh Data">
             <FaSync className={loading ? "spin" : ""} />
           </RefreshBtn>
-          <ExportBtn>
+
+          <ExportBtn onClick={handleDownloadReport}>
             <FaDownload /> Report
           </ExportBtn>
         </ControlGroup>
       </Header>
 
-      {/* 2. Summary Section (Memoized) */}
+      {/* 2. Summary Section */}
       <SummaryBoard summary={summaryData} />
 
-      {/* 3. Chart Section (Memoized Components) */}
+      {/* 3. Chart Section */}
       <ChartGrid>
-        {/* A. Yield Trend */}
         <YieldTrendChart data={yieldData} />
-
-        {/* C. Equipment OEE */}
         <OeeBreakdownChart data={oeeData} />
-
-        {/* B. Bin Loss Pareto */}
         <BinLossAnalysisChart data={binLossData} />
       </ChartGrid>
     </Container>
@@ -411,8 +562,10 @@ const RefreshBtn = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s;
   &:hover {
     background: #f5f5f5;
+    color: #1a4f8b;
   }
   .spin {
     animation: spin 1s linear infinite;
