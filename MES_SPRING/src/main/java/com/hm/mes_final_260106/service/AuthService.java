@@ -47,55 +47,51 @@ public class AuthService {
         return MemberResDto.of(memberRepository.save(member));
     }
 
-    // 2. 로그인 (여기에 로그 저장 로직 추가함)
+    // 2. 로그인 (로그 저장 + 유저 정보 포함 리턴)
     @Transactional
     public GlobalResponseDto<TokenDto> login(LoginReqDto dto) {
-        // [DEBUG] 리액트가 쏜 데이터 확인
         System.out.println("🔥 [DEBUG] 로그인 시도 이메일: [" + dto.getEmail() + "]");
 
         UsernamePasswordAuthenticationToken authenticationToken = dto.toAuthenticationToken();
         Authentication authentication = managerBuilder.getObject().authenticate(authenticationToken);
 
-        // PENDING 유저 차단
         Member member = memberRepository.findById(Long.parseLong(authentication.getName()))
                 .orElseThrow(() -> new CustomException("회원을 찾을 수 없습니다."));
 
         if (member.getStatus() == MemberStatus.PENDING) {
-            // 실패 로그도 남기고 싶으면 여기서 catch해서 save 하면 되는데, 일단 성공 로그만!
             throw new CustomException("관리자 승인 대기 중입니다.");
         }
 
         // JWT 생성
         TokenDto tokenDto = tokenProvider.generateTokenDto(authentication);
 
-        // ★★★ [여기 추가] DB에 로그인 기록 저장 (이게 없어서 안 떴던 거임) ★★★
-        LoginLog log = LoginLog.builder()
+        // ★★★ [추가] TokenDto에 유저 정보 담기 ★★★
+        tokenDto.setMemberInfo(MemberResDto.of(member));
+
+        // DB에 로그인 기록 저장
+        LoginLog logRecord = LoginLog.builder()
                 .email(member.getEmail())
-                .ipAddress("127.0.0.1") // 실제 IP는 Controller에서 받아와야 하지만 일단 로컬이니까 이걸로 퉁
+                .ipAddress("127.0.0.1")
                 .status("SUCCESS")
                 .loginTime(LocalDateTime.now())
                 .build();
 
-        loginLogRepository.save(log);
+        loginLogRepository.save(logRecord);
         System.out.println("✅ [LOG] 로그인 로그 저장 완료: " + member.getEmail());
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
         return GlobalResponseDto.success("로그인 성공", tokenDto);
     }
 
 
-    // 3. 토큰 재발급
+    // 3. 토큰 재발급 (여기에도 유저 정보 추가)
     @Transactional
     public GlobalResponseDto<TokenDto> reissue(TokenRequestDto dto) {
-        // 1) RefreshToken 검증
         if (!tokenProvider.validateToken(dto.getRefreshToken())) {
             throw new CustomException("유효하지 않은 Refresh Token입니다.");
         }
 
-        // 2) AccessToken에서 memberId 추출
         Long memberId = tokenProvider.getMemberIdFromToken(dto.getAccessToken());
 
-        // 3) DB의 RefreshToken과 비교
         RefreshToken refreshToken = refreshTokenRepository.findByMemberId(memberId)
                 .orElseThrow(() -> new CustomException("로그아웃된 사용자입니다."));
 
@@ -103,15 +99,16 @@ public class AuthService {
             throw new CustomException("Refresh Token이 일치하지 않습니다.");
         }
 
-        // 4) 새로운 토큰 생성
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException("회원을 찾을 수 없습니다."));
 
-        Authentication authentication = managerBuilder.getObject().authenticate(
-                new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword())
-        );
+        // 토큰 재발급을 위한 권한 정보 생성
+        Authentication authentication = tokenProvider.getAuthentication(dto.getAccessToken());
 
         TokenDto newTokenDto = tokenProvider.generateTokenDto(authentication);
+
+        // ★★★ [추가] 재발급 시에도 유저 정보를 같이 줘야 리액트가 유지됨 ★★★
+        newTokenDto.setMemberInfo(MemberResDto.of(member));
 
         log.info("토큰 재발급 성공 - memberId: {}", memberId);
         return GlobalResponseDto.success("토큰 재발급 성공", newTokenDto);
