@@ -1,8 +1,6 @@
 // src/pages/dashboard/DashboardPage.js
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-// axios import removed if not strictly needed for this snippet, but kept as per request
-// import axiosInstance from "../../api/axios";
 import {
   FaIndustry,
   FaExclamationCircle,
@@ -87,7 +85,7 @@ const MOCK_DATA = {
   ],
 };
 
-// --- [Optimized] Sub-Components with React.memo ---
+// --- Sub-Components ---
 
 // 1. KPI Section Component
 const KpiBoard = React.memo(({ stats }) => {
@@ -182,11 +180,18 @@ const ChartsBoard = React.memo(({ productionTrend, wipBalance }) => {
         <ResponsiveContainer width="100%" height={280}>
           <ComposedChart
             data={productionTrend}
-            margin={{ top: 20, right: 20, bottom: 20, left: 0 }}
+            // ★ 마진 조정: bottom을 20에서 30으로 늘려 X축 라벨 잘림 방지
+            margin={{ top: 20, right: 30, bottom: 30, left: 10 }}
           >
             <CartesianGrid stroke="#f5f5f5" vertical={false} />
-            <XAxis dataKey="time" axisLine={false} tickLine={false} />
-            <YAxis axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="time"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 12 }} // 폰트 사이즈 조정
+              dy={10} // 라벨 위치 조정
+            />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
             <Tooltip
               contentStyle={{
                 borderRadius: 8,
@@ -221,16 +226,18 @@ const ChartsBoard = React.memo(({ productionTrend, wipBalance }) => {
           <BarChart
             data={wipBalance}
             layout="vertical"
-            margin={{ top: 0, right: 30, left: 20, bottom: 0 }}
+            // ★ 마진 조정: left를 20에서 40으로 늘려 Y축 라벨(공정명) 확보
+            margin={{ top: 0, right: 30, left: 40, bottom: 0 }}
           >
             <CartesianGrid stroke="#f5f5f5" horizontal={false} />
             <XAxis type="number" hide />
             <YAxis
               dataKey="step"
               type="category"
-              width={60}
+              width={60} // Y축 라벨 너비 고정
               axisLine={false}
               tickLine={false}
+              tick={{ fontSize: 12, fill: "#666" }}
             />
             <Tooltip cursor={{ fill: "transparent" }} />
             <Bar dataKey="count" barSize={15} radius={[0, 4, 4, 0]}>
@@ -261,51 +268,47 @@ const AlertBoard = React.memo(({ alerts }) => {
           <FaExclamationCircle color="#e74c3c" /> Real-time Equipment Alerts
         </SectionTitle>
       </SectionHeader>
-      <AlertTable>
-        <thead>
-          <tr>
-            <th width="10%">Time</th>
-            <th width="15%">Equipment ID</th>
-            <th width="10%">Level</th>
-            <th>Message</th>
-            <th width="10%">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {alerts.map((alert) => (
-            <tr key={alert.id}>
-              <td style={{ color: "#666" }}>{alert.time}</td>
-              <td style={{ fontWeight: "bold" }}>{alert.equip}</td>
-              <td>
-                <AlertBadge $level={alert.level}>{alert.level}</AlertBadge>
-              </td>
-              <td>{alert.msg}</td>
-              <td>
-                <ActionBtn>Ack</ActionBtn>
-              </td>
+      <AlertTableContainer>
+        <AlertTable>
+          <thead>
+            <tr>
+              <th width="10%">Time</th>
+              <th width="15%">Equipment ID</th>
+              <th width="10%">Level</th>
+              <th>Message</th>
+              <th width="10%">Status</th>
             </tr>
-          ))}
-        </tbody>
-      </AlertTable>
+          </thead>
+          <tbody>
+            {alerts.map((alert) => (
+              <tr key={alert.id}>
+                <td style={{ color: "#666" }}>{alert.time}</td>
+                <td style={{ fontWeight: "bold" }}>{alert.equip}</td>
+                <td>
+                  <AlertBadge $level={alert.level}>{alert.level}</AlertBadge>
+                </td>
+                <td>{alert.msg}</td>
+                <td>
+                  <ActionBtn>Ack</ActionBtn>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </AlertTable>
+      </AlertTableContainer>
     </BottomSection>
   );
 });
 
+// --- Main Component ---
 const DashboardPage = () => {
-  // 상태 관리
   const [data, setData] = useState(MOCK_DATA);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
-  // [Optimization] fetchData with useCallback
-  // This prevents the function from being recreated on every render
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // API call logic would go here
-      // const res = await axiosInstance.get("http://localhost:3001/dashboard");
-      // setData(res.data);
-
       setTimeout(() => {
         setData(MOCK_DATA);
         setLastUpdated(new Date());
@@ -321,15 +324,12 @@ const DashboardPage = () => {
     fetchData();
     const interval = setInterval(fetchData, 30000);
     return () => clearInterval(interval);
-  }, [fetchData]); // Added dependency
+  }, [fetchData]);
 
-  // [Optimization] handleRefresh with useCallback
   const handleRefresh = useCallback(() => {
     fetchData();
   }, [fetchData]);
 
-  // [Optimization] Memoize data slices to prevent unnecessary re-renders of child components
-  // if other unrelated state (like UI flags) were to change.
   const statsData = useMemo(() => data.stats, [data.stats]);
   const trendData = useMemo(() => data.productionTrend, [data.productionTrend]);
   const wipData = useMemo(() => data.wipBalance, [data.wipBalance]);
@@ -337,7 +337,6 @@ const DashboardPage = () => {
 
   return (
     <Container>
-      {/* 1. Header */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -358,13 +357,8 @@ const DashboardPage = () => {
         </HeaderRight>
       </Header>
 
-      {/* 2. KPI Section (Memoized) */}
       <KpiBoard stats={statsData} />
-
-      {/* 3. Charts Section (Memoized) */}
       <ChartsBoard productionTrend={trendData} wipBalance={wipData} />
-
-      {/* 4. Alerts Section (Memoized) */}
       <AlertBoard alerts={alertsData} />
     </Container>
   );
@@ -384,12 +378,16 @@ const Container = styled.div`
   gap: 20px;
   box-sizing: border-box;
   overflow-y: auto;
+  /* 스크롤바가 내용 가리지 않도록 */
+  padding-bottom: 50px;
 `;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  /* 헤더가 너무 좁아지지 않도록 최소 너비 설정 */
+  min-width: 800px;
 `;
 const TitleArea = styled.div`
   display: flex;
@@ -402,6 +400,7 @@ const PageTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: 10px;
+  white-space: nowrap; /* 제목 줄바꿈 방지 */
 `;
 const LoadingSpinner = styled.span`
   font-size: 16px;
@@ -431,6 +430,7 @@ const HeaderRight = styled.div`
 const LastUpdate = styled.span`
   font-size: 12px;
   color: #888;
+  white-space: nowrap;
 `;
 const RefreshBtn = styled.button`
   background: white;
@@ -443,6 +443,7 @@ const RefreshBtn = styled.button`
   gap: 6px;
   color: #555;
   font-weight: 600;
+  white-space: nowrap;
   &:hover {
     background: #f5f5f5;
   }
@@ -452,9 +453,13 @@ const RefreshBtn = styled.button`
 const KpiSection = styled.div`
   display: flex;
   gap: 20px;
+  /* 카드가 너무 좁아지면 줄바꿈 허용 (반응형 대응) */
+  flex-wrap: wrap;
 `;
 const KpiCard = styled.div`
   flex: 1;
+  /* 최소 너비 설정으로 내용 찌그러짐 방지 */
+  min-width: 200px;
   background: white;
   padding: 20px;
   border-radius: 12px;
@@ -482,6 +487,7 @@ const IconBox = styled.div`
   align-items: center;
   justify-content: center;
   font-size: 20px;
+  flex-shrink: 0;
 `;
 const TrendBadge = styled.div`
   font-size: 12px;
@@ -495,11 +501,16 @@ const TrendBadge = styled.div`
     props.$up ? "#e8f5e9" : props.$down ? "#ffebee" : "#fff3e0"};
   padding: 4px 8px;
   border-radius: 12px;
+  white-space: nowrap;
 `;
 const KpiValue = styled.div`
   font-size: 28px;
   font-weight: 800;
   color: #333;
+  /* 값이 너무 길어지면 줄바꿈 방지 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   small {
     font-size: 14px;
     color: #888;
@@ -511,6 +522,9 @@ const KpiLabel = styled.div`
   font-size: 13px;
   color: #666;
   margin-bottom: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 const ProgressBar = styled.div`
   width: 100%;
@@ -534,7 +548,9 @@ const ProgressBar = styled.div`
 const MainChartSection = styled.div`
   display: flex;
   gap: 20px;
-  height: 350px;
+  height: 380px; /* 높이를 약간 늘려 여유 확보 */
+  flex-wrap: wrap; /* 화면 작을 때 줄바꿈 */
+  margin-bottom: 20px;
 `;
 const ChartCard = styled.div`
   background: white;
@@ -543,12 +559,15 @@ const ChartCard = styled.div`
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
+  min-width: 300px; /* 최소 너비 */
 `;
 const SectionHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  flex-wrap: wrap; /* 내용 많으면 줄바꿈 */
+  gap: 10px;
 `;
 const SectionTitle = styled.h3`
   margin: 0;
@@ -557,6 +576,7 @@ const SectionTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 8px;
+  white-space: nowrap;
 `;
 const LegendGroup = styled.div`
   display: flex;
@@ -581,6 +601,7 @@ const WipLegend = styled.div`
   gap: 15px;
   justify-content: flex-end;
   margin-top: 10px;
+  flex-wrap: wrap;
 `;
 
 // Bottom Alert Section
@@ -592,22 +613,33 @@ const BottomSection = styled.div`
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
+  margin-bottom: 80px;
+  min-width: 600px; /* 테이블 깨짐 방지 최소 너비 */
 `;
+
+const AlertTableContainer = styled.div`
+  width: 100%;
+  overflow-x: auto; /* 테이블 가로 스크롤 허용 */
+`;
+
 const AlertTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 14px;
+  min-width: 600px; /* 테이블 최소 너비 */
   th {
     text-align: left;
     padding: 12px;
     background: #f9f9f9;
     color: #666;
     border-bottom: 1px solid #eee;
+    white-space: nowrap;
   }
   td {
     padding: 12px;
     border-bottom: 1px solid #f5f5f5;
     color: #333;
+    white-space: nowrap;
   }
 `;
 const AlertBadge = styled.span`
