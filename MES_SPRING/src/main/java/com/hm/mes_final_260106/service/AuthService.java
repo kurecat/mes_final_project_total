@@ -92,11 +92,13 @@ public class AuthService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new CustomException("회원을 찾을 수 없습니다."));
 
+        log.info("토큰 재발급 성공 - memberId: {}", memberId);
         // ★ authenticate 한 번만 호출
         Authentication authentication = managerBuilder.getObject().authenticate(
                 new UsernamePasswordAuthenticationToken(member.getEmail(), member.getPassword())
         );
 
+        log.info("토큰 재발급 성공 - memberId: {}", memberId);
         TokenDto newTokenDto = tokenProvider.generateTokenDto(authentication);
 
         log.info("토큰 재발급 성공 - memberId: {}", memberId);

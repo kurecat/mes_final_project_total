@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductUpdateReqDto {
+    private String code;
     private String name;      // 제품명
     private String category;  // 카테고리
     private String spec;      // 규격/사양

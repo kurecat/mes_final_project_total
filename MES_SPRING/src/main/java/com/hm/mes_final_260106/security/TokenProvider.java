@@ -19,6 +19,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.security.Key;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
@@ -28,8 +30,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class TokenProvider {
     private static final String AUTHORITIES_KEY = "auth";
-    private static final long ACCESS_TOKEN_EXPIRE_TIME = 1000 * 60 * 60; // 1시간
-    private static final long REFRESH_TOKEN_EXPIRE_TIME = 1000 * 60 * 60 * 24 * 7; // 7일
+    private static final long ACCESS_TOKEN_EXPIRE_TIME = 60 * 60; // 1시간
+    private static final long REFRESH_TOKEN_EXPIRE_TIME = 60 * 60 * 24 * 7; // 7일
 
     private final Key key;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -51,8 +53,13 @@ public class TokenProvider {
         log.info("🔑 JWT 생성 - User: {}, Authorities: {}",
                 authentication.getName(), authorities);
 
-        long now = (new Date()).getTime();
-        Date accessTokenExpiresIn = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);
+        LocalDateTime now = LocalDateTime.now();
+
+        // LocalDateTime → Instant → Date 변환
+        Date accessTokenExpiresIn = Date.from(now.plusSeconds(ACCESS_TOKEN_EXPIRE_TIME)
+                .atZone(ZoneId.systemDefault()).toInstant());
+        Date refreshTokenExpiresIn = Date.from(now.plusSeconds(REFRESH_TOKEN_EXPIRE_TIME)
+                .atZone(ZoneId.systemDefault()).toInstant());
 
         String accessToken = Jwts.builder()
                 .setSubject(authentication.getName()) // memberId 저장
@@ -62,7 +69,7 @@ public class TokenProvider {
                 .compact();
 
         String refreshToken = Jwts.builder()
-                .setExpiration(new Date(now + REFRESH_TOKEN_EXPIRE_TIME))
+                .setExpiration(refreshTokenExpiresIn)
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
 

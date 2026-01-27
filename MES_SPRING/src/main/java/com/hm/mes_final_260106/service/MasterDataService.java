@@ -77,7 +77,7 @@ public class MasterDataService {
     // CREATE PRODUCT
     public void createProduct(ProductCreateReqDto dto) {
         if (productRepo.findByCode(dto.getCode()).isPresent()) {
-            throw new RuntimeException("이미 존재하는 제품 코드입니다: " + dto.getCode());
+            throw new IllegalArgumentException("이미 존재하는 제품 코드입니다: " + dto.getCode());
         }
 
         Product product = Product.builder()
@@ -122,6 +122,7 @@ public class MasterDataService {
         Product product = productRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("제품을 찾을 수 없습니다: " + id));
 
+        product.setCode(dto.getCode());
         product.setName(dto.getName());
         product.setCategory(dto.getCategory());
         product.setSpec(dto.getSpec());

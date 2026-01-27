@@ -14,4 +14,10 @@ public class GlobalExceptionHandler {
                 .badRequest()
                 .body(new ErrorResDto(e.getCode(), e.getMessage()));
     }
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResDto> handleIllegalArgument(IllegalArgumentException e) {
+        return ResponseEntity
+                .badRequest()
+                .body(new ErrorResDto("INVALID_ARGUMENT", e.getMessage()));
+    }
 }
