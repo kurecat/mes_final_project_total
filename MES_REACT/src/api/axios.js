@@ -1,8 +1,11 @@
 // src/api/axios.js
 import axios from "axios";
 
+// ★ [수정 1] 공통으로 사용할 IP와 포트를 상수로 정의 (유지보수가 쉬워짐)
+const BASE_URL = "http://192.168.0.77:8111";
+
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8111/",
+  baseURL: BASE_URL, // 위에서 정의한 IP 주소 적용
   headers: {
     "Content-Type": "application/json",
   },
@@ -40,8 +43,7 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // ★ [핵심 수정] 로그인 요청(/auth/login)에서 발생한 401은 재발급 로직을 타지 않고 즉시 실패 처리
-    // 이렇게 해야 LoginPage.js의 catch 블록으로 넘어가서 에러 메시지를 띄울 수 있음
+    // 로그인 요청(/auth/login)에서 발생한 401은 재발급 로직을 타지 않고 즉시 실패 처리
     if (originalRequest.url.includes("/auth/login")) {
       return Promise.reject(error);
     }
@@ -75,13 +77,12 @@ axiosInstance.interceptors.response.use(
 
       try {
         // 토큰 재발급 요청
-        const response = await axiosInstance.post(
-          "http://localhost:8111/auth/refresh",
-          {
-            accessToken,
-            refreshToken,
-          },
-        );
+        // ★ [수정 2] 절대 경로(http://localhost...) 대신 상대 경로 사용
+        // 이렇게 하면 위에 설정한 baseURL(192.168.0.77)을 자동으로 따라갑니다.
+        const response = await axiosInstance.post("/auth/refresh", {
+          accessToken,
+          refreshToken,
+        });
 
         const newTokenData = response.data.data;
 
