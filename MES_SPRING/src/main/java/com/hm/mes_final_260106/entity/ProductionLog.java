@@ -4,13 +4,17 @@ package com.hm.mes_final_260106.entity;
 // 작업지시, 설비, 작업자, 투입된 자재(LOT)
 // 5M1E의 집약체 ( Man, Machine, Material, Method, Measurement, Environment )
 
+import com.hm.mes_final_260106.constant.ProductionStatus;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity @Setter @Getter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ProductionLog {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -24,6 +28,25 @@ public class ProductionLog {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "equipment_id")
     private Equipment equipment;
+
+    @Column(name = "process_step", length = 30)
+    private String processStep;
+
+    @Column(name = "lot_no", length = 50)
+    private String lotNo;
+
+    @Column(name = "result_qty", nullable = false)
+    private Integer resultQty;
+
+    @Column(name = "defect_qty")
+    private Integer defectQty;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20, nullable = false)
+    private ProductionStatus status;
+
+    @Column(name = "result_date", nullable = false)
+    private LocalDate resultDate;
 
     @Column(name = "start_time")
     private LocalDateTime startTime;

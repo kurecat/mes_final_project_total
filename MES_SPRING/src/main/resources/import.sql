@@ -115,4 +115,4 @@ INSERT INTO lot (code, material_id, location, status) VALUES
 
 -- Equipment 등록
 INSERT INTO equipment (code, name, type, location, status) VALUES
-('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', '정상');
+('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', 'RUN');
