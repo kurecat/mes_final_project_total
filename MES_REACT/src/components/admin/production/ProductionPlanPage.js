@@ -459,7 +459,10 @@ const ProductionPlanPage = () => {
   // =============================
   const filteredPlans = useMemo(() => {
     return plans.filter((p) => {
-      const matchLine = filterLine === "ALL" || p.type === filterLine;
+      // ⭐ 핵심 수정 포인트
+      const targetLine = (p.line ?? "").toUpperCase();
+
+      const matchLine = filterLine === "ALL" || targetLine.includes(filterLine);
 
       const productName = (p.productName ?? "").toLowerCase();
       const productCode = (p.productCode ?? "").toLowerCase();
