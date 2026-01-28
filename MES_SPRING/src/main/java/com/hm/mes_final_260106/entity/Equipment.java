@@ -3,6 +3,8 @@ package com.hm.mes_final_260106.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "equipment",
         uniqueConstraints = {
@@ -32,5 +34,16 @@ public class Equipment {
 
     @Column(length = 50)
     private String status;
+
+    private String errorCode; // 장애 사유
+
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    @PreUpdate
+    public void updateTime() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
 }
 

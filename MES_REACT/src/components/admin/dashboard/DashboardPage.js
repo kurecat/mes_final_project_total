@@ -398,12 +398,35 @@ const BottomSection = styled.div`
 const AlertTable = styled.table`
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed; /* ⭐ 핵심 */
+  font-size: 14px;
+
   th,
   td {
-    padding: 10px;
+    padding: 12px;
+    vertical-align: middle; /* ⭐ 행 기준선 정렬 */
+  }
+
+  th {
+    background: #f9f9f9;
+    color: #666;
     border-bottom: 1px solid #eee;
   }
+
+  td {
+    border-bottom: 1px solid #f5f5f5;
+  }
 `;
+
+// const AlertTable = styled.table`
+//   width: 100%;
+//   border-collapse: collapse;
+//   th,
+//   td {
+//     padding: 10px;
+//     border-bottom: 1px solid #eee;
+//   }
+// `;
 const AlertBadge = styled.span`
   padding: 4px 8px;
   font-size: 11px;

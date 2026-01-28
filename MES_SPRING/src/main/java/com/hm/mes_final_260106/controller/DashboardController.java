@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.controller;
 
+import com.hm.mes_final_260106.dto.EquipmentAlertDto;
 import com.hm.mes_final_260106.dto.dashboard.*;
 import com.hm.mes_final_260106.service.DashboardService;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +31,8 @@ public class DashboardController {
     }
 
     @GetMapping("/alerts")
-    public List<EquipmentAlertResDto> alerts() {
-        return dashboardService.getAlerts();
+    public List<EquipmentAlertDto> alerts() {
+        return dashboardService.getRealtimeEquipmentAlerts();
     }
 
     @PatchMapping("/alerts/{id}/ack")

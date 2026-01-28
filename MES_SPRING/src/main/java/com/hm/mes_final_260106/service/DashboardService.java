@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.dto.EquipmentAlertDto;
 import com.hm.mes_final_260106.dto.dashboard.*;
 import com.hm.mes_final_260106.repository.EquipmentRepository;
 import com.hm.mes_final_260106.repository.ProductionLogRepository;
@@ -31,7 +32,7 @@ public class DashboardService {
         double yesterdayYield = productionResultRepo.avgYieldByDate(yesterday);
         double yieldTrend = trend(todayYield, yesterdayYield);
 
-        int totalEquip = equipmentRepo.countAll();
+        int totalEquip = (int) equipmentRepo.count();
         int runningEquip = equipmentRepo.countByStatus("RUN");
         double utilization = totalEquip == 0 ? 0 : (runningEquip * 100.0 / totalEquip);
 
@@ -119,12 +120,23 @@ public class DashboardService {
                 .toList();
     }
 
-    public List<EquipmentAlertResDto> getAlerts() {
-        return List.of(
-                new EquipmentAlertResDto(1L, "14:25", "Photo-02", "Focus Error", "CRITICAL"),
-                new EquipmentAlertResDto(2L, "14:10", "Etch-05", "Gas Leak", "CRITICAL")
-        );
+    public List<EquipmentAlertDto> getRealtimeEquipmentAlerts() {
+
+        return equipmentRepo.findByStatusOrderByUpdatedAtDesc("DOWN")
+                .stream()
+                .map(e -> new EquipmentAlertDto(
+                        e.getUpdatedAt() != null
+                                ? e.getUpdatedAt().toLocalTime().toString()
+                                : "--:--",
+                        e.getName(),
+                        "CRITICAL",
+                        e.getErrorCode() != null
+                                ? e.getErrorCode()
+                                : "Equipment Down"
+                ))
+                .toList();
     }
+
 
     public void ackAlert(Long id) {
         // 다음 단계: alarm 테이블 연동
