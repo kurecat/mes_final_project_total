@@ -1,7 +1,6 @@
 // src/pages/resource/InventoryPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// useNavigate 제거됨
 import axiosInstance from "../../../api/axios";
 
 import {
@@ -12,7 +11,7 @@ import {
   FaHistory,
   FaFlask,
   FaMicrochip,
-  FaTimes, // 모달 닫기 아이콘 추가
+  FaTimes,
   FaArrowUp,
   FaArrowDown,
 } from "react-icons/fa";
@@ -35,177 +34,73 @@ const MOCK_INVENTORY = [
     status: "NORMAL",
     condition: "23°C / 45%",
   },
-  {
-    id: "CHM-PR-ARF",
-    name: "Photo Resist (ArF)",
-    type: "CHEM",
-    loc: "WH-Cold-02",
-    qty: 45,
-    safety: 50,
-    unit: "Btl",
-    status: "LOW",
-    condition: "4°C (Cold)",
-  },
-  {
-    id: "GAS-C4F6",
-    name: "Etching Gas (C4F6)",
-    type: "GAS",
-    loc: "Gas-Bunker",
-    qty: 800,
-    safety: 200,
-    unit: "kg",
-    status: "NORMAL",
-    condition: "High Press",
-  },
-  {
-    id: "TGT-CU-01",
-    name: "Copper Target (Cu)",
-    type: "PART",
-    loc: "WH-B-05",
-    qty: 8,
-    safety: 10,
-    unit: "ea",
-    status: "LOW",
-    condition: "Vacuum",
-  },
-  {
-    id: "MAT-EMC-G",
-    name: "Epoxy Molding Comp.",
-    type: "PKG",
-    loc: "WH-C-12",
-    qty: 500,
-    safety: 300,
-    unit: "kg",
-    status: "NORMAL",
-    condition: "Dry Box",
-  },
-];
-
-// --- Fallback Mock Data (Transaction Logs) ---
-const MOCK_LOGS = [
-  {
-    id: 1,
-    date: "2023-10-25 14:30",
-    type: "OUT",
-    material: "12-inch Prime Wafer",
-    qty: 50,
-    loc: "Line-A",
-    worker: "Operator Kim",
-  },
-  {
-    id: 2,
-    date: "2023-10-25 10:15",
-    type: "IN",
-    material: "Photo Resist (ArF)",
-    qty: 20,
-    loc: "WH-Cold-02",
-    worker: "Manager Lee",
-  },
-  {
-    id: 3,
-    date: "2023-10-24 16:45",
-    type: "OUT",
-    material: "Copper Target (Cu)",
-    qty: 2,
-    loc: "Line-B",
-    worker: "Operator Park",
-  },
-  {
-    id: 4,
-    date: "2023-10-24 09:20",
-    type: "IN",
-    material: "Etching Gas (C4F6)",
-    qty: 100,
-    loc: "Gas-Bunker",
-    worker: "Vendor Supply",
-  },
-  {
-    id: 5,
-    date: "2023-10-23 11:00",
-    type: "OUT",
-    material: "Epoxy Molding Comp.",
-    qty: 200,
-    loc: "Line-C",
-    worker: "Operator Choi",
-  },
 ];
 
 // =============================
 // 1. Stats Section
 // =============================
 const InventoryStats = React.memo(
-  ({ totalItems, lowStockItems, totalValue }) => {
-    return (
-      <StatsGrid>
-        <StatCard>
-          <IconBox $color="#1a4f8b">
-            <FaBoxOpen />
-          </IconBox>
-          <StatInfo>
-            <Label>Total SKU</Label>
-            <Value>{totalItems}</Value>
-          </StatInfo>
-        </StatCard>
+  ({ totalItems, lowStockItems, totalValue }) => (
+    <StatsGrid>
+      <StatCard>
+        <IconBox $color="#1a4f8b">
+          <FaBoxOpen />
+        </IconBox>
+        <StatInfo>
+          <Label>Total SKU</Label>
+          <Value>{totalItems}</Value>
+        </StatInfo>
+      </StatCard>
 
-        <StatCard>
-          <IconBox $color="#e74c3c">
-            <FaExclamationTriangle />
-          </IconBox>
-          <StatInfo>
-            <Label>Low Stock Alert</Label>
-            <Value style={{ color: "#e74c3c" }}>
-              {lowStockItems} <small>items</small>
-            </Value>
-          </StatInfo>
-        </StatCard>
+      <StatCard>
+        <IconBox $color="#e74c3c">
+          <FaExclamationTriangle />
+        </IconBox>
+        <StatInfo>
+          <Label>Low Stock Alert</Label>
+          <Value style={{ color: "#e74c3c" }}>
+            {lowStockItems} <small>items</small>
+          </Value>
+        </StatInfo>
+      </StatCard>
 
-        <StatCard>
-          <IconBox $color="#2ecc71">
-            <FaThermometerHalf />
-          </IconBox>
-          <StatInfo>
-            <Label>Storage Status</Label>
-            <Value style={{ fontSize: 18 }}>All Good</Value>
-          </StatInfo>
-        </StatCard>
+      <StatCard>
+        <IconBox $color="#2ecc71">
+          <FaThermometerHalf />
+        </IconBox>
+        <StatInfo>
+          <Label>Storage Status</Label>
+          <Value style={{ fontSize: 18 }}>All Good</Value>
+        </StatInfo>
+      </StatCard>
 
-        <StatCard>
-          <IconBox $color="#f39c12">
-            <FaMicrochip />
-          </IconBox>
-          <StatInfo>
-            <Label>Total Asset Value</Label>
-            <Value>
-              ₩ {totalValue} <small>B</small>
-            </Value>
-          </StatInfo>
-        </StatCard>
-      </StatsGrid>
-    );
-  },
+      <StatCard>
+        <IconBox $color="#f39c12">
+          <FaMicrochip />
+        </IconBox>
+        <StatInfo>
+          <Label>Total Asset Value</Label>
+          <Value>
+            ₩ {totalValue} <small>B</small>
+          </Value>
+        </StatInfo>
+      </StatCard>
+    </StatsGrid>
+  ),
 );
 
 // =============================
-// 2. Table Row Component
+// 2. Inventory Row
 // =============================
 const InventoryRow = React.memo(({ item }) => {
   const percent =
     item.safety > 0 ? Math.min((item.qty / (item.safety * 2)) * 100, 100) : 0;
-
   const isLow = item.qty <= item.safety;
 
   return (
     <tr>
       <td style={{ fontFamily: "monospace", color: "#555" }}>{item.id}</td>
-
-      <td
-        style={{
-          fontWeight: "600",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
+      <td style={{ fontWeight: 600, display: "flex", gap: 8 }}>
         {item.type === "CHEM" ? (
           <FaFlask color="#e67e22" />
         ) : (
@@ -213,14 +108,11 @@ const InventoryRow = React.memo(({ item }) => {
         )}
         {item.name}
       </td>
-
       <td>
         <TypeBadge $type={item.type}>{item.type}</TypeBadge>
       </td>
-
       <td>{item.loc}</td>
-      <td style={{ fontSize: 12, color: "#666" }}>{item.condition}</td>
-
+      <td style={{ fontSize: 12 }}>{item.condition}</td>
       <td>
         <ProgressWrapper>
           <ProgressBar>
@@ -231,11 +123,11 @@ const InventoryRow = React.memo(({ item }) => {
           </ProgressLabel>
         </ProgressWrapper>
       </td>
-
-      <td style={{ fontWeight: "bold" }}>
-        {item.qty} <small>{item.unit}</small>
+      <td>
+        <b>
+          {item.qty} <small>{item.unit}</small>
+        </b>
       </td>
-
       <td>
         {isLow ? (
           <StatusBadge $status="LOW">Refill Req</StatusBadge>
@@ -248,9 +140,35 @@ const InventoryRow = React.memo(({ item }) => {
 });
 
 // =============================
-// 3. Transaction Log Modal
+// 3. Transaction History Modal
 // =============================
 const TransactionHistoryModal = ({ isOpen, onClose }) => {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchLogs = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await axiosInstance.get(
+          "/api/mes/material-tx/transactions?limit=5",
+        );
+        setLogs(res.data);
+      } catch (e) {
+        console.error(e);
+        setError("Transaction log load failed.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -258,7 +176,7 @@ const TransactionHistoryModal = ({ isOpen, onClose }) => {
       <ModalContainer>
         <ModalHeader>
           <ModalTitle>
-            <FaHistory /> Transaction History (Recent 5)
+            <FaHistory /> Transaction History
           </ModalTitle>
           <CloseButton onClick={onClose}>
             <FaTimes />
@@ -266,35 +184,50 @@ const TransactionHistoryModal = ({ isOpen, onClose }) => {
         </ModalHeader>
 
         <ModalBody>
-          <LogTable>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Type</th>
-                <th>Material</th>
-                <th>Qty</th>
-                <th>Location</th>
-                <th>Worker</th>
-              </tr>
-            </thead>
-            <tbody>
-              {MOCK_LOGS.map((log) => (
-                <tr key={log.id}>
-                  <td style={{ color: "#666", fontSize: 13 }}>{log.date}</td>
-                  <td>
-                    <LogTypeBadge $type={log.type}>
-                      {log.type === "IN" ? <FaArrowDown /> : <FaArrowUp />}
-                      {log.type}
-                    </LogTypeBadge>
-                  </td>
-                  <td style={{ fontWeight: 600 }}>{log.material}</td>
-                  <td style={{ fontWeight: "bold" }}>{log.qty}</td>
-                  <td>{log.loc}</td>
-                  <td style={{ color: "#555" }}>{log.worker}</td>
+          {loading && <p>Loading...</p>}
+          {error && <p style={{ color: "red" }}>{error}</p>}
+
+          {!loading && !error && (
+            <LogTable>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Type</th>
+                  <th>Material</th>
+                  <th>Qty</th>
+                  <th>Location</th>
+                  <th>Worker</th>
                 </tr>
-              ))}
-            </tbody>
-          </LogTable>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id}>
+                    <td>{log.createdAt}</td>
+                    <td>
+                      <LogTypeBadge $type={log.type}>
+                        {log.type === "IN" ? <FaArrowDown /> : <FaArrowUp />}
+                        {log.type}
+                      </LogTypeBadge>
+                    </td>
+                    <td>{log.materialName}</td>
+                    <td>{log.qty}</td>
+                    <td>{log.location}</td>
+                    <td>{log.worker}</td>
+                  </tr>
+                ))}
+                {logs.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      style={{ textAlign: "center", color: "#999" }}
+                    >
+                      No data
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </LogTable>
+          )}
         </ModalBody>
       </ModalContainer>
     </ModalOverlay>
@@ -302,25 +235,22 @@ const TransactionHistoryModal = ({ isOpen, onClose }) => {
 };
 
 // =============================
-// Main Component
+// Main Page
 // =============================
 const InventoryPage = () => {
   const [inventory, setInventory] = useState(MOCK_INVENTORY);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
-
-  // ⭐ 모달 상태 추가
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
 
-  // ✅ 재고 조회
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const res = await axiosInstance.get("/api/mes/material/inventory");
       setInventory(res.data);
-    } catch (err) {
-      console.error("재고 조회 실패:", err);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -330,82 +260,55 @@ const InventoryPage = () => {
     fetchData();
   }, [fetchData]);
 
-  // 필터링
   const filteredData = useMemo(() => {
     return inventory.filter((item) => {
       const matchType = filterType === "ALL" || item.type === filterType;
       const matchSearch =
-        (item.name ?? "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (item.id ?? "").toLowerCase().includes(searchTerm.toLowerCase());
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.id.toLowerCase().includes(searchTerm.toLowerCase());
       return matchType && matchSearch;
     });
   }, [inventory, filterType, searchTerm]);
 
-  // KPI
-  const kpiStats = useMemo(() => {
-    return {
-      totalItems: inventory.length,
-      lowStockItems: inventory.filter((i) => i.qty <= i.safety).length,
-      totalValue: 15.4,
-    };
-  }, [inventory]);
+  const kpi = {
+    totalItems: inventory.length,
+    lowStockItems: inventory.filter((i) => i.qty <= i.safety).length,
+    totalValue: 15.4,
+  };
 
   return (
     <Container>
-      {/* 1. Header */}
       <Header>
-        <TitleArea>
-          <PageTitle>
-            <FaBoxOpen /> Material Inventory
-            {loading && (
-              <span style={{ fontSize: 12, color: "#999" }}> (Loading...)</span>
-            )}
-          </PageTitle>
-          <SubTitle>Warehouse Real-time Stock Monitoring</SubTitle>
-        </TitleArea>
+        <PageTitle>
+          <FaBoxOpen /> Material Inventory
+          {loading && <small> (Loading)</small>}
+        </PageTitle>
 
-        <HeaderActions>
-          {/* ⭐ 버튼 클릭 시 모달 오픈 */}
-          <ActionButton onClick={() => setIsLogModalOpen(true)}>
-            <FaHistory /> Transaction Log
-          </ActionButton>
-        </HeaderActions>
+        <ActionButton onClick={() => setIsLogModalOpen(true)}>
+          <FaHistory /> Transaction Log
+        </ActionButton>
       </Header>
 
-      {/* 2. KPI Summary */}
-      <InventoryStats
-        totalItems={kpiStats.totalItems}
-        lowStockItems={kpiStats.lowStockItems}
-        totalValue={kpiStats.totalValue}
-      />
+      <InventoryStats {...kpi} />
 
-      {/* 3. List & Controls */}
       <ContentSection>
         <ControlBar>
           <FilterGroup>
-            {["ALL", "RAW", "CHEM", "GAS", "PKG"].map((type) => (
+            {["ALL", "RAW", "CHEM", "GAS", "PKG"].map((t) => (
               <FilterBtn
-                key={type}
-                $active={filterType === type}
-                onClick={() => setFilterType(type)}
+                key={t}
+                $active={filterType === t}
+                onClick={() => setFilterType(t)}
               >
-                {type === "ALL"
-                  ? "All"
-                  : type === "RAW"
-                    ? "Raw Wafer"
-                    : type === "CHEM"
-                      ? "Chemical"
-                      : type === "GAS"
-                        ? "Gas"
-                        : "Packaging"}
+                {t}
               </FilterBtn>
             ))}
           </FilterGroup>
 
           <SearchBox>
-            <FaSearch color="#aaa" />
+            <FaSearch />
             <input
-              placeholder="Search ID or Name..."
+              placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -416,17 +319,16 @@ const InventoryPage = () => {
           <Table>
             <thead>
               <tr>
-                <th width="15%">Material ID</th>
-                <th>Material Name</th>
-                <th width="10%">Type</th>
-                <th width="12%">Location</th>
-                <th width="10%">Condition</th>
-                <th width="20%">Stock Level (Curr / Safety)</th>
-                <th width="10%">Qty</th>
-                <th width="10%">Status</th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Condition</th>
+                <th>Stock</th>
+                <th>Qty</th>
+                <th>Status</th>
               </tr>
             </thead>
-
             <tbody>
               {filteredData.map((item) => (
                 <InventoryRow key={item.id} item={item} />
@@ -436,7 +338,6 @@ const InventoryPage = () => {
         </TableContainer>
       </ContentSection>
 
-      {/* ⭐ 로그 모달 컴포넌트 렌더링 */}
       <TransactionHistoryModal
         isOpen={isLogModalOpen}
         onClose={() => setIsLogModalOpen(false)}
