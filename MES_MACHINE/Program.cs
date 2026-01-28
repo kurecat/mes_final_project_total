@@ -368,6 +368,9 @@ namespace L1_MachineSim
                     string visual = visOpts[Device.Rand.Next(visOpts.Length)];
                     string finalPass = passOpts[Device.Rand.Next(passOpts.Length)];
 
+                    DateTime endTime = DateTime.Now.AddSeconds(Device.Rand.Next(-5, 6));
+                    byte[] timeBytes = BitConverter.GetBytes(endTime.Ticks);
+
                     // Item Packet
                     itemMs.SetLength(0);
                     WritePacketString(itemWriter, serial);
@@ -384,6 +387,7 @@ namespace L1_MachineSim
                     WritePacketString(itemWriter, reliability);
                     WritePacketString(itemWriter, visual);
                     WritePacketString(itemWriter, finalPass);
+                    itemWriter.Write(timeBytes);
                     byte[] finalBody = itemMs.ToArray();
 
                     writer.Write((short)finalBody.Length);

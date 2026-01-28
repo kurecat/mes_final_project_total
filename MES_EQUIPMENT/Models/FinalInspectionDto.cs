@@ -4,6 +4,7 @@ public class FinalInspectionDto
     public string? Reliability { get; set; }
     public string? Visual { get; set; }
     public string? FinalPass { get; set; }
+    public DateTime endTime { get; set; }
 
     // ✅ 역직렬화: byte[] → DTO
     public static FinalInspectionDto FromBytes(byte[] payload)
@@ -39,6 +40,10 @@ public class FinalInspectionDto
             dto.FinalPass = System.Text.Encoding.UTF8.GetString(payload, offset, strLen);
             offset += strLen;
         }
+
+        long ticks = BitConverter.ToInt64(payload, offset);
+        dto.endTime = new DateTime(ticks);
+        offset += 8;
 
         return dto;
     }
