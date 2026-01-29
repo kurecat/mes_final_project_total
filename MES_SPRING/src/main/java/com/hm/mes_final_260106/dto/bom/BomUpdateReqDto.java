@@ -1,6 +1,6 @@
 package com.hm.mes_final_260106.dto.bom;
 
-import com.hm.mes_final_260106.dto.product.ProductResDto;
+import com.hm.mes_final_260106.dto.BomItem.BomItemCreateReqDto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,7 +11,5 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BomUpdateReqDto {
-    private Long materialId;
-    private Long productId;
-    private int quantity;       // 수량
+    private List<BomItemCreateReqDto> bomItem;
 }

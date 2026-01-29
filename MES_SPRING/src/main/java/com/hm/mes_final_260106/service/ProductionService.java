@@ -11,6 +11,7 @@ import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.repository.*;
 import com.hm.mes_final_260106.mapper.Mapper;
 import com.hm.mes_final_260106.repository.ProductionResultRepository;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -360,10 +361,12 @@ public class ProductionService {
         lots = lotRepo.saveAll(lots);
         lotMappings = lotMappingRepo.saveAll(lotMappings);
 
-        List<Bom> boms = bomRepo.findAllByProductCode(workOrder.getProduct().getCode());
-        for (Bom bom : boms) {
-            Material mat = bom.getMaterial();
-            int required = bom.getRequiredQty();
+        Bom bom = bomRepo.findById(product.getId())
+                .orElseThrow(() -> new EntityNotFoundException("BOM을 찾을 수 없습니다"));
+
+        for (BomItem bomItem : bom.getItems()) {
+            Material mat = bomItem.getMaterial();
+            int required = bomItem.getRequiredQty();
             int current = mat.getCurrentStock();
 
             if (current < required) {

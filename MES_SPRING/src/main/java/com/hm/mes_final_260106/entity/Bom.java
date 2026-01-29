@@ -8,8 +8,12 @@ package com.hm.mes_final_260106.entity;
 // Material 와 ManyToOne : 하나의 BOM은 여러 자재를 가짐. 즉 하나의 자재는 여러 제품의 BOM에 사용 될 수 있음.
 // Product 와 BOM은 1 : N, Material 과 BOM은 1 : N
 
+import com.hm.mes_final_260106.constant.BomStatus;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "bom")
@@ -27,10 +31,12 @@ public class Bom {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "material_id", nullable = false)
-    private Material material;
+    @Column(nullable = false)
+    private Integer revision;
 
-    @Column(name = "required_qty", nullable = false)
-    private Integer requiredQty;
+    @Column(nullable = false)
+    private BomStatus status;
+
+    @OneToMany(mappedBy = "bom", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<BomItem> items = new ArrayList<>();
 }

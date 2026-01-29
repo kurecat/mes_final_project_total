@@ -1,7 +1,7 @@
 package com.hm.mes_final_260106.controller;
 
-import com.hm.mes_final_260106.dto.bom.BomCreateReqDto;
-import com.hm.mes_final_260106.dto.bom.BomItemResDto;
+import com.hm.mes_final_260106.dto.BomItem.BomItemCreateReqDto;
+import com.hm.mes_final_260106.dto.BomItem.BomItemResDto;
 import com.hm.mes_final_260106.dto.bom.BomUpdateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductCreateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductResDto;
@@ -84,12 +84,12 @@ public class MasterDataController {
 
     // CREATE (BOM 등록)
     @PostMapping("/bom")
-    public ResponseEntity<String> createBom(@RequestBody BomCreateReqDto dto) {
+    public ResponseEntity<String> createBom(@RequestBody BomItemCreateReqDto dto) {
         masterService.createBom(dto);
         return ResponseEntity.ok("BOM 등록 완료");
     }
 
-    // READ (단건 조회: 특정 Product 기준 BOM 조회)
+    // READ (특정 Product 기준 BOM 조회)
     @GetMapping("/bom/{productId}")
     public ResponseEntity<List<BomItemResDto>> getBomByProduct(@PathVariable Long productId) {
         List<BomItemResDto> bomItemResDtos = masterService.getBomByProduct(productId);
