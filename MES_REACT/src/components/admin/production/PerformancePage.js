@@ -319,13 +319,11 @@ const PerformancePage = () => {
     yieldRate: 0,
   });
 
-  const API_BASE = "http://localhost:8111/api/mes";
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const resSummary = await axiosInstance.get(
-        `${API_BASE}/performance/summary`,
+        `/api/mes/performance/summary`,
         { params: { date, line: selectedLine } },
       );
       setSummary({
@@ -335,13 +333,12 @@ const PerformancePage = () => {
         yieldRate: resSummary.data?.yieldRate ?? 0,
       });
 
-      const resHourly = await axiosInstance.get(
-        `${API_BASE}/performance/hourly`,
-        { params: { date, line: selectedLine } },
-      );
+      const resHourly = await axiosInstance.get(`/api/mes/performance/hourly`, {
+        params: { date, line: selectedLine },
+      });
       setHourlyData(resHourly.data ?? []);
 
-      const resList = await axiosInstance.get(`${API_BASE}/performance/list`, {
+      const resList = await axiosInstance.get(`/api/mes/performance/list`, {
         params: { date, line: selectedLine },
       });
       setListData(resList.data ?? []);

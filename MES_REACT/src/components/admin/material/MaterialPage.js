@@ -16,11 +16,6 @@ import {
 } from "react-icons/fa";
 
 // =============================
-// API Base
-// =============================
-const API_BASE = "http://localhost:8111/api/mes/material-tx";
-
-// =============================
 // 유틸: 시간 포맷
 // =============================
 const formatTime = (isoString) => {
@@ -263,7 +258,7 @@ const MaterialPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`${API_BASE}/transactions/today`);
+      const res = await axiosInstance.get(`/transactions/today`);
       const rows = (res.data || []).map(mapTxToRow);
       setHistory(rows);
     } catch (err) {
@@ -317,7 +312,7 @@ const MaterialPage = () => {
             workerName: "Admin",
           };
 
-          await axiosInstance.post(`${API_BASE}/inbound`, payload);
+          await axiosInstance.post(`/inbound`, payload);
           alert("입고 처리가 완료되었습니다.");
         } else {
           const payload = {
@@ -329,7 +324,7 @@ const MaterialPage = () => {
             workerName: "Admin",
           };
 
-          await axiosInstance.post(`${API_BASE}/outbound`, payload);
+          await axiosInstance.post(`/outbound`, payload);
           alert("불출 처리가 완료되었습니다.");
         }
 

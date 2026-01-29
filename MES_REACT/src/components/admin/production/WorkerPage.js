@@ -15,8 +15,6 @@ import {
   FaSync,
 } from "react-icons/fa";
 
-const API_BASE = "/api/mes";
-
 // ===== 공통 유틸: authority ROLE_ 보정 =====
 const normalizeAuthority = (value) => {
   let auth = value ?? "ROLE_OPERATOR";
@@ -309,7 +307,7 @@ const WorkerPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`${API_BASE}/worker/list`);
+      const res = await axiosInstance.get(`/api/mes/worker/list`);
       setWorkers(res.data ?? []);
     } catch (err) {
       console.error("작업자 조회 실패:", err);
@@ -329,7 +327,7 @@ const WorkerPage = () => {
     if (!window.confirm("해당 작업자를 삭제하시겠습니까?")) return;
 
     try {
-      await axiosInstance.delete(`${API_BASE}/worker/${workerPk}`);
+      await axiosInstance.delete(`/api/mes/worker/${workerPk}`);
 
       setWorkers((prev) =>
         prev.filter((w) => (w.id ?? w.workerId) !== workerPk),
@@ -346,7 +344,7 @@ const WorkerPage = () => {
   const handleAdd = useCallback(async () => {
     try {
       const today = new Date().toISOString().split("T")[0];
-      const res = await axiosInstance.post(`${API_BASE}/worker/register`, {
+      const res = await axiosInstance.post(`/api/mes/worker/register`, {
         email: `worker${Date.now()}@test.com`,
         password: "1234",
         name: "New Worker",
@@ -411,7 +409,7 @@ const WorkerPage = () => {
       console.log("PATCH payload =", payload);
 
       const res = await axiosInstance.patch(
-        `${API_BASE}/worker/${workerPk}`,
+        `/api/mes/worker/${workerPk}`,
         payload,
       );
 

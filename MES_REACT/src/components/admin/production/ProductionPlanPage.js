@@ -14,11 +14,6 @@ import {
 } from "react-icons/fa";
 
 // =============================
-// API Base
-// =============================
-const API_BASE = "http://localhost:8111/api/mes";
-
-// =============================
 // Dummy Fallback Data
 // =============================
 const MOCK_PLANS = [
@@ -250,7 +245,7 @@ const ProductionPlanPage = () => {
     try {
       // ⚠️ 백엔드에 /product API가 있어야 합니다.
       // 없다면 아래 URL을 너 프로젝트에 맞게 수정하세요.
-      const res = await axiosInstance.get(`${API_BASE}/product`);
+      const res = await axiosInstance.get(`/api/mes/product`);
       const list = Array.isArray(res.data) ? res.data : [];
       // 기대 형태: [{ code: "...", name: "..." }, ...]
       setProducts(list);
@@ -304,7 +299,7 @@ const ProductionPlanPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`${API_BASE}/order`);
+      const res = await axiosInstance.get(`/api/mes/order`);
       const list = Array.isArray(res.data) ? res.data : [];
       const mapped = list.map(mapWorkOrderToPlan);
       setPlans(mapped);
@@ -338,7 +333,7 @@ const ProductionPlanPage = () => {
         targetLine: "Fab-Line-A",
       };
 
-      await axiosInstance.post(`${API_BASE}/order`, payload);
+      await axiosInstance.post(`/api/mes/order`, payload);
       alert("작업지시가 추가되었습니다.");
       fetchData();
     } catch (err) {
@@ -354,7 +349,7 @@ const ProductionPlanPage = () => {
         return;
       }
       try {
-        await axiosInstance.post(`${API_BASE}/order/${orderId}/release`);
+        await axiosInstance.post(`/api/mes/order/${orderId}/release`);
         alert(`Plan [${planId}] Release 완료`);
         fetchData();
       } catch (err) {
@@ -374,7 +369,7 @@ const ProductionPlanPage = () => {
       if (!window.confirm("삭제하시겠습니까?")) return;
 
       try {
-        await axiosInstance.delete(`${API_BASE}/order/${orderId}`);
+        await axiosInstance.delete(`/api/mes/order/${orderId}`);
         alert("삭제 완료");
         fetchData();
       } catch (err) {
@@ -433,7 +428,7 @@ const ProductionPlanPage = () => {
           targetLine: editForm.targetLine.trim(),
         };
 
-        await axiosInstance.put(`${API_BASE}/order/${orderId}`, payload);
+        await axiosInstance.put(`/api/mes/order/${orderId}`, payload);
 
         alert(`Plan [${planId}] 수정 저장 완료`);
         setEditingPlanId(null);

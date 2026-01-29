@@ -139,10 +139,10 @@ const ProductMasterPage = () => {
       if (editingId === product.id) {
         // 완료 → PUT 요청
         try {
-          await axiosInstance.put(
-            `http://localhost:8111/api/mes/master/product/${product.id}`,
-            { ...product, ...editValues },
-          );
+          await axiosInstance.put(`/api/mes/master/product/${product.id}`, {
+            ...product,
+            ...editValues,
+          });
           setProducts((prev) =>
             prev.map((p) =>
               p.id === product.id ? { ...p, ...editValues } : p,
@@ -176,9 +176,7 @@ const ProductMasterPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      const res = await axiosInstance.get(
-        "http://localhost:8111/api/mes/master/product/list",
-      );
+      const res = await axiosInstance.get("/api/mes/master/product/list");
       setProducts(res.data);
     } catch (err) {
       console.error(err);
@@ -193,9 +191,7 @@ const ProductMasterPage = () => {
     if (!window.confirm(`품목 코드 [${id}]를 삭제하시겠습니까?`)) return;
     setLoading(true);
     try {
-      await axiosInstance.delete(
-        `http://localhost:8111/api/mes/master/product/${id}`,
-      );
+      await axiosInstance.delete(`/api/mes/master/product/${id}`);
       setProducts((prev) => prev.filter((product) => product.id !== id));
     } catch (err) {
       console.error("Delete Error", err);
@@ -213,10 +209,7 @@ const ProductMasterPage = () => {
       spec: "TBD",
     };
     try {
-      await axiosInstance.post(
-        `http://localhost:8111/api/mes/master/product`,
-        newProduct,
-      );
+      await axiosInstance.post(`/api/mes/master/product`, newProduct);
     } catch (err) {
       console.error("Create Error", err);
     } finally {
