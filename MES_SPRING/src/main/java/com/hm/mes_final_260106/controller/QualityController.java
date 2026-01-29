@@ -12,7 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/mes/quality")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000") // CORS 허용
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class QualityController {
 
     // ✅ QualityService 대신 이미 로직이 구현된 ProductionService를 주입받습니다.

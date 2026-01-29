@@ -13,6 +13,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/mes/material")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class InventoryController {
 
     private final InventoryService inventoryService;

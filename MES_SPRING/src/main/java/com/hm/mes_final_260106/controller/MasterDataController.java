@@ -16,7 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/mes/master")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class MasterDataController {
 
     private final MasterDataService masterService;

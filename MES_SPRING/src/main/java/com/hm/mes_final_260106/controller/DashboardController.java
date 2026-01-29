@@ -11,6 +11,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/mes/dashboard")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class DashboardController {
 
     private final DashboardService dashboardService;

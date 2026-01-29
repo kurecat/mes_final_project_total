@@ -12,6 +12,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/mes/material-tx")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*", allowedHeaders = "*")
 public class MaterialTransactionController {
 
     private final MaterialTransactionService txService;
