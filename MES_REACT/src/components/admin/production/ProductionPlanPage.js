@@ -243,7 +243,7 @@ const ProductionPlanPage = () => {
   // =============================
   const fetchProducts = useCallback(async () => {
     try {
-      const res = await axiosInstance.get(`/api/mes/product`);
+      const res = await axiosInstance.get(`/api/mes/item`);
       const list = Array.isArray(res.data) ? res.data : [];
       // 기대 형태: [{ code: "...", name: "..." }, ...]
       setProducts(list);

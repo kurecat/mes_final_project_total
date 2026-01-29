@@ -258,7 +258,9 @@ const MaterialPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`/api/mes/transactions/today`);
+      const res = await axiosInstance.get(
+        `/api/mes/material-tx/transactions/today`,
+      );
       const rows = (res.data || []).map(mapTxToRow);
       setHistory(rows);
     } catch (err) {
@@ -312,7 +314,7 @@ const MaterialPage = () => {
             workerName: "Admin",
           };
 
-          await axiosInstance.post(`/api/mes/inbound`, payload);
+          await axiosInstance.post(`/api/mes/material-tx/inbound`, payload);
           alert("입고 처리가 완료되었습니다.");
         } else {
           const payload = {
@@ -324,7 +326,7 @@ const MaterialPage = () => {
             workerName: "Admin",
           };
 
-          await axiosInstance.post(`/api/mes/outbound`, payload);
+          await axiosInstance.post(`/api/mes/material-tx/outbound`, payload);
           alert("불출 처리가 완료되었습니다.");
         }
 

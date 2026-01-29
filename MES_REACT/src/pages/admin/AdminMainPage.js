@@ -8,8 +8,6 @@ import AdminHeader from "../../components/layouts/AdminHeader";
 import { MENU_LIST } from "../../data/menuList";
 
 const AdminMainPage = () => {
-  console.log("📢 AdminMainPage가 렌더링 되었습니다!");
-
   const location = useLocation();
   const navigate = useNavigate();
 
