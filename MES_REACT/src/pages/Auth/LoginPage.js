@@ -23,39 +23,53 @@ const LoginPage = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    // 1. [안전장치] 이미 로딩 중이라면 클릭 무시 (더블 클릭 방지)
+    // 1. [안전장치] 이미 로딩 중이라면 클릭 무시
     if (isLoading) return;
 
-    // 2. [유효성 검사] 입력값 확인
+    // 2. [유효성 검사]
     if (!inputs.id || !inputs.password) {
       setError("아이디와 비밀번호를 모두 입력해주세요.");
       return;
     }
 
     setIsLoading(true);
-    setError(""); // 이전 에러 메시지 초기화
+    setError("");
 
     try {
       console.log("🚀 로그인 요청 시작...");
       const response = await axiosInstance.post("/auth/login", {
-        email: inputs.id,
+        email: inputs.id, // 백엔드가 username을 원하면 username으로 변경 필요
         password: inputs.password,
       });
 
-      console.log("✅ 로그인 성공:", response);
-      const tokenData = response.data.data;
+      console.log("✅ 로그인 응답 데이터:", response.data);
 
-      if (tokenData && tokenData.accessToken) {
-        localStorage.setItem("refreshToken", tokenData.refreshToken);
-        localStorage.setItem("accessToken", tokenData.accessToken);
-        navigate("/admin");
+      // [수정 1] 토큰 구조가 data.data 안에 있는지, 바로 data 안에 있는지 유연하게 체크
+      const accessToken =
+        response.data.data?.accessToken || response.data.accessToken;
+      const refreshToken =
+        response.data.data?.refreshToken || response.data.refreshToken;
+
+      if (accessToken) {
+        // 1. 로컬 스토리지 저장
+        localStorage.setItem("refreshToken", refreshToken);
+        localStorage.setItem("accessToken", accessToken);
+
+        // [수정 2] ★ 중요: 다음 요청(대시보드)을 위해 즉시 헤더에 토큰 설정
+        // 이걸 안 하면 페이지 이동 직후 첫 요청에서 401이 뜰 수 있음
+        axiosInstance.defaults.headers.common["Authorization"] =
+          `Bearer ${accessToken}`;
+
+        // 3. 페이지 이동 (경로 확인: /admin이 맞는지, /dashboard가 맞는지)
+        // 만약 대시보드 경로가 /dashboard라면 아래 주석을 풀고 변경하세요.
+        window.location.href = "/admin";
       } else {
         setError("서버 응답에 토큰이 없습니다.");
+        console.error("토큰 없음:", response.data);
       }
     } catch (err) {
       console.error("❌ 로그인 에러 발생:", err);
 
-      // 에러 메시지 구체화
       if (err.response) {
         if (err.response.status === 401) {
           setError("아이디 또는 비밀번호가 일치하지 않습니다.");
@@ -72,7 +86,6 @@ const LoginPage = () => {
         setError("로그인 중 알 수 없는 오류가 발생했습니다.");
       }
     } finally {
-      // 3. [상태 해제] 성공/실패 여부와 상관없이 무조건 로딩 끄기
       console.log("🏁 로딩 상태 해제");
       setIsLoading(false);
     }
