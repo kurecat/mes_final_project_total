@@ -243,8 +243,6 @@ const ProductionPlanPage = () => {
   // =============================
   const fetchProducts = useCallback(async () => {
     try {
-      // ⚠️ 백엔드에 /product API가 있어야 합니다.
-      // 없다면 아래 URL을 너 프로젝트에 맞게 수정하세요.
       const res = await axiosInstance.get(`/api/mes/product`);
       const list = Array.isArray(res.data) ? res.data : [];
       // 기대 형태: [{ code: "...", name: "..." }, ...]
