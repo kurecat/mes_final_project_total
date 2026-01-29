@@ -216,27 +216,29 @@ public class ProductionService {
 
         String current = order.getStatus();
 
-        // 상태 전이 정책(정석)
+        // 상태 전이 정책 수정 (WAITING -> IN_PROGRESS 허용)
         boolean allowed =
-                ("RELEASED".equals(current) && "IN_PROGRESS".equals(status)) || // Start
-                        ("IN_PROGRESS".equals(current) && "PAUSED".equals(status)) ||   // Pause
-                        ("PAUSED".equals(current) && "IN_PROGRESS".equals(status)) ||   // Resume
-                        ("IN_PROGRESS".equals(current) && "COMPLETED".equals(status)) || // Finish
-                        ("PAUSED".equals(current) && "COMPLETED".equals(status)); // Finish
+                ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) ||   // ★ [추가됨] 대기 -> 바로 시작 허용
+                        ("WAITING".equals(current) && "RELEASED".equals(next)) ||      // 대기 -> 출고
+                        ("RELEASED".equals(current) && "IN_PROGRESS".equals(next)) ||  // 출고 -> 시작
+                        ("IN_PROGRESS".equals(current) && "PAUSED".equals(next)) ||    // 일시정지
+                        ("PAUSED".equals(current) && "IN_PROGRESS".equals(next)) ||    // 재개
+                        ("IN_PROGRESS".equals(current) && "COMPLETED".equals(next)) || // 완료
+                        ("PAUSED".equals(current) && "COMPLETED".equals(next));        // 정지 후 완료
 
         if (!allowed) {
-            throw new RuntimeException("허용되지 않는 상태 변경입니다. (" + current + " -> " + status + ")");
+            throw new RuntimeException("허용되지 않는 상태 변경입니다. (" + current + " -> " + next + ")");
         }
 
-        order.setStatus(status);
+        order.setStatus(next);
 
         // 시작/종료 시간 기록
-        if ("IN_PROGRESS".equals(status) && order.getStartDate() == null) {
-            order.setStartDate(LocalDateTime.now()); // ⭐
+        if ("IN_PROGRESS".equals(next) && order.getStartDate() == null) {
+            order.setStartDate(LocalDateTime.now());
         }
 
-        if ("COMPLETED".equals(status)) {
-            order.setEndDate(LocalDateTime.now()); // ⭐
+        if ("COMPLETED".equals(next)) {
+            order.setEndDate(LocalDateTime.now());
         }
 
         return orderRepo.save(order);
