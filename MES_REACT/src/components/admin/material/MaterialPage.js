@@ -13,7 +13,12 @@ import {
   FaCircle,
   FaMicrochip,
   FaSync,
+  FaCamera, // ★ 추가됨
 } from "react-icons/fa";
+
+// ★ MobileScanner import (프로젝트 구조에 맞춰 경로를 확인해주세요!)
+// 예: src/components/common/MobileScanner.js 라면 아래와 같습니다.
+import MobileScanner from "../../../components/common/MobileScanner";
 
 // =============================
 // 유틸: 시간 포맷
@@ -79,68 +84,77 @@ const TabHeader = React.memo(({ activeTab, onTabChange }) => {
   );
 });
 
-// 2. Input Form Component
-const InputForm = React.memo(({ activeTab, inputs, onChange, onSubmit }) => {
-  return (
-    <InputCard $mode={activeTab}>
-      <CardHeader $mode={activeTab}>
-        {activeTab === "IN" ? <FaTruckLoading /> : <FaDolly />}
-        {activeTab === "IN" ? " 입고 등록 (Scan)" : " 불출 등록 (Scan)"}
-      </CardHeader>
+// 2. Input Form Component (수정됨: 스캔 버튼 추가)
+const InputForm = React.memo(
+  ({ activeTab, inputs, onChange, onSubmit, onScanClick }) => {
+    return (
+      <InputCard $mode={activeTab}>
+        <CardHeader $mode={activeTab}>
+          {activeTab === "IN" ? <FaTruckLoading /> : <FaDolly />}
+          {activeTab === "IN" ? " 입고 등록 (Scan)" : " 불출 등록 (Scan)"}
+        </CardHeader>
 
-      <Form onSubmit={onSubmit}>
-        <FormGroup>
-          <Label>Material Barcode *</Label>
-          <InputWrapper>
+        <Form onSubmit={onSubmit}>
+          <FormGroup>
+            {/* ★ 라벨 옆에 스캔 버튼 배치 */}
+            <LabelRow>
+              <Label>Material Barcode *</Label>
+              <SmallScanBtn type="button" onClick={onScanClick}>
+                <FaCamera /> Scan
+              </SmallScanBtn>
+            </LabelRow>
+
+            <InputWrapper>
+              <Input
+                name="barcode"
+                value={inputs.barcode}
+                onChange={onChange}
+                placeholder="Scan (ex: WF-001, PR-A)"
+                autoFocus
+              />
+              <ScanIcon>
+                <FaBarcode />
+              </ScanIcon>
+            </InputWrapper>
+            <HintText>백엔드 Material.code와 동일한 값을 입력하세요.</HintText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Quantity *</Label>
             <Input
-              name="barcode"
-              value={inputs.barcode}
+              type="number"
+              name="qty"
+              value={inputs.qty}
               onChange={onChange}
-              placeholder="Scan (ex: WF-001, PR-A)"
-              autoFocus
+              placeholder="수량 입력"
             />
-            <ScanIcon>
-              <FaBarcode />
-            </ScanIcon>
-          </InputWrapper>
-          <HintText>백엔드 Material.code와 동일한 값을 입력하세요.</HintText>
-        </FormGroup>
+          </FormGroup>
 
-        <FormGroup>
-          <Label>Quantity *</Label>
-          <Input
-            type="number"
-            name="qty"
-            value={inputs.qty}
-            onChange={onChange}
-            placeholder="수량 입력"
-          />
-        </FormGroup>
+          <FormGroup>
+            <Label>
+              {activeTab === "IN"
+                ? "Target Location (적재 위치)"
+                : "Target Equipment (투입 설비)"}
+            </Label>
+            <Input
+              name="location"
+              value={inputs.location}
+              onChange={onChange}
+              placeholder={
+                activeTab === "IN" ? "ex: WH-Raw-01" : "ex: Photo-Line-A"
+              }
+            />
+          </FormGroup>
 
-        <FormGroup>
-          <Label>
-            {activeTab === "IN"
-              ? "Target Location (적재 위치)"
-              : "Target Equipment (투입 설비)"}
-          </Label>
-          <Input
-            name="location"
-            value={inputs.location}
-            onChange={onChange}
-            placeholder={
-              activeTab === "IN" ? "ex: WH-Raw-01" : "ex: Photo-Line-A"
-            }
-          />
-        </FormGroup>
-
-        <SubmitButton type="submit" $mode={activeTab}>
-          <FaCheck />{" "}
-          {activeTab === "IN" ? "CONFIRM INBOUND" : "CONFIRM OUTBOUND"}
-        </SubmitButton>
-      </Form>
-    </InputCard>
-  );
-});
+          <SubmitButton type="submit" $mode={activeTab}>
+            <FaCheck />{" "}
+            {activeTab === "IN" ? "CONFIRM INBOUND" : "CONFIRM OUTBOUND"}
+          </SubmitButton>
+        </Form>
+      </InputCard>
+    );
+  },
+);
 
 // 3. Log Table Row Component
 const LogTableRow = React.memo(({ row }) => {
@@ -252,6 +266,9 @@ const MaterialPage = () => {
     location: "",
   });
 
+  // ★ 스캐너 모달 상태
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
   // =============================
   // 오늘 로그 조회 (useCallback)
   // =============================
@@ -289,6 +306,23 @@ const MaterialPage = () => {
 
   const handleKeywordChange = useCallback((e) => {
     setKeyword(e.target.value);
+  }, []);
+
+  // ★ 스캐너 열기
+  const handleOpenScanner = useCallback(() => {
+    setIsScannerOpen(true);
+  }, []);
+
+  // ★ 스캐너 닫기
+  const handleCloseScanner = useCallback(() => {
+    setIsScannerOpen(false);
+  }, []);
+
+  // ★ 스캔 완료 시 처리
+  const handleScanComplete = useCallback((code) => {
+    // 스캔된 코드를 barcode 필드에 입력
+    setInputs((prev) => ({ ...prev, barcode: code }));
+    setIsScannerOpen(false); // 스캔 후 닫기
   }, []);
 
   const handleSubmit = useCallback(
@@ -368,6 +402,7 @@ const MaterialPage = () => {
           inputs={inputs}
           onChange={handleInputChange}
           onSubmit={handleSubmit}
+          onScanClick={handleOpenScanner} // ★ 스캔 버튼 핸들러 전달
         />
 
         {/* 3. Right: Log Table Section */}
@@ -378,13 +413,21 @@ const MaterialPage = () => {
           onKeywordChange={handleKeywordChange}
         />
       </ContentWrapper>
+
+      {/* ★ 카메라 스캐너 모달 */}
+      {isScannerOpen && (
+        <MobileScanner
+          onScan={handleScanComplete}
+          onClose={handleCloseScanner}
+        />
+      )}
     </Container>
   );
 };
 
 export default MaterialPage;
 
-// --- Styled Components (No Changes) ---
+// --- Styled Components ---
 
 const Container = styled.div`
   width: 100%;
@@ -481,10 +524,35 @@ const FormGroup = styled.div`
   gap: 6px;
 `;
 
+const LabelRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
 const Label = styled.label`
   font-size: 13px;
   font-weight: 700;
   color: #555;
+`;
+
+// ★ 스캔 버튼 스타일 추가
+const SmallScanBtn = styled.button`
+  background: #2ecc71;
+  color: white;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &:hover {
+    background: #27ae60;
+  }
 `;
 
 const InputWrapper = styled.div`
