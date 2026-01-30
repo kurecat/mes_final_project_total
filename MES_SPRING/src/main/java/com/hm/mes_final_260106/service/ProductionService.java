@@ -491,11 +491,6 @@ public class ProductionService {
     // =========================
     public void saveEventLog(EventLogReqDto dto) {
 
-        Worker worker = null;
-        if (dto.getWorkerId() != null) {
-            worker = workerRepo.findById(dto.getWorkerId()).orElse(null);
-        }
-
         ProductionLog log = ProductionLog.builder()
                 .startTime(LocalDateTime.now())
                 .level(dto.getLevel())
@@ -516,6 +511,16 @@ public class ProductionService {
                 .map(EventLogResDto::fromEntity)
                 .toList();
     }
+
+    // 이벤트 로그 메시지 수정
+    @Transactional
+    public void updateMessage(Long id, String message) {
+        ProductionLog log = logRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Log not found"));
+
+        log.setMessage(message);
+    }
+
 
 
     // 작업자 조회

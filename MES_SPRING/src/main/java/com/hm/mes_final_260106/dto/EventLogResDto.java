@@ -14,7 +14,7 @@ public class EventLogResDto {
     private String level;
     private String category;
     private String message;
-    private String workerName;
+
 
     public static EventLogResDto fromEntity(ProductionLog log) {
         return EventLogResDto.builder()

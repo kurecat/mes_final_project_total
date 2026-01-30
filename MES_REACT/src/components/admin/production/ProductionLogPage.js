@@ -7,12 +7,12 @@ import {
   FaFilter,
   FaExclamationTriangle,
   FaInfoCircle,
-  FaDownload,
   FaChevronDown,
   FaChevronUp,
+  FaEdit,
+  FaSave,
 } from "react-icons/fa";
 
-// --- Helper ---
 const getLevelBadge = (level) => {
   switch (level) {
     case "INFO":
@@ -36,9 +36,8 @@ const getLevelBadge = (level) => {
   }
 };
 
-// --- Header ---
 const LogHeader = React.memo(
-  ({ levelFilter, onFilterChange, searchTerm, onSearchChange, onExport }) => (
+  ({ levelFilter, onFilterChange, searchTerm, onSearchChange }) => (
     <Header>
       <TitleGroup>
         <FaServer size={22} color="#34495e" />
@@ -61,100 +60,167 @@ const LogHeader = React.memo(
             onChange={onSearchChange}
           />
         </SearchBox>
-        <DownloadBtn onClick={onExport}>
-          <FaDownload /> Export
-        </DownloadBtn>
       </Controls>
     </Header>
   ),
 );
 
-// --- Table Row ---
-const LogTableRow = React.memo(({ log, isExpanded, onToggleExpand }) => (
-  <>
-    <LogRow onClick={() => onToggleExpand(log.id)} $expanded={isExpanded}>
-      <td className="mono">{log.timestamp}</td>
-      <td>{getLevelBadge(log.level)}</td>
-      <td className="category">{log.category}</td>
-      <td className="message">{log.message}</td>
-      <td>{log.workerName || "-"}</td>
-      <td>{isExpanded ? <FaChevronUp /> : <FaChevronDown />}</td>
-    </LogRow>
+const LogTableRow = React.memo(
+  ({
+    log,
+    isExpanded,
+    onToggleExpand,
+    editingMap,
+    setEditingMap,
+    startEdit,
+    saveEdit,
+  }) => {
+    const isEditing = editingMap[log.id] !== undefined;
 
-    {isExpanded && (
-      <DetailRow>
-        <td colSpan="6">
-          <DetailBox>
-            <div className="label">Log ID: {log.id}</div>
-            <pre>{JSON.stringify(log, null, 2)}</pre>
-          </DetailBox>
-        </td>
-      </DetailRow>
-    )}
-  </>
-));
-
-// --- Table ---
-const LogTableComponent = React.memo(
-  ({ logs, expandedLogId, onToggleExpand }) => (
-    <TableContainer>
-      <LogTable>
-        <thead>
-          <tr>
-            <th width="180">Timestamp</th>
-            <th width="100">Level</th>
-            <th width="120">Category</th>
-            <th>Message</th>
-            <th width="120">Worker</th>
-            <th width="50"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {logs.length > 0 ? (
-            logs.map((log) => (
-              <LogTableRow
-                key={log.id}
-                log={log}
-                isExpanded={expandedLogId === log.id}
-                onToggleExpand={onToggleExpand}
+    return (
+      <>
+        <LogRow
+          $level={log.level}
+          $expanded={isExpanded}
+          onClick={() => onToggleExpand(log.id)}
+        >
+          <td className="mono">{log.timestamp}</td>
+          <td>{getLevelBadge(log.level)}</td>
+          <td className="category">{log.category}</td>
+          <td
+            className="message"
+            onClick={(e) => isEditing && e.stopPropagation()}
+          >
+            {isEditing ? (
+              <input
+                autoFocus
+                value={editingMap[log.id]}
+                onChange={(e) =>
+                  setEditingMap((prev) => ({
+                    ...prev,
+                    [log.id]: e.target.value,
+                  }))
+                }
+                style={{ width: "100%", padding: "4px" }}
               />
-            ))
-          ) : (
-            <tr>
-              <td colSpan="6" className="empty">
-                No logs found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </LogTable>
-    </TableContainer>
-  ),
+            ) : (
+              log.message
+            )}
+          </td>
+          <td>
+            {isEditing ? (
+              <IconBtn
+                onClick={(e) => {
+                  e.stopPropagation();
+                  saveEdit(log.id);
+                }}
+              >
+                <FaSave style={{ color: "#27ae60" }} />
+              </IconBtn>
+            ) : (
+              <IconBtn
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startEdit(log);
+                }}
+              >
+                <FaEdit />
+              </IconBtn>
+            )}
+          </td>
+          <td>{isExpanded ? <FaChevronUp /> : <FaChevronDown />}</td>
+        </LogRow>
+        {isExpanded && (
+          <DetailRow>
+            <td colSpan="6">
+              <DetailBox>
+                <div className="label">Log ID: {log.id}</div>
+                <pre>{JSON.stringify(log.raw, null, 2)}</pre>
+              </DetailBox>
+            </td>
+          </DetailRow>
+        )}
+      </>
+    );
+  },
 );
 
-// --- Main ---
+const LogTableComponent = React.memo((props) => (
+  <TableContainer>
+    <LogTable>
+      <thead>
+        <tr>
+          <th width="180">Timestamp</th>
+          <th width="100">Level</th>
+          <th width="120">Category</th>
+          <th>Message</th>
+          <th width="50"></th>
+          <th width="50"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {props.logs.map((log) => (
+          <LogTableRow
+            key={log.id}
+            log={log}
+            isExpanded={props.expandedLogId === log.id}
+            {...props}
+          />
+        ))}
+      </tbody>
+    </LogTable>
+  </TableContainer>
+));
+
 const LogsPage = () => {
   const [logs, setLogs] = useState([]);
   const [levelFilter, setLevelFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedLogId, setExpandedLogId] = useState(null);
+  const [editingMap, setEditingMap] = useState({});
+
+  const fetchLogs = async () => {
+    try {
+      const res = await api.get("/api/mes/event-log");
+      const mapped = res.data.map((item, idx) => ({
+        id: item.id || item.eventLogId || item.productionLogId || idx + 1,
+        timestamp: new Date(
+          item.timestamp || item.startTime || item.createdAt || item.resultDate,
+        ).toLocaleString(),
+        level: item.level || "INFO",
+        category: item.category || "PRODUCTION",
+        message: item.message ?? "",
+        raw: item,
+      }));
+      setLogs(mapped);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
-    api
-      .get("/api/mes/event-log")
-      .then((res) => {
-        const mapped = res.data.map((item) => ({
-          id: item.id,
-          timestamp: new Date(item.timestamp).toLocaleString(),
-          level: item.level,
-          category: item.category,
-          message: item.message,
-          workerName: item.workerName,
-        }));
-        setLogs(mapped);
-      })
-      .catch((err) => console.error("Failed to fetch logs:", err));
+    fetchLogs();
   }, []);
+
+  const startEdit = (log) => {
+    setEditingMap((prev) => ({ ...prev, [log.id]: log.message ?? "" }));
+  };
+
+  const saveEdit = async (id) => {
+    const msg = editingMap[id];
+    try {
+      await api.patch(`/api/mes/event-log/${id}`, { message: msg });
+      setEditingMap((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+      fetchLogs();
+    } catch (error) {
+      alert("수정 실패: 해당 데이터를 찾을 수 없거나 권한이 없습니다.");
+      console.error(error);
+    }
+  };
 
   const toggleExpand = useCallback(
     (id) => setExpandedLogId((prev) => (prev === id ? null : id)),
@@ -181,20 +247,19 @@ const LogsPage = () => {
         onFilterChange={(e) => setLevelFilter(e.target.value)}
         searchTerm={searchTerm}
         onSearchChange={(e) => setSearchTerm(e.target.value)}
-        onExport={() => alert("Exporting...")}
       />
       <LogTableComponent
         logs={filteredLogs}
         expandedLogId={expandedLogId}
         onToggleExpand={toggleExpand}
+        editingMap={editingMap}
+        setEditingMap={setEditingMap}
+        startEdit={startEdit}
+        saveEdit={saveEdit}
       />
     </Container>
   );
 };
-
-export default LogsPage;
-
-// --- Styled Components (오리지널 디자인 복구) ---
 
 const Container = styled.div`
   width: 100%;
@@ -206,7 +271,6 @@ const Container = styled.div`
   box-sizing: border-box;
   overflow: hidden;
 `;
-
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
@@ -214,7 +278,6 @@ const Header = styled.div`
   margin-bottom: 20px;
   flex-shrink: 0;
 `;
-
 const TitleGroup = styled.div`
   display: flex;
   align-items: center;
@@ -225,12 +288,10 @@ const TitleGroup = styled.div`
     margin: 0;
   }
 `;
-
 const Controls = styled.div`
   display: flex;
   gap: 12px;
 `;
-
 const FilterGroup = styled.div`
   display: flex;
   align-items: center;
@@ -241,7 +302,6 @@ const FilterGroup = styled.div`
   border-radius: 6px;
   color: #666;
 `;
-
 const Select = styled.select`
   border: none;
   outline: none;
@@ -251,7 +311,6 @@ const Select = styled.select`
   color: #333;
   cursor: pointer;
 `;
-
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -269,23 +328,6 @@ const SearchBox = styled.div`
     width: 100%;
   }
 `;
-
-const DownloadBtn = styled.button`
-  background: #2c3e50;
-  color: white;
-  border: none;
-  padding: 0 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  &:hover {
-    background: #34495e;
-  }
-`;
-
 const TableContainer = styled.div`
   background: white;
   border-radius: 8px;
@@ -295,13 +337,10 @@ const TableContainer = styled.div`
   display: flex;
   flex-direction: column;
 `;
-
 const LogTable = styled.table`
   width: 100%;
   border-collapse: collapse;
   white-space: nowrap;
-
-  /* [복구] 회색 헤더, 기본 글씨 */
   thead {
     position: sticky;
     top: 0;
@@ -316,8 +355,6 @@ const LogTable = styled.table`
     color: #555;
     border-bottom: 2px solid #eee;
   }
-
-  /* [복구] 기본 검은색 글씨 */
   td {
     padding: 10px 15px;
     font-size: 14px;
@@ -325,9 +362,8 @@ const LogTable = styled.table`
     border-bottom: 1px solid #eee;
     vertical-align: middle;
   }
-
   .mono {
-    font-family: "Consolas", "Monaco", monospace;
+    font-family: "Consolas", monospace;
     font-size: 13px;
     color: #555;
   }
@@ -336,21 +372,15 @@ const LogTable = styled.table`
     font-size: 12px;
     color: #2c3e50;
   }
-  .message {
-    color: #222;
-  }
   .empty {
     text-align: center;
     padding: 40px;
     color: #aaa;
   }
 `;
-
 const LogRow = styled.tr`
   cursor: pointer;
   background-color: ${(props) => (props.$expanded ? "#f8f9fa" : "white")};
-
-  /* 상태별 왼쪽 라인 색상은 유지 (이건 기능이니까) */
   border-left: 4px solid
     ${(props) => {
       switch (props.$level) {
@@ -358,8 +388,6 @@ const LogRow = styled.tr`
           return "#e74c3c";
         case "WARN":
           return "#f39c12";
-        case "SECURITY":
-          return "#9b59b6";
         default:
           return "transparent";
       }
@@ -368,7 +396,6 @@ const LogRow = styled.tr`
     background-color: #f1f5f9;
   }
 `;
-
 const Badge = styled.span`
   display: inline-flex;
   align-items: center;
@@ -380,7 +407,6 @@ const Badge = styled.span`
   background-color: ${(props) => props.$bg};
   color: ${(props) => props.$color};
 `;
-
 const DetailRow = styled.tr`
   background-color: #f8f9fa;
   td {
@@ -388,13 +414,12 @@ const DetailRow = styled.tr`
     padding: 0 15px 15px 15px;
   }
 `;
-
 const DetailBox = styled.div`
   background: #2c3e50;
   color: #ecf0f1;
   padding: 15px;
   border-radius: 6px;
-  font-family: "Consolas", "Monaco", monospace;
+  font-family: "Consolas", monospace;
   font-size: 13px;
   margin-left: 40px;
   position: relative;
@@ -416,3 +441,24 @@ const DetailBox = styled.div`
     line-height: 1.5;
   }
 `;
+const IconBtn = styled.button`
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  transition: all 0.15s ease;
+  &:hover {
+    background-color: #ecf0f1;
+    color: #2c3e50;
+  }
+  svg {
+    font-size: 14px;
+  }
+`;
+
+export default LogsPage;

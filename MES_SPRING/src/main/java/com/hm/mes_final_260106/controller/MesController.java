@@ -18,6 +18,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 // 웹 대시 보드 및 설비를 연결
 
 // 웹 대시보드 및 설비(C#)를 연결하는 Controller
@@ -214,6 +215,16 @@ public class MesController {
     public ResponseEntity<List<EventLogResDto>> getEventLogs() {
         return ResponseEntity.ok(productionService.getEventLogs());
     }
+    // 이벤트 로그 메시지 수정
+    @PatchMapping("/event-log/{id}")
+    public ResponseEntity<?> updateMessage(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+
+        productionService.updateMessage(id, body.get("message"));
+        return ResponseEntity.ok().build();
+    }
+
 
     // 작업자 조회
     @GetMapping("/worker/list")
