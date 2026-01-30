@@ -2,6 +2,8 @@ package com.hm.mes_final_260106.controller;
 
 import com.hm.mes_final_260106.dto.BomItem.BomItemCreateReqDto;
 import com.hm.mes_final_260106.dto.BomItem.BomItemResDto;
+import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
+import com.hm.mes_final_260106.dto.bom.BomResDto;
 import com.hm.mes_final_260106.dto.bom.BomUpdateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductCreateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductResDto;
@@ -82,17 +84,17 @@ public class MasterDataController {
         return ResponseEntity.ok("상품 삭제 완료");
     }
 
-    // CREATE (BOM 등록)
-    @PostMapping("/bom")
-    public ResponseEntity<String> createBom(@RequestBody BomItemCreateReqDto dto) {
-        masterService.createBom(dto);
-        return ResponseEntity.ok("BOM 등록 완료");
+    // READ (전체 BOM 조회)
+    @GetMapping("/bom/list")
+    public ResponseEntity<List<BomResDto>> getBoms() {
+        List<BomResDto> bomResDtos = masterService.getAllBom();
+        return ResponseEntity.ok(bomResDtos);
     }
 
-    // READ (특정 Product 기준 BOM 조회)
-    @GetMapping("/bom/{productId}")
-    public ResponseEntity<List<BomItemResDto>> getBomByProduct(@PathVariable Long productId) {
-        List<BomItemResDto> bomItemResDtos = masterService.getBomByProduct(productId);
+    // READ (BOM Item list 조회)
+    @GetMapping("/bom-item/{bomId}")
+    public ResponseEntity<List<BomItemResDto>> getBomItemsByBom(@PathVariable Long bomId) {
+        List<BomItemResDto> bomItemResDtos = masterService.getBomItemByBom(bomId);
         return ResponseEntity.ok(bomItemResDtos);
     }
 
@@ -104,16 +106,11 @@ public class MasterDataController {
         return ResponseEntity.ok("BOM 수정 완료");
     }
 
-    // DELETE (BOM 삭제)
-    @DeleteMapping("/bom/{id}")
-    public ResponseEntity<String> deleteBom(@PathVariable Long id) {
-        masterService.deleteBom(id);
-        return ResponseEntity.ok("BOM 삭제 완료");
+    @PostMapping("/equipment")
+    public ResponseEntity<String> createEquipment(@RequestBody EquipmentCreateReqDto dto) {
+        masterService.createEquipment(dto);
+        return ResponseEntity.ok("설비 등록 완료");
     }
-
-
-
-
 
     /// 1111111
 }

@@ -42,7 +42,20 @@ VALUES
 
 
 -- BOM 등록
-INSERT INTO bom (product_id, material_id, required_qty) VALUES
+-- BOM Header (제품별 BOM 정의)
+INSERT INTO bom (product_id, revision, status) VALUES
+(1, 1, 'ACTIVE'),
+(2, 1, 'ACTIVE'),
+(3, 1, 'ACTIVE'),
+(4, 1, 'ACTIVE'),
+(5, 1, 'ACTIVE'),
+(6, 1, 'ACTIVE'),
+(7, 1, 'ACTIVE'),
+(8, 1, 'ACTIVE');
+
+-- BOM Line (자재별 소요량 정의)
+INSERT INTO bom_item (bom_id, material_id, required_qty) VALUES
+-- Product 1 BOM
 (1, 1, 1),
 (1, 2, 200),
 (1, 3, 1),
@@ -50,6 +63,8 @@ INSERT INTO bom (product_id, material_id, required_qty) VALUES
 (1, 6, 50),
 (1, 7, 1),
 (1, 8, 1),
+
+-- Product 2 BOM
 (2, 1, 1),
 (2, 2, 250),
 (2, 3, 1),
@@ -57,6 +72,8 @@ INSERT INTO bom (product_id, material_id, required_qty) VALUES
 (2, 6, 60),
 (2, 7, 1),
 (2, 8, 1),
+
+-- Product 3 BOM
 (3, 1, 1),
 (3, 2, 300),
 (3, 3, 1),
@@ -64,6 +81,8 @@ INSERT INTO bom (product_id, material_id, required_qty) VALUES
 (3, 6, 70),
 (3, 7, 1),
 (3, 8, 1),
+
+-- Product 4 BOM
 (4, 1, 1),
 (4, 2, 400),
 (4, 3, 1),
@@ -72,6 +91,8 @@ INSERT INTO bom (product_id, material_id, required_qty) VALUES
 (4, 7, 1),
 (4, 8, 1),
 (4, 5, 1),
+
+-- Product 5 BOM
 (5, 1, 1),
 (5, 2, 180),
 (5, 3, 1),
@@ -79,6 +100,8 @@ INSERT INTO bom (product_id, material_id, required_qty) VALUES
 (5, 6, 40),
 (5, 7, 1),
 (5, 8, 1),
+
+-- Product 6 BOM
 (6, 1, 1),
 (6, 2, 220),
 (6, 3, 1),
@@ -86,6 +109,8 @@ INSERT INTO bom (product_id, material_id, required_qty) VALUES
 (6, 6, 55),
 (6, 7, 1),
 (6, 8, 1),
+
+-- Product 7 BOM
 (7, 1, 1),
 (7, 2, 350),
 (7, 3, 1),
@@ -94,6 +119,8 @@ INSERT INTO bom (product_id, material_id, required_qty) VALUES
 (7, 7, 1),
 (7, 8, 1),
 (7, 5, 1),
+
+-- Product 8 BOM
 (8, 1, 1),
 (8, 2, 200),
 (8, 3, 1),
@@ -101,6 +128,7 @@ INSERT INTO bom (product_id, material_id, required_qty) VALUES
 (8, 6, 45),
 (8, 7, 1),
 (8, 8, 1);
+
 
 -- Lot 등록
 INSERT INTO lot (code, material_id, location, status) VALUES

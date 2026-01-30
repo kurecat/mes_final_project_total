@@ -16,7 +16,7 @@ public class BomItem {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "bom_id", nullable = false)
     private Bom bom;
 
     @ManyToOne(fetch = FetchType.LAZY)

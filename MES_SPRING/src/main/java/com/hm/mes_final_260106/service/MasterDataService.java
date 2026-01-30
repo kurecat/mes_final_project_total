@@ -2,7 +2,9 @@ package com.hm.mes_final_260106.service;
 
 import com.hm.mes_final_260106.constant.BomStatus;
 import com.hm.mes_final_260106.dto.BomItem.BomItemResDto;
+import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
 import com.hm.mes_final_260106.dto.MaterialTxResDto;
+import com.hm.mes_final_260106.dto.bom.BomResDto;
 import com.hm.mes_final_260106.dto.bom.BomUpdateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductCreateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductResDto;
@@ -69,7 +71,7 @@ public class MasterDataService {
     // 3. 자재 정보 수정 (이름, 카테고리 등)
     public void updateMaterial(String code, String newName, String newCategory) {
         Material material = materialRepo.findByCode(code)
-                .orElseThrow(() -> new RuntimeException("자재를 찾을 수 없습니다: " + code));
+                .orElseThrow(() -> new EntityNotFoundException("자재를 찾을 수 없습니다: " + code));
 
         material.setName(newName);
         material.setCategory(newCategory);
@@ -103,7 +105,7 @@ public class MasterDataService {
     // READ (단건 조회) PRODUCT
     public ProductResDto getProduct(Long id) {
         Product product = productRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("제품을 찾을 수 없습니다: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("제품을 찾을 수 없습니다: " + id));
 
         return ProductResDto.builder()
                 .id(product.getId())
@@ -130,7 +132,7 @@ public class MasterDataService {
     // UPDATE PRODUCT
     public void updateProduct(Long id, ProductUpdateReqDto dto) {
         Product product = productRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("제품을 찾을 수 없습니다: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("제품을 찾을 수 없습니다: " + id));
 
         product.setCode(dto.getCode());
         product.setName(dto.getName());
@@ -143,20 +145,31 @@ public class MasterDataService {
     // DELETE PRODUCT
     public void deleteProduct(Long id) {
         Product product = productRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("제품을 찾을 수 없습니다: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("제품을 찾을 수 없습니다: " + id));
 
         productRepo.delete(product);
     }
 
-    // READ BOM (특정 Product 기준)
-    public List<BomItemResDto> getBomByProduct(Long productId) {
-        Product product = productRepo.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+    public List<BomResDto> getAllBom() {
+        List<Bom> boms  = bomRepo.findLatestBomForAllProducts();
 
-        Bom bom = bomRepo.findTopByProductidOrderByRevisionDesc(productId)
-                .orElseThrow(()->new EntityNotFoundException("Bom을 찾을 수 없습니다"));
+        return boms
+                .stream()
+                .map(bom -> new BomResDto(
+                        bom.getId(),
+                        bom.getProduct().getCode(),
+                        bom.getProduct().getName(),
+                        bom.getRevision(),
+                        null,
+                        null
+                ))
+                .toList();
+    }
 
-        return bom.getItems()
+    public List<BomItemResDto> getBomItemByBom(Long bomId) {
+        List<BomItem> bomItems = bomItemRepo.findAllByBomId(bomId);
+
+        return bomItems
                 .stream()
                 .map(bomItem -> new BomItemResDto(
                         bomItem.getId(),
@@ -164,17 +177,15 @@ public class MasterDataService {
                         bomItem.getMaterial().getName(),
                         bomItem.getMaterial().getCategory(),
                         bomItem.getRequiredQty(),
-                        ""
-//                      bomItem.getMaterial().getUnit()
-                        )
-                )
+                        null
+                ))
                 .toList();
     }
 
     // UPDATE BOM
     public void updateBom(Long id, BomUpdateReqDto dto) {
         Bom oldBom = bomRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("BOM not found"));
+                .orElseThrow(() -> new EntityNotFoundException("BOM not found"));
         oldBom.setStatus(BomStatus.OBSOLETE);
 
         Bom newBom = new Bom();
@@ -194,6 +205,9 @@ public class MasterDataService {
                 .toList();
 
         bomItemRepo.saveAll(newBomItems);
+    }
+
+    public void createEquipment(EquipmentCreateReqDto dto) {
     }
     /// 111111
 }

@@ -14,8 +14,9 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BomResDto {
-    private String ProductCode;
-    private String ProductName;
+    private Long id;
+    private String productCode;
+    private String productName;
     private int revision;
     private ItemType type;
     private LocalDateTime lastUpdate;

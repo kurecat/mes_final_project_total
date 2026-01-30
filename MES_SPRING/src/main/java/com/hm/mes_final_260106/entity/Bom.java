@@ -35,6 +35,7 @@ public class Bom {
     private Integer revision;
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private BomStatus status;
 
     @OneToMany(mappedBy = "bom", cascade = CascadeType.ALL, orphanRemoval = true)
