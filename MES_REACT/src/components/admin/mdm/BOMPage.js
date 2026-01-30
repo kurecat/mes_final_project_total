@@ -74,7 +74,7 @@ const SearchBox = styled.div`
   }
 `;
 
-const ProductList = styled.div`
+const BomList = styled.div`
   flex: 0 1 auto;
   overflow-y: auto;
 `;
@@ -162,7 +162,7 @@ const HeaderRight = styled.div`
   gap: 10px;
 `;
 
-const ProductName = styled.div`
+const BomName = styled.div`
   font-size: 22px;
   font-weight: 700;
   color: #333;
@@ -178,7 +178,7 @@ const RevBadge = styled.span`
   border-radius: 12px;
   vertical-align: middle;
 `;
-const ProductMeta = styled.div`
+const BomMeta = styled.div`
   margin-top: 5px;
   font-size: 13px;
   color: #666;
@@ -299,16 +299,16 @@ const EmptyState = styled.div`
    ========================================================================= */
 
 // 1. Sidebar Item Component (Memoized)
-const SidebarItem = React.memo(({ product, isActive, onClick }) => {
+const SidebarItem = React.memo(({ bom, isActive, onClick }) => {
   return (
-    <BomItem $active={isActive} onClick={() => onClick(product)}>
+    <BomItem $active={isActive} onClick={() => onClick(bom)}>
       <ItemTop>
-        <ItemName>{product.name}</ItemName>
-        <StatusBadge $status={product.status}>{product.status}</StatusBadge>
+        <ItemName>{bom.productName}</ItemName>
+        <StatusBadge $status={bom.status}>{bom.status}</StatusBadge>
       </ItemTop>
       <ItemBottom>
-        <span>{product.code}</span>
-        <span>product.revision : 1</span>
+        <span>{bom.productCode}</span>
+        <span>{bom.revision}</span>
       </ItemBottom>
     </BomItem>
   );
@@ -320,15 +320,15 @@ const SidebarPanel = React.memo(
     loading,
     searchTerm,
     onSearchChange,
-    filteredProducts,
-    selectedProductId,
+    filteredBoms,
+    selectedBomId,
     onSelect,
   }) => {
     return (
       <Sidebar>
         <SidebarHeader>
           <Title>
-            <FaSitemap /> Product BOMs
+            <FaSitemap /> Bom BOMs
             {loading && (
               <FaSync
                 className="spin"
@@ -339,32 +339,29 @@ const SidebarPanel = React.memo(
           <SearchBox>
             <FaSearch color="#999" />
             <input
-              placeholder="Search Product..."
+              placeholder="Search Bom..."
               value={searchTerm}
               onChange={onSearchChange}
             />
           </SearchBox>
         </SidebarHeader>
-        <ProductList>
-          {filteredProducts.map((product) => (
+        <BomList>
+          {filteredBoms.map((bom) => (
             <SidebarItem
-              key={product.id}
-              product={product}
-              isActive={selectedProductId === product.id}
+              key={bom.id}
+              bom={bom}
+              isActive={selectedBomId === bom.id}
               onClick={onSelect}
             />
           ))}
-        </ProductList>
-        <AddButton>
-          <FaPlus /> New Product BOM
-        </AddButton>
+        </BomList>
       </Sidebar>
     );
   },
 );
 
 // 3. Detail View - Table Row (Memoized)
-const BomTableRow = React.memo(({ bomItem }) => {
+const BomTableRow = React.memo(({ bomItem, onAdd }) => {
   return (
     <tr>
       <td style={{ textAlign: "center", color: "#888" }}>{1}</td>
@@ -395,21 +392,20 @@ const BomTableRow = React.memo(({ bomItem }) => {
 });
 
 // 4. Detail View Component (Memoized)
-const DetailView = React.memo(({ product, bom }) => {
-  if (!product)
-    return <EmptyState>Select a Product to view details</EmptyState>;
+const DetailView = React.memo(({ bom, bomItems }) => {
+  if (!bom) return <EmptyState>Select a Bom to view details</EmptyState>;
 
   return (
     <>
       <DetailHeader>
         <HeaderLeft>
-          <ProductName>
-            {product.name} <RevBadge>{product.revision}</RevBadge>
-          </ProductName>
-          <ProductMeta>
-            Code: <strong>{product.code}</strong> | Type: {product.type} | Last
-            Updated: {product.lastUpdated}
-          </ProductMeta>
+          <BomName>
+            {bom.productName} <RevBadge>{bom.revision}</RevBadge>
+          </BomName>
+          <BomMeta>
+            Code: <strong>{bom.productCode}</strong> | Type: {bom.type} | Last
+            Updated: {bom.lastUpdated}
+          </BomMeta>
         </HeaderLeft>
         <HeaderRight>
           <ActionButton>
@@ -437,10 +433,10 @@ const DetailView = React.memo(({ product, bom }) => {
             {/* Root Item */}
             <RootRow>
               <td>0</td>
-              <td>{product.code}</td>
+              <td>{bom.productCode}</td>
               <td className="name">
                 <FaCubes style={{ marginRight: 8, color: "#1a4f8b" }} />
-                {product.name}
+                {bom.productName}
               </td>
               <td>
                 <TypeLabel $type="FG">FG</TypeLabel>
@@ -449,8 +445,8 @@ const DetailView = React.memo(({ product, bom }) => {
               <td>ea</td>
             </RootRow>
             {/* Children Items */}
-            {bom &&
-              bom.map((child) => (
+            {bomItems &&
+              bomItems.map((child) => (
                 <BomTableRow key={child.id} bomItem={child} />
               ))}
           </tbody>
@@ -472,22 +468,24 @@ const DetailView = React.memo(({ product, bom }) => {
    ========================================================================= */
 
 const BomPage = () => {
-  const [productList, setProductList] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [bom, setBom] = useState(null);
+  const [bomList, setBomList] = useState([]);
+  const [selectedBom, setSelectedBom] = useState(null);
+  const [bomItems, setBomItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [reqBomFetch, setReqBomFetch] = useState(false);
+
   // [Optimization] fetchData with useCallback
-  const fetchProductList = useCallback(async () => {
+  const fetchBomList = useCallback(async () => {
     setLoading(true);
     try {
       // API call logic...
       const res = await axiosInstance.get(
-        "http://localhost:8111/api/mes/master/product/list",
+        "http://localhost:8111/api/mes/master/bom/list",
       );
-      setProductList(res.data);
-      if (res.data.length > 0) setSelectedProduct(res.data[0]);
+      setBomList(res.data);
+      if (res.data.length > 0) setSelectedBom(res.data[0]);
       setLoading(false);
     } catch (err) {
       console.error(err);
@@ -498,24 +496,25 @@ const BomPage = () => {
   const fetchBom = useCallback(async () => {
     setLoading(true);
     try {
-      if (selectedProduct) {
+      if (selectedBom) {
         // API call logic...
-        const productId = selectedProduct.id;
+        const bomId = selectedBom.id;
         const res = await axiosInstance.get(
-          `http://localhost:8111/api/mes/master/bom/${productId}`,
+          `http://localhost:8111/api/mes/master/bom-item/${bomId}`,
         );
-        setBom(res.data);
+        setBomItems(res.data);
+        console.log(res.data);
       }
       setLoading(false);
     } catch (err) {
       console.error(err);
       setLoading(false);
     }
-  }, [selectedProduct]);
+  }, [selectedBom]);
 
   useEffect(() => {
-    fetchProductList();
-  }, [fetchProductList]);
+    fetchBomList();
+  }, [fetchBomList]);
 
   useEffect(() => {
     fetchBom();
@@ -526,20 +525,20 @@ const BomPage = () => {
     setSearchTerm(e.target.value);
   }, []);
 
-  const handleSelectProduct = useCallback((bom) => {
-    setSelectedProduct(bom);
+  const handleSelectBom = useCallback((bom) => {
+    setSelectedBom(bom);
   }, []);
 
-  const handleAddBom = useCallback((e) => {});
+  const handleAddBomItem = useCallback((e) => {}, []);
 
   // [Optimization] Filtering with useMemo
-  const filteredProducts = useMemo(() => {
-    return productList.filter(
-      (product) =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.code.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredBoms = useMemo(() => {
+    return bomList.filter(
+      (bom) =>
+        bom.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        bom.productCode.toLowerCase().includes(searchTerm.toLowerCase()),
     );
-  }, [productList, searchTerm]);
+  }, [bomList, searchTerm]);
 
   return (
     <Container>
@@ -548,14 +547,18 @@ const BomPage = () => {
         loading={loading}
         searchTerm={searchTerm}
         onSearchChange={handleSearchChange}
-        filteredProducts={filteredProducts}
-        selectedProductId={selectedProduct?.id}
-        onSelect={handleSelectProduct}
+        filteredBoms={filteredBoms}
+        selectedBomId={selectedBom?.id}
+        onSelect={handleSelectBom}
       />
 
       {/* 2. Detail View */}
       <ContentArea>
-        <DetailView product={selectedProduct} bom={bom} />
+        <DetailView
+          bom={selectedBom}
+          bomItems={bomItems}
+          onAdd={handleAddBomItem}
+        />
       </ContentArea>
     </Container>
   );

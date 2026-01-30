@@ -9,6 +9,7 @@ import {
   FaEdit,
   FaSync,
   FaBarcode,
+  FaCheck,
 } from "react-icons/fa";
 
 // --- [Optimized] Sub-Components with React.memo ---
@@ -109,9 +110,15 @@ const ProductTableRow = React.memo(
           )}
         </td>
         <td className="center">
-          <IconButton className="edit" onClick={() => onEdit(product)}>
-            <FaEdit />
-          </IconButton>
+          {isEditing ? (
+            <IconButton className="edit" onClick={() => onEdit(product)}>
+              <FaCheck />
+            </IconButton>
+          ) : (
+            <IconButton className="edit" onClick={() => onEdit(product)}>
+              <FaEdit />
+            </IconButton>
+          )}
           <IconButton className="del" onClick={() => onDelete(product.id)}>
             <FaTrash />
           </IconButton>
@@ -143,13 +150,14 @@ const ProductMasterPage = () => {
             `http://localhost:8111/api/mes/master/product/${product.id}`,
             { ...product, ...editValues },
           );
-          setProducts((prev) =>
-            prev.map((p) =>
-              p.id === product.id ? { ...p, ...editValues } : p,
-            ),
-          );
+          // setProducts((prev) =>
+          //   prev.map((p) =>
+          //     p.id === product.id ? { ...p, ...editValues } : p,
+          //   ),
+          // );
           setEditingId(null);
           setEditValues({});
+          setReqFetch(true);
         } catch (err) {
           console.error("Update Error", err);
         }
@@ -184,7 +192,7 @@ const ProductMasterPage = () => {
       console.error(err);
     } finally {
       setLoading(false);
-      setReqFetch(true);
+      setReqFetch(false);
     }
   }, []);
 
@@ -196,7 +204,8 @@ const ProductMasterPage = () => {
       await axiosInstance.delete(
         `http://localhost:8111/api/mes/master/product/${id}`,
       );
-      setProducts((prev) => prev.filter((product) => product.id !== id));
+      // setProducts((prev) => prev.filter((product) => product.id !== id));
+      setReqFetch(true);
     } catch (err) {
       console.error("Delete Error", err);
     } finally {
