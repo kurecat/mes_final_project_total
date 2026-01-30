@@ -20,6 +20,8 @@ public interface ProductionLogRepository extends JpaRepository<ProductionLog, Lo
     // 최근 로그 N개 (endTime 포함)
     List<ProductionLog> findTop10ByEquipmentOrderByStartTimeDesc(Equipment equipment);
 
+    // 이벤트 로그만 조회
+    List<ProductionLog> findByMessageIsNotNullOrderByStartTimeDesc();
     @Query("""
         SELECT HOUR(pl.endTime) AS hour, COALESCE(SUM(pl.resultQty), 0)
         FROM ProductionLog pl
