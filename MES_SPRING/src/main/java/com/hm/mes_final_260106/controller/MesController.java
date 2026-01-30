@@ -109,7 +109,7 @@ public class MesController {
         return ResponseEntity.ok().build();
     }
     // 작업지시(시작,중단,완료) 로그 기록 전송
-    @PostMapping("/log")
+    @PostMapping("/workorder/log")
     public ResponseEntity<String> createEventLog(@RequestBody ProductionLogEventReqDto dto) {
         productionService.createEventLog(dto);
         return ResponseEntity.ok("Log recorded successfully");

@@ -281,22 +281,18 @@ const WorkOrderPage = () => {
         else if (nextStatus === "COMPLETED") actionType = "FINISH";
 
         try {
-          await axiosInstance.post(`/api/mes/production/log`, {
+          await axiosInstance.post(`/api/mes/production-log/event`, {
             workOrderId: id,
             actionType: actionType,
           });
         } catch (logErr) {
-          console.error("로그 API 401 에러 가능성:", logErr);
-          alert(
-            "경고: 상태는 변경되었으나 로그 기록(401)에 실패했습니다. SecurityConfig 설정을 확인하세요.",
-          );
+          console.error("로그 기록 실패:", logErr);
         }
 
-        alert(`${nextStatus} 처리 완료`);
-        await fetchData();
+        fetchData();
       } catch (err) {
-        console.error("오류:", err);
-        alert("실패: " + (err.response?.data?.message || err.message));
+        console.error("상태 변경 실패:", err);
+        alert("상태 변경에 실패했습니다.");
       }
     },
     [fetchData],
@@ -333,7 +329,9 @@ const WorkOrderPage = () => {
         (o.workOrderNumber || o.workorder_number || "")
           .toLowerCase()
           .includes(keyword) ||
-        (o.productId || "").toLowerCase().includes(keyword);
+        (o.productId || (o.product && o.product.code) || "")
+          .toLowerCase()
+          .includes(keyword);
       return matchType && matchSearch;
     });
 
