@@ -20,8 +20,6 @@ import {
   FaTrash,
 } from "react-icons/fa";
 
-const API_BASE = "http://localhost:8111/api/mes";
-
 // --- [Optimized] Sub-Components with React.memo ---
 
 // 1. Summary Section
@@ -470,7 +468,7 @@ const MachinePage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`${API_BASE}/equipment/monitor`);
+      const res = await axiosInstance.get(`/api/mes/equipment/monitor`);
       setMachines(res.data ?? []);
     } catch (err) {
       console.error("설비 조회 실패:", err);
@@ -529,7 +527,7 @@ const MachinePage = () => {
         return;
 
       try {
-        await axiosInstance.delete(`${API_BASE}/equipment/${id}`);
+        await axiosInstance.delete(`/api/mes/equipment/${id}`);
         alert("설비가 삭제되었습니다.");
         await fetchData();
       } catch (err) {
@@ -565,11 +563,11 @@ const MachinePage = () => {
       };
 
       if (!editingMachine) {
-        await axiosInstance.post(`${API_BASE}/equipment`, payload);
+        await axiosInstance.post(`/api/mes/equipment`, payload);
         alert("설비가 DB에 저장되었습니다.");
       } else {
         await axiosInstance.put(
-          `${API_BASE}/equipment/${editingMachine.id}`,
+          `/api/mes/equipment/${editingMachine.id}`,
           payload,
         );
         alert("설비 정보가 수정되어 DB에 저장되었습니다.");

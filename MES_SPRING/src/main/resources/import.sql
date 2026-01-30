@@ -4,15 +4,15 @@ INSERT INTO member (name, email, password, authority, status) VALUES
 ('이용현', 'dfgr567@naver.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_ADMIN', 'ACTIVE');
 
 -- Product 등록
-INSERT INTO product (code, name) VALUES
-('DRAM-4G-DDR4-001', 'DRAM 4Gb DDR4 칩'),
-('DRAM-8G-DDR4-002', 'DRAM 8Gb DDR4 칩'),
-('DRAM-16G-DDR5-003', 'DRAM 16Gb DDR5 칩'),
-('DRAM-32G-DDR5-004', 'DRAM 32Gb DDR5 칩'),
-('DRAM-4G-LP-005', 'Low-Power DRAM 4Gb'),
-('DRAM-8G-MB-006', 'Mobile DRAM 8Gb'),
-('DRAM-16G-GR-007', 'Graphics DRAM 16Gb'),
-('DRAM-4G-EM-008', 'Embedded DRAM 4Gb');
+INSERT INTO product (code, name, category) VALUES
+('DRAM-4G-DDR4-001', 'DRAM 4Gb DDR4 칩', 'DRAM'),
+('DRAM-8G-DDR4-002', 'DRAM 8Gb DDR4 칩', 'DRAM'),
+('DRAM-16G-DDR5-003', 'DRAM 16Gb DDR5 칩', 'DRAM'),
+('DRAM-32G-DDR5-004', 'DRAM 32Gb DDR5 칩', 'DRAM'),
+('DRAM-4G-LP-005', 'Low-Power DRAM 4Gb', 'DRAM'),
+('DRAM-8G-MB-006', 'Mobile DRAM 8Gb', 'DRAM'),
+('DRAM-16G-GR-007', 'Graphics DRAM 16Gb', 'DRAM'),
+('DRAM-4G-EM-008', 'Embedded DRAM 4Gb', 'DRAM');
 
 -- Material 등록
 INSERT INTO material (code, name, current_stock, safety_stock) VALUES
@@ -143,4 +143,4 @@ INSERT INTO lot (code, material_id, location, status) VALUES
 
 -- Equipment 등록
 INSERT INTO equipment (code, name, type, location, status) VALUES
-('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', '정상');
+('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', 'RUN');

@@ -17,8 +17,6 @@ import {
   FaTrash,
 } from "react-icons/fa";
 
-const API_BASE = "http://localhost:8111/api/mes";
-
 // --- Helper: Map Order Data ---
 const mapOrder = (order) => {
   return {
@@ -262,7 +260,7 @@ const WorkOrderPage = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`${API_BASE}/order`);
+      const res = await axiosInstance.get(`/api/mes/order`);
       setOrders(res.data);
     } catch (err) {
       console.error("작업지시 조회 실패:", err);
@@ -285,7 +283,7 @@ const WorkOrderPage = () => {
         if (newStatus === "DONE") nextStatus = "COMPLETED";
         if (newStatus === "PAUSED") nextStatus = "PAUSED";
 
-        await axiosInstance.patch(`${API_BASE}/order/${id}/status`, {
+        await axiosInstance.patch(`/api/mes/order/${id}/status`, {
           status: nextStatus,
         });
         await fetchData();
@@ -304,7 +302,7 @@ const WorkOrderPage = () => {
     async (id) => {
       if (!window.confirm("정말 이 작업 지시를 삭제하시겠습니까?")) return;
       try {
-        await axiosInstance.delete(`${API_BASE}/order/${id}`);
+        await axiosInstance.delete(`/api/mes/order/${id}`);
         alert("삭제 완료");
         await fetchData();
       } catch (err) {

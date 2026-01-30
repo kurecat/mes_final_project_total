@@ -1,6 +1,7 @@
 // src/pages/admin/RolesPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
+import axiosInstance from "../../../api/axios";
 import {
   FaUserShield,
   FaCheck,
@@ -11,32 +12,32 @@ import {
   FaTimes,
 } from "react-icons/fa";
 
-// --- [Optimized] Sub-Components with React.memo ---
+// --- [최적화] 서브 컴포넌트 (React.memo) ---
 
-// 1. Role Card Item
+// 1. 역할 카드 아이템
 const RoleCardItem = React.memo(({ role, isActive, onSelect }) => {
   return (
     <RoleCard $active={isActive} onClick={() => onSelect(role)}>
       <RoleHeader>
         <RoleName>{role.name}</RoleName>
-        {role.isSystem && <SystemBadge>System</SystemBadge>}
+        {role.isSystem && <SystemBadge>시스템</SystemBadge>}
       </RoleHeader>
       <RoleDesc>{role.description}</RoleDesc>
       <RoleMeta>
-        <FaUserFriends /> {role.userCount} Users assigned
+        <FaUserFriends /> {role.userCount || 0}명 배정됨
       </RoleMeta>
     </RoleCard>
   );
 });
 
-// 2. Role List Panel
+// 2. 역할 목록 패널
 const RoleListPanel = React.memo(
   ({ roles, selectedRoleId, onSelectRole, onAddRole }) => {
     return (
       <RoleListPanelContainer>
         <PanelHeader>
-          <h3>Roles</h3>
-          <AddButton onClick={onAddRole}>
+          <h3>권한 그룹 (Roles)</h3>
+          <AddButton onClick={onAddRole} title="새 역할 추가">
             <FaPlus />
           </AddButton>
         </PanelHeader>
@@ -55,7 +56,7 @@ const RoleListPanel = React.memo(
   },
 );
 
-// 3. Permission Item
+// 3. 권한 체크박스 아이템
 const PermissionItem = React.memo(({ perm, isChecked, onToggle }) => {
   return (
     <PermCard $checked={isChecked} onClick={() => onToggle(perm.id)}>
@@ -70,7 +71,7 @@ const PermissionItem = React.memo(({ perm, isChecked, onToggle }) => {
   );
 });
 
-// 4. Permission Group Section
+// 4. 권한 그룹 섹션
 const PermissionGroup = React.memo(
   ({ groupName, permissions, editedPermissionIds, onToggle }) => {
     return (
@@ -91,7 +92,7 @@ const PermissionGroup = React.memo(
   },
 );
 
-// 5. Permission Matrix Panel
+// 5. 권한 매트릭스 패널 (우측 상세)
 const PermissionMatrix = React.memo(
   ({
     selectedRole,
@@ -105,7 +106,7 @@ const PermissionMatrix = React.memo(
     if (!selectedRole) {
       return (
         <PermissionPanel>
-          <EmptyState>Select a role to view permissions</EmptyState>
+          <EmptyState>권한을 설정할 역할을 선택해주세요.</EmptyState>
         </PermissionPanel>
       );
     }
@@ -116,18 +117,18 @@ const PermissionMatrix = React.memo(
           <div>
             <h2 style={{ margin: 0, color: "#333" }}>{selectedRole.name}</h2>
             <span style={{ fontSize: 13, color: "#666" }}>
-              Manage permissions for this role
+              이 역할에 대한 세부 권한을 설정합니다.
             </span>
           </div>
           <ActionGroup>
             {isDirty && (
               <SaveBtn onClick={onSave}>
-                <FaSave /> Save Changes
+                <FaSave /> 변경사항 저장
               </SaveBtn>
             )}
             {!selectedRole.isSystem && (
               <DeleteBtn onClick={() => onDelete(selectedRole.id)}>
-                <FaTrashAlt /> Delete Role
+                <FaTrashAlt /> 역할 삭제
               </DeleteBtn>
             )}
           </ActionGroup>
@@ -149,7 +150,7 @@ const PermissionMatrix = React.memo(
   },
 );
 
-// --- Modal Component ---
+// --- 모달 컴포넌트 ---
 const RoleModal = ({ isOpen, onClose, onSave }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -164,7 +165,7 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    if (!name.trim()) return alert("Role Name is required");
+    if (!name.trim()) return alert("역할 이름은 필수입니다.");
     onSave({ name, description });
     onClose();
   };
@@ -173,40 +174,40 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
     <Overlay>
       <ModalBox>
         <ModalHeader>
-          <h3>Add New Role</h3>
+          <h3>새 역할 추가</h3>
           <button onClick={onClose}>
             <FaTimes />
           </button>
         </ModalHeader>
         <ModalBody>
           <InputGroup>
-            <label>Role Name</label>
+            <label>역할 이름 (예: MANAGER)</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. MANAGER"
+              placeholder="역할 이름을 입력하세요"
             />
           </InputGroup>
           <InputGroup>
-            <label>Description</label>
+            <label>설명</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Role description..."
+              placeholder="이 역할에 대한 설명을 입력하세요..."
               rows={3}
             />
           </InputGroup>
         </ModalBody>
         <ModalFooter>
-          <CancelBtn onClick={onClose}>Cancel</CancelBtn>
-          <SubmitBtn onClick={handleSubmit}>Create Role</SubmitBtn>
+          <CancelBtn onClick={onClose}>취소</CancelBtn>
+          <SubmitBtn onClick={handleSubmit}>추가하기</SubmitBtn>
         </ModalFooter>
       </ModalBox>
     </Overlay>
   );
 };
 
-// --- Main Component ---
+// --- 메인 컴포넌트 ---
 
 const RolesPage = () => {
   const [roles, setRoles] = useState([]);
@@ -216,48 +217,59 @@ const RolesPage = () => {
   const [isDirty, setIsDirty] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Fetch Data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const baseUrl = "http://localhost:3001";
-        const [rolesRes, permsRes] = await Promise.all([
-          fetch(`${baseUrl}/roles`),
-          fetch(`${baseUrl}/permissions`),
-        ]);
+  // ============================
+  // 데이터 가져오기 (axios 사용)
+  // ============================
+  const fetchData = useCallback(async () => {
+    try {
+      // ★ [수정 2] axiosInstance 사용 (baseURL, Token 자동 처리)
+      // 백엔드 컨트롤러 경로: /api/mes/roles, /api/mes/permissions 라고 가정
+      // 만약 백엔드 경로가 다르다면 수정 필요 (예: /admin/roles)
+      const [rolesRes, permsRes] = await Promise.all([
+        axiosInstance.get("/roles"),
+        axiosInstance.get("/permissions"),
+      ]);
 
-        const rolesData = await rolesRes.json();
-        const permsData = await permsRes.json();
+      // axios는 .data 안에 실제 데이터가 있음 (.json() 불필요)
+      const rolesData = rolesRes.data || [];
+      const permsData = permsRes.data || [];
 
-        setRoles(rolesData);
-        setAllPermissions(permsData);
+      setRoles(rolesData);
+      setAllPermissions(permsData);
 
-        if (rolesData.length > 0) {
-          const firstRole = rolesData[0];
-          setSelectedRole(firstRole);
-          setEditedPermissionIds([...firstRole.permissionIds]);
-          setIsDirty(false);
-        }
-      } catch (err) {
-        console.error("Error loading roles:", err);
+      // 첫 번째 역할 자동 선택 (선택된 게 없을 때만)
+      if (rolesData.length > 0 && !selectedRole) {
+        const firstRole = rolesData[0];
+        setSelectedRole(firstRole);
+        setEditedPermissionIds([...(firstRole.permissionIds || [])]);
+        setIsDirty(false);
       }
-    };
-    fetchData();
-  }, []);
+    } catch (err) {
+      console.error("데이터 로딩 실패:", err);
+      // alert("권한 데이터를 불러오지 못했습니다.");
+    }
+  }, [selectedRole]);
 
-  // Handlers
+  useEffect(() => {
+    fetchData();
+  }, []); // 의존성 배열 비움 (최초 실행)
+
+  // ============================
+  // 핸들러 (API 연동 포함)
+  // ============================
+
   const handleSelectRole = useCallback(
     (role) => {
       if (isDirty) {
         if (
           !window.confirm(
-            "Unsaved changes will be lost. Do you want to continue?",
+            "저장하지 않은 변경사항이 있습니다. 무시하고 이동하시겠습니까?",
           )
         )
           return;
       }
       setSelectedRole(role);
-      setEditedPermissionIds([...role.permissionIds]);
+      setEditedPermissionIds([...(role.permissionIds || [])]);
       setIsDirty(false);
     },
     [isDirty],
@@ -265,7 +277,10 @@ const RolesPage = () => {
 
   const handleTogglePermission = useCallback(
     (permId) => {
-      if (selectedRole?.isSystem && selectedRole.id === "ROLE_ADMIN") return;
+      if (selectedRole?.isSystem && selectedRole.id === "ROLE_ADMIN") {
+        alert("시스템 최고 관리자의 권한은 수정할 수 없습니다.");
+        return;
+      }
 
       setEditedPermissionIds((prev) => {
         const exists = prev.includes(permId);
@@ -280,62 +295,93 @@ const RolesPage = () => {
     [selectedRole],
   );
 
-  const handleSavePermissions = useCallback(() => {
-    const updatedRoles = roles.map((r) =>
-      r.id === selectedRole.id
-        ? { ...r, permissionIds: editedPermissionIds }
-        : r,
-    );
-    setRoles(updatedRoles);
+  const handleSavePermissions = useCallback(async () => {
+    if (!selectedRole) return;
 
-    const updatedSelected = updatedRoles.find((r) => r.id === selectedRole.id);
-    setSelectedRole(updatedSelected);
-    setIsDirty(false);
+    try {
+      // ★ [수정 3] 권한 저장 API 호출 (PUT)
+      await axiosInstance.put(`/roles/${selectedRole.id}/permissions`, {
+        permissionIds: editedPermissionIds,
+      });
 
-    alert(`Permissions for ${selectedRole.name} saved successfully!`);
-  }, [roles, selectedRole, editedPermissionIds]);
-
-  // Add Role Logic
-  const handleAddRole = useCallback((newRoleData) => {
-    const newRole = {
-      id: `ROLE_${newRoleData.name.toUpperCase().replace(/\s+/g, "_")}`,
-      name: newRoleData.name,
-      description: newRoleData.description,
-      isSystem: false,
-      userCount: 0,
-      permissionIds: [], // Default empty permissions
-    };
-
-    setRoles((prev) => [...prev, newRole]);
-    setSelectedRole(newRole);
-    setEditedPermissionIds([]);
-    setIsDirty(false);
-  }, []);
-
-  // Delete Role Logic
-  const handleDeleteRole = useCallback(
-    (roleId) => {
-      if (!window.confirm("Are you sure you want to delete this role?")) return;
-
-      const updatedRoles = roles.filter((r) => r.id !== roleId);
+      // 로컬 상태 업데이트
+      const updatedRoles = roles.map((r) =>
+        r.id === selectedRole.id
+          ? { ...r, permissionIds: editedPermissionIds }
+          : r,
+      );
       setRoles(updatedRoles);
 
-      if (updatedRoles.length > 0) {
-        handleSelectRole(updatedRoles[0]);
-      } else {
-        setSelectedRole(null);
-        setEditedPermissionIds([]);
+      // 현재 선택된 역할 정보도 갱신
+      const updatedSelected = updatedRoles.find(
+        (r) => r.id === selectedRole.id,
+      );
+      setSelectedRole(updatedSelected);
+      setIsDirty(false);
+
+      alert(`'${selectedRole.name}' 권한이 저장되었습니다.`);
+    } catch (err) {
+      console.error("저장 실패:", err);
+      alert("저장에 실패했습니다.");
+    }
+  }, [roles, selectedRole, editedPermissionIds]);
+
+  const handleAddRole = useCallback(async (newRoleData) => {
+    try {
+      // ★ [수정 4] 역할 추가 API 호출 (POST)
+      const res = await axiosInstance.post("/roles", {
+        name: newRoleData.name,
+        description: newRoleData.description,
+      });
+
+      const newRole = res.data; // 서버에서 생성된 역할 객체 받기
+
+      setRoles((prev) => [...prev, newRole]);
+      setSelectedRole(newRole);
+      setEditedPermissionIds([]);
+      setIsDirty(false);
+      alert("새 역할이 생성되었습니다.");
+    } catch (err) {
+      console.error("역할 추가 실패:", err);
+      alert("역할 추가에 실패했습니다.");
+    }
+  }, []);
+
+  const handleDeleteRole = useCallback(
+    async (roleId) => {
+      if (!window.confirm("정말로 이 역할을 삭제하시겠습니까? (복구 불가)"))
+        return;
+
+      try {
+        // ★ [수정 5] 역할 삭제 API 호출 (DELETE)
+        await axiosInstance.delete(`/roles/${roleId}`);
+
+        const updatedRoles = roles.filter((r) => r.id !== roleId);
+        setRoles(updatedRoles);
+
+        if (updatedRoles.length > 0) {
+          handleSelectRole(updatedRoles[0]);
+        } else {
+          setSelectedRole(null);
+          setEditedPermissionIds([]);
+        }
+        alert("역할이 삭제되었습니다.");
+      } catch (err) {
+        console.error("삭제 실패:", err);
+        alert("역할 삭제 중 오류가 발생했습니다.");
       }
     },
     [roles, handleSelectRole],
   );
 
-  // Derived Data
+  // 데이터 가공 (그룹핑)
   const groupedPermissions = useMemo(() => {
     const groups = {};
     allPermissions.forEach((p) => {
-      if (!groups[p.group]) groups[p.group] = [];
-      groups[p.group].push(p);
+      // group 속성이 없으면 '기타'로 분류
+      const groupName = p.group || "기타 (Misc)";
+      if (!groups[groupName]) groups[groupName] = [];
+      groups[groupName].push(p);
     });
     return groups;
   }, [allPermissions]);
@@ -345,12 +391,12 @@ const RolesPage = () => {
       <Header>
         <TitleGroup>
           <FaUserShield size={24} color="#34495e" />
-          <h1>Role & Permission Management</h1>
+          <h1>역할 및 권한 관리</h1>
         </TitleGroup>
       </Header>
 
       <ContentArea>
-        {/* Left Panel */}
+        {/* 왼쪽 패널 */}
         <RoleListPanel
           roles={roles}
           selectedRoleId={selectedRole?.id}
@@ -358,7 +404,7 @@ const RolesPage = () => {
           onAddRole={() => setIsModalOpen(true)}
         />
 
-        {/* Right Panel */}
+        {/* 오른쪽 패널 */}
         <PermissionMatrix
           selectedRole={selectedRole}
           groupedPermissions={groupedPermissions}
@@ -370,7 +416,7 @@ const RolesPage = () => {
         />
       </ContentArea>
 
-      {/* Modal */}
+      {/* 모달 */}
       <RoleModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -382,7 +428,7 @@ const RolesPage = () => {
 
 export default RolesPage;
 
-// --- Styled Components ---
+// --- 스타일 컴포넌트 ---
 
 const Container = styled.div`
   width: 100%;

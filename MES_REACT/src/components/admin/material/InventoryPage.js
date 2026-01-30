@@ -16,11 +16,6 @@ import {
   FaArrowDown,
 } from "react-icons/fa";
 
-// =============================
-// API Base
-// =============================
-const API_BASE = "http://localhost:8111/api/mes";
-
 // --- Fallback Mock Data (Inventory) ---
 const MOCK_INVENTORY = [
   {

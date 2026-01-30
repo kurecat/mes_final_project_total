@@ -1,28 +1,19 @@
 // src/api/axios.js
 import axios from "axios";
 
+// 1. [중요] 최상단에서 인스턴스 생성
+const BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.0.77:8111";
+
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:8111/",
+  baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Request 인터셉터: 모든 요청에 AccessToken 자동 추가
-axiosInstance.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers["Authorization"] = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
-
-// Response 인터셉터: 401 에러 시 자동 재발급
-let isRefreshing = false; // 중복 재발급 방지 플래그
-let failedQueue = []; // 대기 중인 요청 큐
+// 2. 변수 선언
+let isRefreshing = false;
+let failedQueue = [];
 
 const processQueue = (error, token = null) => {
   failedQueue.forEach((prom) => {
@@ -35,21 +26,35 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+// 3. Request 인터셉터 (인스턴스 생성 후에 와야 함)
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("accessToken");
+
+    // ★ 디버깅용 로그 추가 (확인 후 삭제하세요)
+    console.log("📡 API 요청 출발:", config.url);
+    console.log("🔑 헤더에 실을 토큰:", token);
+
+    if (token) {
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+// 4. Response 인터셉터
 axiosInstance.interceptors.response.use(
-  (response) => response, // 성공 시 그대로 반환
+  (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // ★ [핵심 수정] 로그인 요청(/auth/login)에서 발생한 401은 재발급 로직을 타지 않고 즉시 실패 처리
-    // 이렇게 해야 LoginPage.js의 catch 블록으로 넘어가서 에러 메시지를 띄울 수 있음
     if (originalRequest.url.includes("/auth/login")) {
       return Promise.reject(error);
     }
 
-    // 401 에러이고, 아직 재시도하지 않은 요청인 경우
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        // 이미 재발급 중이면 큐에 대기
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -66,17 +71,19 @@ axiosInstance.interceptors.response.use(
       const refreshToken = localStorage.getItem("refreshToken");
       const accessToken = localStorage.getItem("accessToken");
 
-      if (!refreshToken || !accessToken) {
-        // 토큰이 없으면 로그인 페이지로
+      if (!refreshToken) {
+        // 토큰 없으면 로그아웃 처리
         localStorage.clear();
         window.location.href = "/";
         return Promise.reject(error);
       }
 
       try {
-        // 토큰 재발급 요청
-        const response = await axiosInstance.post(
-          "http://localhost:8111/auth/refresh",
+        // ★ 재발급 요청 시에는 순환 참조 방지를 위해 axiosInstance 대신
+        // 깡통 axios나 fetch를 쓰는 게 안전하지만,
+        // 여기서는 경로만 잘 맞추면 문제 없습니다.
+        const response = await axios.post(
+          `${BASE_URL}/auth/refresh`, // axiosInstance 대신 axios 직접 사용 (안전장치)
           {
             accessToken,
             refreshToken,
@@ -86,29 +93,22 @@ axiosInstance.interceptors.response.use(
         const newTokenData = response.data.data;
 
         if (newTokenData && newTokenData.accessToken) {
-          // 새 토큰 저장
           localStorage.setItem("accessToken", newTokenData.accessToken);
           localStorage.setItem("refreshToken", newTokenData.refreshToken);
 
-          // 대기 중인 요청들 처리
           processQueue(null, newTokenData.accessToken);
 
-          // 실패했던 원래 요청 재시도
           originalRequest.headers["Authorization"] =
             `Bearer ${newTokenData.accessToken}`;
           return axiosInstance(originalRequest);
         }
       } catch (refreshError) {
-        // 재발급 실패 시 로그아웃 처리
-        console.error("토큰 재발급 실패:", refreshError);
         processQueue(refreshError, null);
         localStorage.clear();
 
-        // 로그인 페이지가 아닐 때만 리다이렉트 (무한 새로고침 방지)
-        if (window.location.pathname !== "/") {
-          window.location.href = "/";
-        }
+        window.location.href = "/";
 
+        console.error("재발급 실패 원인 확인:", refreshError); // 에러 로그 추가
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

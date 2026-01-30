@@ -184,9 +184,7 @@ const ProductMasterPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      const res = await axiosInstance.get(
-        "http://localhost:8111/api/mes/master/product/list",
-      );
+      const res = await axiosInstance.get("/api/mes/master/product/list");
       setProducts(res.data);
     } catch (err) {
       console.error(err);
@@ -222,10 +220,7 @@ const ProductMasterPage = () => {
       spec: "TBD",
     };
     try {
-      await axiosInstance.post(
-        `http://localhost:8111/api/mes/master/product`,
-        newProduct,
-      );
+      await axiosInstance.post(`/api/mes/master/product`, newProduct);
     } catch (err) {
       console.error("Create Error", err);
     } finally {

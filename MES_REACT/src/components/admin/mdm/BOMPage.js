@@ -481,11 +481,17 @@ const BomPage = () => {
     setLoading(true);
     try {
       // API call logic...
+<<<<<<< HEAD
       const res = await axiosInstance.get(
         "http://localhost:8111/api/mes/master/bom/list",
       );
       setBomList(res.data);
       if (res.data.length > 0) setSelectedBom(res.data[0]);
+=======
+      const res = await axiosInstance.get("/api/mes/master/product/list");
+      setProductList(res.data);
+      if (res.data.length > 0) setSelectedProduct(res.data[0]);
+>>>>>>> a506be98d229dd77278e8290a584622ba81a642b
       setLoading(false);
     } catch (err) {
       console.error(err);
@@ -498,12 +504,18 @@ const BomPage = () => {
     try {
       if (selectedBom) {
         // API call logic...
+<<<<<<< HEAD
         const bomId = selectedBom.id;
         const res = await axiosInstance.get(
           `http://localhost:8111/api/mes/master/bom-item/${bomId}`,
         );
         setBomItems(res.data);
         console.log(res.data);
+=======
+        const productId = selectedProduct.id;
+        const res = await axiosInstance.get(`/api/mes/master/bom/${productId}`);
+        setBom(res.data);
+>>>>>>> a506be98d229dd77278e8290a584622ba81a642b
       }
       setLoading(false);
     } catch (err) {

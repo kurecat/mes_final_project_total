@@ -3,6 +3,7 @@ import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 import styled from "styled-components";
 import GlobalStyle from "./style/GlobalStyle";
+import BarcodeGenerator from "./pages/Auth/BarcodeGenerator";
 
 // --- Lazy Load Pages (Code Splitting) ---
 // 초기 로딩 속도 개선을 위해 각 페이지를 동적으로 불러옵니다.
@@ -98,7 +99,7 @@ const App = () => {
       <Suspense fallback={<LoadingScreen>Loading...</LoadingScreen>}>
         <Routes>
           <Route path="/" element={<LoginPage />} />
-
+          <Route path="/barcode-gen" element={<BarcodeGenerator />} />
           <Route path="/admin" element={<AdminMainPage />}>
             <Route index element={<DashboardPage />} />
 

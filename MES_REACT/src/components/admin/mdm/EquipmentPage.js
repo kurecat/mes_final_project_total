@@ -125,7 +125,7 @@ const EquipmentPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      // const res = await axiosInstance.get("http://localhost:3001/equipments");
+      // const res = await axiosInstance.get("/equipments");
       // setEquipments(res.data);
 
       setTimeout(() => {
