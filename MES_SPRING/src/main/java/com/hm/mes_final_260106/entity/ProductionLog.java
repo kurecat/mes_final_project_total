@@ -53,4 +53,13 @@ public class ProductionLog {
 
     @Column(name = "end_time")
     private LocalDateTime endTime;
+
+    @Column(length = 10)
+    private String level;   // INFO, WARN
+
+    @Column(length = 20)
+    private String category; // PRODUCTION
+
+    @Column(length = 255)
+    private String message;
 }

@@ -7,13 +7,12 @@ import {
   FaFilter,
   FaExclamationTriangle,
   FaInfoCircle,
-  FaBug,
   FaDownload,
   FaChevronDown,
   FaChevronUp,
 } from "react-icons/fa";
 
-// --- Helper & Sub-Components ---
+// --- Helper ---
 const getLevelBadge = (level) => {
   switch (level) {
     case "INFO":
@@ -28,12 +27,6 @@ const getLevelBadge = (level) => {
           <FaExclamationTriangle /> WARN
         </Badge>
       );
-    case "ERROR":
-      return (
-        <Badge $color="#e74c3c" $bg="#fdedec">
-          <FaBug /> ERROR
-        </Badge>
-      );
     default:
       return (
         <Badge $color="#95a5a6" $bg="#f4f6f7">
@@ -43,13 +36,13 @@ const getLevelBadge = (level) => {
   }
 };
 
+// --- Header ---
 const LogHeader = React.memo(
   ({ levelFilter, onFilterChange, searchTerm, onSearchChange, onExport }) => (
     <Header>
       <TitleGroup>
-        {/* [복구] 근본 남색 아이콘 */}
         <FaServer size={22} color="#34495e" />
-        <h1>Production Logs</h1>
+        <h1>Production Event Logs</h1>
       </TitleGroup>
       <Controls>
         <FilterGroup>
@@ -63,12 +56,11 @@ const LogHeader = React.memo(
         <SearchBox>
           <FaSearch color="#aaa" />
           <input
-            placeholder="Search..."
+            placeholder="Search message..."
             value={searchTerm}
             onChange={onSearchChange}
           />
         </SearchBox>
-        {/* [복구] 근본 남색 버튼 */}
         <DownloadBtn onClick={onExport}>
           <FaDownload /> Export
         </DownloadBtn>
@@ -77,30 +69,21 @@ const LogHeader = React.memo(
   ),
 );
 
+// --- Table Row ---
 const LogTableRow = React.memo(({ log, isExpanded, onToggleExpand }) => (
   <>
-    <LogRow
-      $level={log.level}
-      onClick={() => onToggleExpand(log.id)}
-      $expanded={isExpanded}
-    >
+    <LogRow onClick={() => onToggleExpand(log.id)} $expanded={isExpanded}>
       <td className="mono">{log.timestamp}</td>
       <td>{getLevelBadge(log.level)}</td>
       <td className="category">{log.category}</td>
       <td className="message">{log.message}</td>
-      <td>{log.userId}</td>
-
-      <td>
-        {isExpanded ? (
-          <FaChevronUp color="#999" />
-        ) : (
-          <FaChevronDown color="#ccc" />
-        )}
-      </td>
+      <td>{log.workerName || "-"}</td>
+      <td>{isExpanded ? <FaChevronUp /> : <FaChevronDown />}</td>
     </LogRow>
+
     {isExpanded && (
       <DetailRow>
-        <td colSpan="7">
+        <td colSpan="6">
           <DetailBox>
             <div className="label">Log ID: {log.id}</div>
             <pre>{JSON.stringify(log, null, 2)}</pre>
@@ -111,6 +94,7 @@ const LogTableRow = React.memo(({ log, isExpanded, onToggleExpand }) => (
   </>
 ));
 
+// --- Table ---
 const LogTableComponent = React.memo(
   ({ logs, expandedLogId, onToggleExpand }) => (
     <TableContainer>
@@ -121,8 +105,7 @@ const LogTableComponent = React.memo(
             <th width="100">Level</th>
             <th width="120">Category</th>
             <th>Message</th>
-            <th width="120">User</th>
-
+            <th width="120">Worker</th>
             <th width="50"></th>
           </tr>
         </thead>
@@ -138,7 +121,7 @@ const LogTableComponent = React.memo(
             ))
           ) : (
             <tr>
-              <td colSpan="7" className="empty">
+              <td colSpan="6" className="empty">
                 No logs found.
               </td>
             </tr>
@@ -149,8 +132,7 @@ const LogTableComponent = React.memo(
   ),
 );
 
-// --- Main Component ---
-
+// --- Main ---
 const LogsPage = () => {
   const [logs, setLogs] = useState([]);
   const [levelFilter, setLevelFilter] = useState("ALL");
@@ -159,47 +141,34 @@ const LogsPage = () => {
 
   useEffect(() => {
     api
-      .get("/api/mes/system/log")
+      .get("/api/mes/event-log")
       .then((res) => {
-        const mappedData = res.data.map((item) => ({
+        const mapped = res.data.map((item) => ({
           id: item.id,
-          timestamp: new Date(item.loginTime).toLocaleString(),
-          level: item.status === "SUCCESS" ? "INFO" : "WARN",
-          category: "LOGIN",
-          message: `Login ${item.status}`,
-          userId: item.email,
-          userIp: item.ipAddress,
-          details: `Login attempt by ${item.email}`,
+          timestamp: new Date(item.timestamp).toLocaleString(),
+          level: item.level,
+          category: item.category,
+          message: item.message,
+          workerName: item.workerName,
         }));
-        setLogs(mappedData);
+        setLogs(mapped);
       })
       .catch((err) => console.error("Failed to fetch logs:", err));
   }, []);
 
   const toggleExpand = useCallback(
-    (id) => setExpandedLogId((prevId) => (prevId === id ? null : id)),
+    (id) => setExpandedLogId((prev) => (prev === id ? null : id)),
     [],
   );
-  const handleFilterChange = useCallback(
-    (e) => setLevelFilter(e.target.value),
-    [],
-  );
-  const handleSearchChange = useCallback(
-    (e) => setSearchTerm(e.target.value),
-    [],
-  );
-  const handleExport = useCallback(() => alert("Exporting logs..."), []);
 
   const filteredLogs = useMemo(() => {
     let result = logs;
     if (levelFilter !== "ALL")
       result = result.filter((log) => log.level === levelFilter);
     if (searchTerm) {
-      const lowerTerm = searchTerm.toLowerCase();
-      result = result.filter(
-        (log) =>
-          log.message.toLowerCase().includes(lowerTerm) ||
-          log.userId.toLowerCase().includes(lowerTerm),
+      const lower = searchTerm.toLowerCase();
+      result = result.filter((log) =>
+        log.message.toLowerCase().includes(lower),
       );
     }
     return result;
@@ -209,10 +178,10 @@ const LogsPage = () => {
     <Container>
       <LogHeader
         levelFilter={levelFilter}
-        onFilterChange={handleFilterChange}
+        onFilterChange={(e) => setLevelFilter(e.target.value)}
         searchTerm={searchTerm}
-        onSearchChange={handleSearchChange}
-        onExport={handleExport}
+        onSearchChange={(e) => setSearchTerm(e.target.value)}
+        onExport={() => alert("Exporting...")}
       />
       <LogTableComponent
         logs={filteredLogs}

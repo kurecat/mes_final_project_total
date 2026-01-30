@@ -394,9 +394,6 @@ public class ProductionService {
 
         orderRepo.save(workOrder);
 
-// ★ KPI/차트용 실적 누적
-        updateProductionResult(workOrder, product, 1, 0);
-
     }
 
     // =========================
@@ -489,6 +486,38 @@ public class ProductionService {
             );
         }).toList();
     }
+    // =========================
+    // 이벤트 로그 저장
+    // =========================
+    public void saveEventLog(EventLogReqDto dto) {
+
+        Worker worker = null;
+        if (dto.getWorkerId() != null) {
+            worker = workerRepo.findById(dto.getWorkerId()).orElse(null);
+        }
+
+        ProductionLog log = ProductionLog.builder()
+                .startTime(LocalDateTime.now())
+                .level(dto.getLevel())
+                .category("PRODUCTION")
+                .message(dto.getMessage())
+                .build();
+
+        logRepo.save(log);
+    }
+
+    // =========================
+    // 이벤트 로그 조회
+    // =========================
+    @Transactional(readOnly = true)
+    public List<EventLogResDto> getEventLogs() {
+        return logRepo.findByMessageIsNotNullOrderByStartTimeDesc()
+                .stream()
+                .map(EventLogResDto::fromEntity)
+                .toList();
+    }
+
+
     // 작업자 조회
     @Transactional(readOnly = true)
     public List<WorkerResDto> getAllWorkers() {

@@ -198,6 +198,23 @@ public class MesController {
                 productionService.getWorkOrderPerformanceList(date, line)
         );
     }
+    // =========================
+    // 이벤트 로그 등록
+    // =========================
+    @PostMapping("/event-log")
+    public ResponseEntity<?> createEventLog(@RequestBody EventLogReqDto dto) {
+        productionService.saveEventLog(dto);
+        return ResponseEntity.ok().body("Event log saved");
+    }
+
+    // =========================
+    // 이벤트 로그 조회
+    // =========================
+    @GetMapping("/event-log")
+    public ResponseEntity<List<EventLogResDto>> getEventLogs() {
+        return ResponseEntity.ok(productionService.getEventLogs());
+    }
+
     // 작업자 조회
     @GetMapping("/worker/list")
     public ResponseEntity<List<WorkerResDto>> getWorkerList() {
