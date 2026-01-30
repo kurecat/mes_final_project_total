@@ -184,10 +184,13 @@ const StandardTableRow = React.memo(({ doc, onClick }) => {
   return (
     <tr onClick={() => onClick(doc)}>
       <DocIdCell>{doc.id}</DocIdCell>
-      <TitleCell>
-        <FaFilePdf color="#e74c3c" style={{ marginRight: 8 }} />
-        {doc.title}
-      </TitleCell>
+      {/* TitleCell 대신 일반 td 사용하고 내부에 스타일 적용 */}
+      <td>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <FaFilePdf color="#e74c3c" style={{ marginRight: 8 }} />
+          <span style={{ fontWeight: 500 }}>{doc.title}</span>
+        </div>
+      </td>
       <td>
         <CategoryBadge>{doc.category}</CategoryBadge>
       </td>
@@ -736,7 +739,7 @@ const Table = styled.table`
 
   th {
     background: #f8f9fa;
-    padding: 15px;
+    padding: 12px 15px; /* 패딩 조정 */
     text-align: left;
     font-size: 13px;
     color: #666;
@@ -745,11 +748,11 @@ const Table = styled.table`
   }
 
   td {
-    padding: 15px;
+    padding: 12px 15px; /* 패딩 조정 */
     border-bottom: 1px solid #eee;
     font-size: 14px;
     color: #333;
-    vertical-align: middle;
+    vertical-align: middle; /* 수직 정렬 중앙 */
   }
 
   tbody tr {
@@ -765,12 +768,6 @@ const DocIdCell = styled.td`
   font-family: monospace;
   font-weight: bold;
   color: #34495e !important;
-`;
-
-const TitleCell = styled.td`
-  font-weight: 500;
-  display: flex;
-  align-items: center;
 `;
 
 const CategoryBadge = styled.span`
