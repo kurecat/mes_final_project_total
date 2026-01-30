@@ -30,11 +30,11 @@ const AdminSideBar = () => {
   const MENU_LIST = [
     {
       id: "dashboard",
-      title: "모니터링/대시보드",
+      title: "대시보드",
       icon: <FaChartPie />,
       subMenus: [
         { title: "종합 상황판", path: "/admin/dashboard" },
-        { title: "KPI 분석", path: "/admin/dashboard/kpi" },
+        // { title: "KPI 분석", path: "/admin/dashboard/kpi" },
       ],
     },
     {

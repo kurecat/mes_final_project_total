@@ -226,8 +226,8 @@ const RolesPage = () => {
       // 백엔드 컨트롤러 경로: /api/mes/roles, /api/mes/permissions 라고 가정
       // 만약 백엔드 경로가 다르다면 수정 필요 (예: /admin/roles)
       const [rolesRes, permsRes] = await Promise.all([
-        axiosInstance.get("/roles"),
-        axiosInstance.get("/permissions"),
+        axiosInstance.get("/api/mes/system/roles"),
+        axiosInstance.get("/api/mes/system/permissions"),
       ]);
 
       // axios는 .data 안에 실제 데이터가 있음 (.json() 불필요)
@@ -300,9 +300,12 @@ const RolesPage = () => {
 
     try {
       // ★ [수정 3] 권한 저장 API 호출 (PUT)
-      await axiosInstance.put(`/roles/${selectedRole.id}/permissions`, {
-        permissionIds: editedPermissionIds,
-      });
+      await axiosInstance.put(
+        `/api/mes/system/roles/${selectedRole.id}/permissions`,
+        {
+          permissionIds: editedPermissionIds,
+        },
+      );
 
       // 로컬 상태 업데이트
       const updatedRoles = roles.map((r) =>
@@ -329,7 +332,7 @@ const RolesPage = () => {
   const handleAddRole = useCallback(async (newRoleData) => {
     try {
       // ★ [수정 4] 역할 추가 API 호출 (POST)
-      const res = await axiosInstance.post("/roles", {
+      const res = await axiosInstance.post("/api/mes/system/roles", {
         name: newRoleData.name,
         description: newRoleData.description,
       });
@@ -354,7 +357,7 @@ const RolesPage = () => {
 
       try {
         // ★ [수정 5] 역할 삭제 API 호출 (DELETE)
-        await axiosInstance.delete(`/roles/${roleId}`);
+        await axiosInstance.delete(`/api/mes/system/roles/${roleId}`);
 
         const updatedRoles = roles.filter((r) => r.id !== roleId);
         setRoles(updatedRoles);

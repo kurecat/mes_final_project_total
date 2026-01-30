@@ -4,6 +4,7 @@ import { Routes, Route } from "react-router-dom";
 import styled from "styled-components";
 import GlobalStyle from "./style/GlobalStyle";
 import BarcodeGenerator from "./pages/Auth/BarcodeGenerator";
+import Test from "./Test";
 
 // --- Lazy Load Pages (Code Splitting) ---
 // 초기 로딩 속도 개선을 위해 각 페이지를 동적으로 불러옵니다.
@@ -100,6 +101,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/barcode-gen" element={<BarcodeGenerator />} />
+          <Route path="/test" element={<Test />} />
           <Route path="/admin" element={<AdminMainPage />}>
             <Route index element={<DashboardPage />} />
 
