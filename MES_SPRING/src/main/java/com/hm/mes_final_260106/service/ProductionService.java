@@ -155,6 +155,40 @@ public class ProductionService {
 
         return orderRepo.save(order);
     }
+    // 작업지시 로그 기록
+    @Transactional
+    public void createEventLog(ProductionLogEventReqDto dto) {
+        String level = "INFO";
+        String message = "";
+
+        if ("START".equals(dto.getActionType())) {
+            level = "INFO";
+            message = "작업을 시작했습니다";
+        } else if ("PAUSE".equals(dto.getActionType())) {
+            level = "WARN";
+            message = "작업중단사유를 작성해주세요";
+        } else if ("FINISH".equals(dto.getActionType())) {
+            level = "INFO";
+            message = "작업이 완료되었습니다";
+        }
+
+        WorkOrder workOrder = orderRepo.findById(dto.getWorkOrderId())
+                .orElseThrow(() -> new RuntimeException("WorkOrder not found"));
+
+        ProductionLog log = ProductionLog.builder()
+                .workOrder(workOrder)
+                .level(level)
+                .category("PRODUCTION")
+                .message(message)
+                .startTime(LocalDateTime.now())
+                .resultDate(LocalDate.now())
+                .resultQty(0)
+                .status(com.hm.mes_final_260106.constant.ProductionStatus.RUN)
+                .build();
+
+        logRepo.save(log);
+    }
+
 
     // =========================
     // 4) 작업지시 삭제

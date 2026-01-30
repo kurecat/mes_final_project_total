@@ -102,6 +102,18 @@ public class MesController {
         WorkOrder order = productionService.finishWorkOrder(id);
         return ResponseEntity.ok(WorkOrderResDto.fromEntity(order));
     }
+    // 작업지시 로그 기록
+    @PostMapping("/production-log/event")
+    public ResponseEntity<?> createLog(@RequestBody ProductionLogEventReqDto dto) {
+        productionService.createEventLog(dto);
+        return ResponseEntity.ok().build();
+    }
+    // 작업지시(시작,중단,완료) 로그 기록 전송
+    @PostMapping("/log")
+    public ResponseEntity<String> createEventLog(@RequestBody ProductionLogEventReqDto dto) {
+        productionService.createEventLog(dto);
+        return ResponseEntity.ok("Log recorded successfully");
+    }
 
     // =========================
     // 작업지시 삭제

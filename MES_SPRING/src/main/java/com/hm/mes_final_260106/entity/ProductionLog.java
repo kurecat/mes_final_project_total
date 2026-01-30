@@ -62,4 +62,11 @@ public class ProductionLog {
 
     @Column(length = 255)
     private String message;
+
+    private LocalDateTime logTime;
+
+    @PrePersist
+    public void prePersist() {
+        this.logTime = LocalDateTime.now();
+    }
 }
