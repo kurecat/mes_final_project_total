@@ -25,6 +25,9 @@ const ProductionPlanPage = lazy(
 const WorkOrderPage = lazy(
   () => import("./components/admin/production/WorkOrderPage"),
 );
+const ProductionLogPage = lazy(
+  () => import("./components/admin/production/ProductionLogPage"),
+);
 const PerformancePage = lazy(
   () => import("./components/admin/production/PerformancePage"),
 );
@@ -113,6 +116,10 @@ const App = () => {
             <Route
               path="production/performance"
               element={<PerformancePage />}
+            />
+            <Route
+              path="production/productionlogs"
+              element={<ProductionLogPage />}
             />
             <Route path="production/worker" element={<WorkerPage />} />
             <Route path="production/barcode" element={<BarcodePage />} />

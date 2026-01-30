@@ -24,7 +24,8 @@ INSERT INTO material (code, name, current_stock, safety_stock) VALUES
 ('MAT-WIRE', '금 와이어', 500,600),
 ('MAT-LEADFRAME', '리드프레임', 400,500),
 ('MAT-ENCAPSULANT', '에폭시 봉지재', 250,300),
-('MAT-WAFER', 'DRAM 웨이퍼', 100,100);
+('MAT-WAFER', 'DRAM 웨이퍼', 100,100),
+('8801234567891', '웨이퍼 기판', 500, 1000);
 
 -- MaterialTransaction 등록 (초기 입고 기록)
 INSERT INTO material_transaction
@@ -144,3 +145,51 @@ INSERT INTO lot (code, material_id, location, status) VALUES
 -- Equipment 등록
 INSERT INTO equipment (code, name, type, location, status) VALUES
 ('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', 'RUN');
+
+-- 작업지시 등록
+INSERT INTO work_order
+(
+  work_order_number,
+  product_id,
+  target_qty,
+  current_qty,
+  status,
+  assigned_machine_id,
+  target_line
+)
+VALUES
+('WO-20260120-1001', 1, 1200, 1150, 'IN_PROGRESS', 'MACHINE-01', 'Fab-Line-A');
+
+-- 생산로그 등록
+INSERT INTO production_log (
+  work_order_id, equipment_id, member_id, process_step, lot_no,
+  result_qty, defect_qty, status, result_date, start_time, end_time
+) VALUES
+(1, 1, 1, 'PHOTO', 'LOT-001', 380, 5, 'DONE', '2026-01-29', '2026-01-28 06:10:00', '2026-01-28 06:55:00'),
+(1, 1, 1, 'PHOTO', 'LOT-002', 440, 3, 'DONE', '2026-01-29', '2026-01-28 08:05:00', '2026-01-28 08:50:00'),
+(1, 1, 1, 'ETCH',  'LOT-003', 510, 8, 'DONE', '2026-01-29', '2026-01-28 10:02:00', '2026-01-28 10:48:00'),
+(1, 1, 1, 'ETCH',  'LOT-004', 200, 2, 'DONE', '2026-01-29', '2026-01-28 12:10:00', '2026-01-28 12:40:00'),
+(1, 1, 1, 'CMP',   'LOT-005', 480, 4, 'DONE', '2026-01-29', '2026-01-28 14:03:00', '2026-01-28 14:51:00'),
+(1, 1, 1, 'EDS',   'LOT-006', 495, 1, 'DONE', '2026-01-29', '2026-01-28 16:00:00', '2026-01-28 16:45:00');
+
+
+-- Production_result 등록
+INSERT INTO production_result
+(defect_qty, good_qty, plan_qty, result_date, result_hour, created_at, product_id, line)
+VALUES
+-- Fab (product_id=1 : DDR5 1znm Wafer)
+(1, 48, 50, '2026-01-28', 8,  '2026-01-20 08:05:00', 1, 'Fab-Line-A'),
+(0, 55, 55, '2026-01-28', 9,  '2026-01-20 09:05:00', 1, 'Fab-Line-A'),
+(2, 58, 60, '2026-01-29', 10, '2026-01-20 10:05:00', 1, 'Fab-Line-A'),
+(0, 62, 60, '2026-01-30', 11, '2026-01-20 11:05:00', 1, 'Fab-Line-A'),
+
+-- EDS (product_id=3 : 16Gb DDR5 SDRAM)
+(5, 4700, 4800, '2026-01-28', 12, '2026-01-20 12:05:00', 3, 'EDS-Line-01'),
+(8, 4850, 4900, '2026-01-29', 13, '2026-01-20 13:05:00', 3, 'EDS-Line-01'),
+(12, 4600, 4800, '2026-01-30', 14, '2026-01-20 14:05:00', 3, 'EDS-Line-01'),
+
+-- Module (product_id=5 : DDR5 32GB UDIMM)
+(0, 180, 180, '2026-01-28', 15, '2026-01-20 15:05:00', 5, 'Mod-Line-C'),
+(1, 195, 200, '2026-01-29', 16, '2026-01-20 16:05:00', 5, 'Mod-Line-C'),
+(0, 210, 210, '2026-01-30', 17, '2026-01-20 17:05:00', 5, 'Mod-Line-C');
+

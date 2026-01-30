@@ -389,9 +389,14 @@ public class ProductionService {
         }
 
         log.info("[생산 보고] 제품:{} 상태:{} 수량:{}/{}",
-                workOrder.getProduct().getCode(), workOrder.getStatus(), workOrder.getCurrentQty(), workOrder.getTargetQty());
+                workOrder.getProduct().getCode(), workOrder.getStatus(),
+                workOrder.getCurrentQty(), workOrder.getTargetQty());
 
         orderRepo.save(workOrder);
+
+// ★ KPI/차트용 실적 누적
+        updateProductionResult(workOrder, product, 1, 0);
+
     }
 
     // =========================

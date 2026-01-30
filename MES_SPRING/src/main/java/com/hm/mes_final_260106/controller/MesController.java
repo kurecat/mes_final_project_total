@@ -25,6 +25,7 @@ import java.util.List;
 @RequestMapping("/api/mes")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*", allowedHeaders = "*")
+//@CrossOrigin(origins = "http://localhost:3000")
 @Slf4j
 public class MesController {
 

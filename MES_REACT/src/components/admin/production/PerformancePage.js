@@ -71,6 +71,10 @@ const MOCK_LIST = [
     status: "COMPLETED",
   },
 ];
+const getToday = () => {
+  const today = new Date();
+  return today.toISOString().split("T")[0];
+};
 
 // --- Sub-Components ---
 
@@ -309,7 +313,7 @@ const PerformancePage = () => {
   const [listData, setListData] = useState(MOCK_LIST);
   const [loading, setLoading] = useState(true);
 
-  const [date, setDate] = useState("2026-01-20");
+  const [date, setDate] = useState(getToday());
   const [selectedLine, setSelectedLine] = useState("ALL");
 
   const [summary, setSummary] = useState({
