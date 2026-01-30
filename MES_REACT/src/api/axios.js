@@ -85,8 +85,8 @@ axiosInstance.interceptors.response.use(
         const response = await axios.post(
           `${BASE_URL}/auth/refresh`, // axiosInstance 대신 axios 직접 사용 (안전장치)
           {
-            accessToken,
-            refreshToken,
+            accessToken: accessToken, // 백엔드 TokenRequestDto 필드명과 일치
+            refreshToken: refreshToken,
           },
         );
 

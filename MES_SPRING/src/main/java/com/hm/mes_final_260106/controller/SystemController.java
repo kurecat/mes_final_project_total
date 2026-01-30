@@ -37,12 +37,11 @@ public class SystemController {
         return ResponseEntity.ok(systemService.getLogs());
     }
 
-
     // ==========================================
     // 3. 권한/그룹 관리 (Role Management)
     // ==========================================
     // 그냥 회원 리스트 뿌려주고, 프론트에서 권한(ROLE_ADMIN 등) 보여주면 그게 권한관리임
-    @GetMapping("/role")
+    @GetMapping("/roles")
     public ResponseEntity<?> getMemberRoles() {
         return ResponseEntity.ok(systemService.getMembers());
     }
