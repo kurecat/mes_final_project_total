@@ -577,448 +577,447 @@ export default CodesPage;
 // ==========================================
 
 const Container = styled.div`
-  width: 100%;
-  height: 100%;
-  padding: 20px;
-  background-color: #f5f6fa;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background-color: #f5f6fa;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
 `;
 
 const Header = styled.div`
-  margin-bottom: 20px;
-  flex-shrink: 0;
+  margin-bottom: 20px;
+  flex-shrink: 0;
 `;
 
 const TitleGroup = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  h1 {
-    font-size: 24px;
-    color: #2c3e50;
-    margin: 0;
-  }
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  h1 {
+    font-size: 24px;
+    color: #2c3e50;
+    margin: 0;
+  }
 `;
 
 const SplitView = styled.div`
-  display: flex;
-  gap: 20px;
-  flex: 1;
-  overflow: hidden;
-  min-height: 0;
+  display: flex;
+  gap: 20px;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 `;
 
 const LeftPanel = styled.div`
-  width: 300px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  width: 300px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 `;
 
 const PanelHeader = styled.div`
-  padding: 15px 20px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-shrink: 0;
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    color: #333;
-  }
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+  }
 `;
 
 const GroupList = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
 `;
 
 const GroupItem = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 12px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-bottom: 5px;
-  background: ${(props) => (props.$active ? "#e8f0fe" : "transparent")};
-  border: 1px solid ${(props) => (props.$active ? "#3498db" : "transparent")};
-
-  &:hover {
-    background: ${(props) => (props.$active ? "#e8f0fe" : "#f8f9fa")};
-  }
+  display: flex;
+  align-items: center;
+  padding: 12px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 5px;
+  background: ${(props) => (props.$active ? "#e8f0fe" : "transparent")};
+  border: 1px solid ${(props) => (props.$active ? "#3498db" : "transparent")};
+  &:hover {
+    background: ${(props) => (props.$active ? "#e8f0fe" : "#f8f9fa")};
+  }
 `;
 
 const IconWrapper = styled.div`
-  margin-right: 12px;
-  font-size: 18px;
-  display: flex;
-  align-items: center;
+  margin-right: 12px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
 `;
 
 const GroupInfo = styled.div`
-  flex: 1;
-  overflow: hidden;
+  flex: 1;
+  overflow: hidden;
 `;
 
 const GroupName = styled.div`
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const GroupDesc = styled.div`
-  font-size: 11px;
-  color: #888;
-  margin-top: 2px;
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
 `;
 
 const SystemBadge = styled.span`
-  font-size: 10px;
-  background: #eee;
-  color: #666;
-  padding: 2px 5px;
-  border-radius: 4px;
-  font-weight: bold;
+  font-size: 10px;
+  background: #eee;
+  color: #666;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: bold;
 `;
 
 const RightPanel = styled.div`
-  flex: 1;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 `;
 
 const SubText = styled.span`
-  font-size: 13px;
-  color: #888;
-  margin-left: 10px;
-  border-left: 1px solid #ddd;
-  padding-left: 10px;
+  font-size: 13px;
+  color: #888;
+  margin-left: 10px;
+  border-left: 1px solid #ddd;
+  padding-left: 10px;
 `;
 
 const ActionArea = styled.div`
-  display: flex;
-  gap: 10px;
+  display: flex;
+  gap: 10px;
 `;
 
 const SearchBox = styled.div`
-  display: flex;
-  align-items: center;
-  background: #f8f9fa;
-  padding: 6px 12px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
 
-  input {
-    border: none;
-    background: transparent;
-    margin-left: 8px;
-    outline: none;
-    font-size: 13px;
-    width: 150px;
-  }
+  input {
+    border: none;
+    background: transparent;
+    margin-left: 8px;
+    outline: none;
+    font-size: 13px;
+    width: 150px;
+  }
 `;
 
 const TableContainer = styled.div`
-  flex: 1;
-  overflow: auto;
-  padding: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 0;
 `;
 
 const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  white-space: nowrap;
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
 
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 5;
-    background: #fcfcfc;
-  }
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #fcfcfc;
+  }
 
-  th {
-    text-align: left;
-    background: #fcfcfc;
-    padding: 12px 20px;
-    font-size: 12px;
-    color: #888;
-    border-bottom: 1px solid #eee;
-  }
+  th {
+    text-align: left;
+    background: #fcfcfc;
+    padding: 12px 20px;
+    font-size: 12px;
+    color: #888;
+    border-bottom: 1px solid #eee;
+  }
 
-  td {
-    padding: 12px 20px;
-    border-bottom: 1px solid #f5f5f5;
-    font-size: 14px;
-    color: #333;
-    vertical-align: middle;
-  }
+  td {
+    padding: 12px 20px;
+    border-bottom: 1px solid #f5f5f5;
+    font-size: 14px;
+    color: #333;
+    vertical-align: middle;
+  }
 
-  /* Editing Row Style */
-  tr.editing td {
-    background: #fdfdfd;
-    border-bottom: 1px solid #3498db;
-  }
+  /* Editing Row Style */
+  tr.editing td {
+    background: #fdfdfd;
+    border-bottom: 1px solid #3498db;
+  }
 
-  tr.inactive td {
-    color: #aaa;
-    background: #fdfdfd;
-  }
+  tr.inactive td {
+    color: #aaa;
+    background: #fdfdfd;
+  }
 
-  td.empty {
-    text-align: center;
-    padding: 40px;
-    color: #aaa;
-  }
+  td.empty {
+    text-align: center;
+    padding: 40px;
+    color: #aaa;
+  }
 `;
 
 const CodeTag = styled.span`
-  font-family: monospace;
-  background: #eff3f8;
-  color: #2c3e50;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 13px;
+  font-family: monospace;
+  background: #eff3f8;
+  color: #2c3e50;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
 `;
 
 const ToggleSwitch = styled.div`
-  width: 36px;
-  height: 20px;
-  background: ${(props) => (props.$active ? "#2ecc71" : "#ddd")};
-  border-radius: 10px;
-  position: relative;
-  cursor: pointer;
-  transition: background 0.3s;
+  width: 36px;
+  height: 20px;
+  background: ${(props) => (props.$active ? "#2ecc71" : "#ddd")};
+  border-radius: 10px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
 
-  .knob {
-    width: 16px;
-    height: 16px;
-    background: white;
-    border-radius: 50%;
-    position: absolute;
-    top: 2px;
-    left: ${(props) => (props.$active ? "18px" : "2px")};
-    transition: left 0.3s;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-  }
+  .knob {
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: ${(props) => (props.$active ? "18px" : "2px")};
+    transition: left 0.3s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  }
 `;
 
 const ActionBtnGroup = styled.div`
-  display: flex;
-  gap: 8px;
+  display: flex;
+  gap: 8px;
 `;
 
 const ActionBtn = styled.button`
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: #7f8c8d;
-  padding: 5px;
-  border-radius: 4px;
-  &:hover {
-    background: #eee;
-    color: #333;
-  }
-  &.delete:hover {
-    background: #fee;
-    color: #e74c3c;
-  }
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #7f8c8d;
+  padding: 5px;
+  border-radius: 4px;
+  &:hover {
+    background: #eee;
+    color: #333;
+  }
+  &.delete:hover {
+    background: #fee;
+    color: #e74c3c;
+  }
 `;
 
 const IconButton = styled.button`
-  border: 1px solid #ddd;
-  background: white;
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #555;
-  transition: all 0.2s;
-  &:hover {
-    background: #f0f0f0;
-    border-color: #bbb;
-    color: #333;
-  }
+  border: 1px solid #ddd;
+  background: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  transition: all 0.2s;
+  &:hover {
+    background: #f0f0f0;
+    border-color: #bbb;
+    color: #333;
+  }
 `;
 
 const PrimaryBtn = styled.button`
-  background: #1a4f8b;
-  color: white;
-  border: none;
-  padding: 0 16px;
-  height: 34px;
-  border-radius: 4px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: background 0.2s;
-  &:hover {
-    background: #133b6b;
-  }
-  &:disabled {
-    background: #9aaec4;
-    cursor: not-allowed;
-  }
+  background: #1a4f8b;
+  color: white;
+  border: none;
+  padding: 0 16px;
+  height: 34px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+  &:hover {
+    background: #133b6b;
+  }
+  &:disabled {
+    background: #9aaec4;
+    cursor: not-allowed;
+  }
 `;
 
 const TableInput = styled.input`
-  width: ${(props) => props.width || "100%"};
-  padding: 6px 8px;
-  border: 1px solid #3498db;
-  border-radius: 4px;
-  font-size: 14px;
-  outline: none;
-  background: white;
-  box-sizing: border-box;
+  width: ${(props) => props.width || "100%"};
+  padding: 6px 8px;
+  border: 1px solid #3498db;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  background: white;
+  box-sizing: border-box;
 
-  &:focus {
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
-  }
+  &:focus {
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  }
 `;
 
 // ... Modal Styled Components ...
 const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s;
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s;
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 `;
 const ModalBox = styled.div`
-  background: white;
-  width: 400px;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-  display: flex;
-  flex-direction: column;
-  animation: slideUp 0.2s;
-  @keyframes slideUp {
-    from {
-      transform: translateY(10px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
+  background: white;
+  width: 400px;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.2s;
+  @keyframes slideUp {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
 `;
 const ModalHeader = styled.div`
-  padding: 15px 20px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  h3 {
-    margin: 0;
-    font-size: 16px;
-    color: #333;
-  }
-  button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    color: #999;
-    &:hover {
-      color: #555;
-    }
-  }
+  padding: 15px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+  }
+  button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    color: #999;
+    &:hover {
+      color: #555;
+    }
+  }
 `;
 const ModalBody = styled.div`
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 `;
 const ModalFooter = styled.div`
-  padding: 15px 20px;
-  background: #f9f9f9;
-  border-top: 1px solid #eee;
-  border-radius: 0 0 8px 8px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  button {
-    padding: 8px 16px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .cancel {
-    background: white;
-    border: 1px solid #ddd;
-    color: #555;
-    &:hover {
-      background: #f0f0f0;
-    }
-  }
-  .save {
-    background: #1a4f8b;
-    color: white;
-    &:hover {
-      background: #133b6b;
-    }
-  }
+  padding: 15px 20px;
+  background: #f9f9f9;
+  border-top: 1px solid #eee;
+  border-radius: 0 0 8px 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cancel {
+    background: white;
+    border: 1px solid #ddd;
+    color: #555;
+    &:hover {
+      background: #f0f0f0;
+    }
+  }
+  .save {
+    background: #1a4f8b;
+    color: white;
+    &:hover {
+      background: #133b6b;
+    }
+  }
 `;
 const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  label {
-    font-size: 12px;
-    color: #666;
-    font-weight: 600;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 600;
+  }
 `;
 const Input = styled.input`
-  padding: 8px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  outline: none;
-  &:focus {
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
-  }
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  &:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+  }
 `;

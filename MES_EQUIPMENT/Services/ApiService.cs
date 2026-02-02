@@ -11,6 +11,8 @@ public class ApiService
     private readonly HttpClient _httpClient;
     private TokenDto? _currentTokens;
 
+private const string MANUAL_TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIzIiwiYXV0aCI6IlJPTEVfQURNSU4sRkFDVE9SX1BBU1NXT1JEIiwiZXhwIjoyMzc0ODEzOTU2fQ.1RHPI-aTnRb7d1fDBlic9lHbTkyYQ3eCv6PntBgrdDNmfkLeRqh-0w_S2hnmh80GRiwnULRdCHhPfdtQVG68eQ";
+
     public ApiService()
     {
         _httpClient = new HttpClient
