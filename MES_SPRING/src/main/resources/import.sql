@@ -264,3 +264,16 @@ INSERT INTO worker (
 
 (6, '한지민', '2026-02-02', 'Swing', 'OFF',     'TBD',   'Basic Safety');
 
+-- permissions 테이블 예시
+INSERT INTO permissions (code, name, group_name) VALUES ('USER_READ', '사용자 조회', '시스템 관리');
+INSERT INTO permissions (code, name, group_name) VALUES ('USER_EDIT', '사용자 수정', '시스템 관리');
+
+-- roles 테이블 예시
+INSERT INTO roles (code, name, is_system) VALUES ('ROLE_ADMIN', '최고 관리자', true);
+INSERT INTO roles (code, name, is_system) VALUES ('ROLE_OPERATOR', '생산 작업자', true);
+
+-- role_permissions (매핑) 테이블 예시
+-- 관리자에게 모든 권한 부여
+INSERT INTO role_permissions (role_id, permission_id) VALUES (1, 1);
+INSERT INTO role_permissions (role_id, permission_id) VALUES (1, 2);
+
