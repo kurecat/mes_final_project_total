@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import styled from "styled-components";
 import api from "../../../api/axios";
 import {
@@ -6,10 +12,11 @@ import {
   FaUserPlus,
   FaSearch,
   FaBuilding,
-  FaEnvelope,
   FaPhoneAlt,
   FaEllipsisH,
   FaTimes,
+  FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 
 // --- [Sub-Components] ---
@@ -51,83 +58,145 @@ const UserToolbar = React.memo(
   ),
 );
 
-const UserTableRow = React.memo(({ user, onToggleStatus }) => {
-  // DB 상태가 ACTIVE면 true(초록), 아니면 false(회색)
-  const isActive = user.status === "ACTIVE";
-  const userRole = user.authority
-    ? user.authority.replace("ROLE_", "")
-    : "OPERATOR";
+// ★ 수정된 UserTableRow: 드롭다운 메뉴 기능 추가
+const UserTableRow = React.memo(
+  ({ user, onToggleStatus, onEdit, onDelete }) => {
+    const [showMenu, setShowMenu] = useState(false);
+    const menuRef = useRef(null);
 
-  return (
-    <tr>
-      <td>
-        <ProfileCell>
-          <Avatar>{user.name ? user.name.substring(0, 1) : "U"}</Avatar>
-          <UserInfo>
-            <div className="name">{user.name}</div>
-            <div className="email">{user.email}</div>
-          </UserInfo>
-        </ProfileCell>
-      </td>
-      <td>
-        <DeptInfo>
-          <FaBuilding size={10} color="#999" /> {user.department || "MES Team"}
-        </DeptInfo>
-      </td>
-      <td>
-        <RoleBadge $role={userRole}>{userRole}</RoleBadge>
-      </td>
-      <td>
-        <div style={{ fontSize: "13px", color: "#555" }}>
-          <FaPhoneAlt size={10} /> {user.phone || "-"}
-        </div>
-      </td>
-      <td>
-        {/* ★ 슬라이드 토글 스위치 적용 ★ */}
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <StatusToggle
-            $active={isActive}
-            onClick={() => onToggleStatus(user, isActive)}
-          >
-            <div className="knob" />
-          </StatusToggle>
-          <StatusText $active={isActive}>{user.status}</StatusText>
-        </div>
-      </td>
-      <td>
-        <ActionBtn>
-          <FaEllipsisH />
-        </ActionBtn>
-      </td>
-    </tr>
-  );
-});
+    const isActive = user.status === "ACTIVE";
+    const userRole = user.authority
+      ? user.authority.replace("ROLE_", "")
+      : "OPERATOR";
 
-const UserModal = ({ isOpen, onClose, onSave }) => {
+    // 메뉴 외부 클릭 시 닫기
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (menuRef.current && !menuRef.current.contains(event.target)) {
+          setShowMenu(false);
+        }
+      };
+      if (showMenu) document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }, [showMenu]);
+
+    return (
+      <tr>
+        <td>
+          <ProfileCell>
+            <Avatar>{user.name ? user.name.substring(0, 1) : "U"}</Avatar>
+            <UserInfo>
+              <div className="name">{user.name}</div>
+              <div className="email">{user.email}</div>
+            </UserInfo>
+          </ProfileCell>
+        </td>
+        <td>
+          <DeptInfo>
+            <FaBuilding size={10} color="#999" />{" "}
+            {user.department || "MES Team"}
+          </DeptInfo>
+        </td>
+        <td>
+          <RoleBadge $role={userRole}>{userRole}</RoleBadge>
+        </td>
+        <td>
+          <div style={{ fontSize: "13px", color: "#555" }}>
+            <FaPhoneAlt size={10} /> {user.phone || "-"}
+          </div>
+        </td>
+        <td>
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <StatusToggle
+              $active={isActive}
+              onClick={() => onToggleStatus(user, isActive)}
+            >
+              <div className="knob" />
+            </StatusToggle>
+            <StatusText $active={isActive}>{user.status}</StatusText>
+          </div>
+        </td>
+        <td style={{ position: "relative" }}>
+          {/* Action 버튼 및 드롭다운 메뉴 */}
+          <ActionBtn onClick={() => setShowMenu(!showMenu)}>
+            <FaEllipsisH />
+          </ActionBtn>
+
+          {showMenu && (
+            <ActionMenu ref={menuRef}>
+              <MenuItem
+                onClick={() => {
+                  setShowMenu(false);
+                  onEdit(user);
+                }}
+              >
+                <FaEdit /> 수정 (Edit)
+              </MenuItem>
+              <MenuItem
+                $danger
+                onClick={() => {
+                  setShowMenu(false);
+                  onDelete(user);
+                }}
+              >
+                <FaTrash /> 삭제 (Delete)
+              </MenuItem>
+            </ActionMenu>
+          )}
+        </td>
+      </tr>
+    );
+  },
+);
+
+// ★ 수정된 UserModal: 수정 모드 지원 (데이터 채우기)
+const UserModal = ({ isOpen, onClose, onSave, selectedUser }) => {
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     department: "",
     role: "ROLE_OPERATOR",
+    phone: "",
   });
 
   useEffect(() => {
-    if (isOpen)
-      setForm({
-        name: "",
-        email: "",
-        password: "",
-        department: "",
-        role: "ROLE_OPERATOR",
-      });
-  }, [isOpen]);
+    if (isOpen) {
+      if (selectedUser) {
+        // 수정 모드: 기존 데이터 바인딩
+        setForm({
+          name: selectedUser.name || "",
+          email: selectedUser.email || "",
+          password: "", // 비밀번호는 수정 시 비워두거나 별도 처리
+          department: selectedUser.department || "",
+          role: selectedUser.authority || "ROLE_OPERATOR",
+          phone: selectedUser.phone || "",
+        });
+      } else {
+        // 생성 모드: 초기화
+        setForm({
+          name: "",
+          email: "",
+          password: "",
+          department: "",
+          role: "ROLE_OPERATOR",
+          phone: "",
+        });
+      }
+    }
+  }, [isOpen, selectedUser]);
 
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    if (!form.name || !form.email || !form.password) {
-      alert("필수 입력값을 확인해주세요.");
+    // 생성일 때는 비밀번호 필수, 수정일 때는 선택(변경 안 하면 그대로)
+    if (!form.name || !form.email) {
+      alert("이름과 이메일은 필수입니다.");
+      return;
+    }
+    if (!selectedUser && !form.password) {
+      alert("비밀번호를 입력해주세요.");
       return;
     }
     onSave(form);
@@ -137,7 +206,7 @@ const UserModal = ({ isOpen, onClose, onSave }) => {
     <Overlay>
       <ModalBox>
         <ModalHeader>
-          <h3>Add New User</h3>
+          <h3>{selectedUser ? "Edit User" : "Add New User"}</h3>
           <button onClick={onClose}>
             <FaTimes />
           </button>
@@ -154,11 +223,14 @@ const UserModal = ({ isOpen, onClose, onSave }) => {
             <label>Email</label>
             <input
               value={form.email}
+              disabled={!!selectedUser} // 이메일(ID)은 수정 불가 처리
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
           </InputGroup>
           <InputGroup>
-            <label>Password</label>
+            <label>
+              Password {selectedUser && "(Leave blank to keep current)"}
+            </label>
             <input
               type="password"
               value={form.password}
@@ -172,10 +244,19 @@ const UserModal = ({ isOpen, onClose, onSave }) => {
               onChange={(e) => setForm({ ...form, department: e.target.value })}
             />
           </InputGroup>
+          <InputGroup>
+            <label>Phone (Contact)</label>
+            <input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </InputGroup>
         </ModalBody>
         <ModalFooter>
           <CancelBtn onClick={onClose}>Cancel</CancelBtn>
-          <SubmitBtn onClick={handleSubmit}>Create</SubmitBtn>
+          <SubmitBtn onClick={handleSubmit}>
+            {selectedUser ? "Update" : "Create"}
+          </SubmitBtn>
         </ModalFooter>
       </ModalBox>
     </Overlay>
@@ -190,7 +271,9 @@ const UsersPage = () => {
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // 데이터 로딩
+  // 선택된 사용자 (수정 시 사용)
+  const [selectedUser, setSelectedUser] = useState(null);
+
   const loadUsers = useCallback(() => {
     api
       .get("/api/mes/system/role")
@@ -202,54 +285,87 @@ const UsersPage = () => {
     loadUsers();
   }, [loadUsers]);
 
-  // ★ 상태 변경 (승인 <-> 취소)
-  // ★ 상태 변경 (승인 <-> 취소 토글)
   const handleToggleStatus = useCallback(
     (user, currentIsActive) => {
-      // 1. 사용자에게 먼저 물어보기 (실수 방지)
       const actionName = currentIsActive ? "승인 취소(대기)" : "승인(활성화)";
       if (
         !window.confirm(`'${user.name}' 님을 ${actionName} 처리하시겠습니까?`)
       )
         return;
 
-      // 2. 자바 백엔드로 요청 보내기
-      // 형님 자바 서비스 approveMember(memberId) 호출하는 API 경로 확인!
       api
         .put(`/auth/approve/${user.id || user.memberId}`)
         .then((res) => {
-          if (res.data.success) {
-            // alert(res.data.message); // "회원 승인 취소" 등의 메시지 뜸
-
-            // 3. ★ 핵심: 자바에서 DB 바꿨으니 리액트도 데이터를 다시 받아와야 함!
-            loadUsers();
-          }
-        })
-        .catch((err) => {
-          console.error("상태 변경 실패:", err);
-          alert(
-            "처리에 실패했습니다: " +
-              (err.response?.data?.message || "서버 오류"),
-          );
-        });
-    },
-    [loadUsers],
-  );
-
-  const handleAddUser = useCallback(
-    (newUser) => {
-      api
-        .post("/auth/signup", newUser)
-        .then(() => {
-          alert("생성 완료");
-          setIsModalOpen(false);
-          loadUsers();
+          if (res.data.success) loadUsers();
         })
         .catch((err) =>
           alert("실패: " + (err.response?.data?.message || "오류")),
         );
     },
     [loadUsers],
+  );
+
+  // 모달 열기 (추가)
+  const handleOpenAdd = () => {
+    setSelectedUser(null);
+    setIsModalOpen(true);
+  };
+
+  // 모달 열기 (수정)
+  const handleOpenEdit = useCallback((user) => {
+    setSelectedUser(user);
+    setIsModalOpen(true);
+  }, []);
+
+  // 삭제 처리
+  const handleDeleteUser = useCallback(
+    (user) => {
+      if (!window.confirm(`정말로 '${user.name}' 님을 삭제하시겠습니까?`))
+        return;
+
+      // API 경로가 백엔드에 구현되어 있어야 합니다. 예: /auth/delete/{id}
+      api
+        .delete(`/auth/delete/${user.id || user.memberId}`)
+        .then(() => {
+          alert("삭제되었습니다.");
+          loadUsers();
+        })
+        .catch((err) => alert("삭제 실패: " + err.message));
+    },
+    [loadUsers],
+  );
+
+  // 저장 (추가/수정 분기)
+  const handleSaveUser = useCallback(
+    (formData) => {
+      if (selectedUser) {
+        // --- 수정 (Update) ---
+        api
+          .put(
+            `/auth/update/${selectedUser.id || selectedUser.memberId}`,
+            formData,
+          )
+          .then(() => {
+            alert("수정 완료");
+            setIsModalOpen(false);
+            loadUsers();
+          })
+          .catch((err) => alert("수정 실패: " + err.message));
+      } else {
+        // --- 추가 (Create) ---
+        api
+          .post("/auth/signup", formData)
+          .then(() => {
+            alert("생성 완료");
+            setIsModalOpen(false);
+            loadUsers();
+          })
+          .catch((err) =>
+            alert("실패: " + (err.response?.data?.message || "오류")),
+          );
+      }
+    },
+    [loadUsers, selectedUser],
   );
 
   const filteredUsers = useMemo(() => {
@@ -265,7 +381,7 @@ const UsersPage = () => {
 
   return (
     <Container>
-      <UserHeader onAddUser={() => setIsModalOpen(true)} />
+      <UserHeader onAddUser={handleOpenAdd} />
       <UserToolbar
         searchTerm={searchTerm}
         onSearchChange={(e) => setSearchTerm(e.target.value)}
@@ -291,6 +407,8 @@ const UsersPage = () => {
                 key={u.id || u.memberId}
                 user={u}
                 onToggleStatus={handleToggleStatus}
+                onEdit={handleOpenEdit}
+                onDelete={handleDeleteUser}
               />
             ))}
           </tbody>
@@ -299,7 +417,8 @@ const UsersPage = () => {
       <UserModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={handleAddUser}
+        onSave={handleSaveUser}
+        selectedUser={selectedUser}
       />
     </Container>
   );
@@ -308,6 +427,8 @@ const UsersPage = () => {
 export default UsersPage;
 
 // --- [Styled Components] ---
+// (기존 스타일 유지하고 아래 ActionMenu, MenuItem 추가)
+
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -463,8 +584,11 @@ const ActionBtn = styled.button`
   border: none;
   color: #999;
   cursor: pointer;
+  padding: 5px;
   &:hover {
     color: #333;
+    background: #f0f0f0;
+    border-radius: 4px;
   }
 `;
 const DeptInfo = styled.div`
@@ -474,8 +598,6 @@ const DeptInfo = styled.div`
   font-size: 13px;
   color: #555;
 `;
-
-// ★ 토글 스위치 스타일 (공통 코드랑 똑같은 디자인)
 const StatusToggle = styled.div`
   width: 40px;
   height: 22px;
@@ -502,6 +624,54 @@ const StatusText = styled.span`
   font-size: 12px;
   font-weight: bold;
   color: ${(props) => (props.$active ? "#2ecc71" : "#95a5a6")};
+`;
+
+// --- 드롭다운 메뉴 스타일 추가 ---
+const ActionMenu = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 120px;
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  border: 1px solid #eee;
+  z-index: 100;
+  overflow: hidden;
+  animation: fadeIn 0.2s;
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const MenuItem = styled.button`
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: white;
+  text-align: left;
+  font-size: 13px;
+  color: ${(props) => (props.$danger ? "#e74c3c" : "#333")};
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #f8f9fa;
+  }
+  border-bottom: 1px solid #f5f5f5;
+  &:last-child {
+    border-bottom: none;
+  }
 `;
 
 // Modal Styles
@@ -573,9 +743,12 @@ const InputGroup = styled.div`
     &:focus {
       border-color: #3498db;
     }
+    &:disabled {
+      background: #f5f5f5;
+      color: #999;
+    }
   }
 `;
-
 const SubmitBtn = styled.button`
   background: #3498db;
   color: white;
@@ -585,53 +758,6 @@ const SubmitBtn = styled.button`
   cursor: pointer;
   &:hover {
     background: #2980b9;
-  }
-`;
-const LogTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  white-space: nowrap;
-  thead {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-  }
-
-  /* ★ 여기가 핵심: 헤더 글자색 노란색(오렌지) 적용 ★ */
-  th {
-    text-align: left;
-    background: #fff;
-    padding: 12px 15px;
-    font-size: 13px;
-    color: #e67e22; /* 글자색 변경! */
-    font-weight: 800;
-    border-bottom: 2px solid #f39c12;
-  }
-
-  td {
-    padding: 10px 15px;
-    font-size: 14px;
-    color: #333;
-    border-bottom: 1px solid #eee;
-    vertical-align: middle;
-  }
-  .mono {
-    font-family: monospace;
-    font-size: 13px;
-    color: #555;
-  }
-  .category {
-    font-weight: 600;
-    font-size: 12px;
-    color: #e67e22;
-  }
-  .message {
-    color: #222;
-  }
-  .empty {
-    text-align: center;
-    padding: 40px;
-    color: #aaa;
   }
 `;
 const CancelBtn = styled.button`

@@ -11,6 +11,8 @@ public class SignUpReqDto {
     private String password;
     private String name;
     private Authority authority;
+    private String department;
+    private String phone;
 
     public Member toEntity(PasswordEncoder encoder) {
         return Member.builder()
@@ -18,6 +20,8 @@ public class SignUpReqDto {
                 .password(encoder.encode(password))
                 .name(name)
                 .authority(Authority.valueOf(String.valueOf(authority)))
+                .department(department)
+                .phone(phone)
                 .build();
     }
 }

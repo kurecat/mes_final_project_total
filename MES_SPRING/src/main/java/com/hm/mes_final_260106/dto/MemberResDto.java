@@ -18,6 +18,8 @@ public class MemberResDto {
     private String name;
     private Authority authority;
     private String status;  //
+    private String department;
+    private String phone;
 
     public static MemberResDto of(Member member) {
         return MemberResDto.builder()
@@ -26,7 +28,8 @@ public class MemberResDto {
                 .name(member.getName())
                 .authority(member.getAuthority())
                 .status(member.getStatus().name()) // PENDING, ACTIVE 등
+                .department(member.getDepartment())
+                .phone(member.getPhone())
                 .build();
     }
 }
-///1111111111
