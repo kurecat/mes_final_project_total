@@ -1,22 +1,21 @@
 package com.hm.mes_final_260106.service;
 
 import com.hm.mes_final_260106.constant.BomStatus;
-import com.hm.mes_final_260106.dto.BomItem.BomItemResDto;
+import com.hm.mes_final_260106.constant.WarehouseStatus;
+import com.hm.mes_final_260106.dto.bomItem.BomItemResDto;
 import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
-import com.hm.mes_final_260106.dto.MaterialTxResDto;
+import com.hm.mes_final_260106.dto.Warehouse.WarehouseCreateReqDto;
+import com.hm.mes_final_260106.dto.Warehouse.WarehouseResDto;
 import com.hm.mes_final_260106.dto.bom.BomResDto;
 import com.hm.mes_final_260106.dto.bom.BomUpdateReqDto;
+import com.hm.mes_final_260106.dto.material.MaterialCreateReqDto;
+import com.hm.mes_final_260106.dto.material.MaterialResDto;
+import com.hm.mes_final_260106.dto.material.MaterialUpdateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductCreateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductResDto;
 import com.hm.mes_final_260106.dto.product.ProductUpdateReqDto;
-import com.hm.mes_final_260106.entity.Bom;
-import com.hm.mes_final_260106.entity.BomItem;
-import com.hm.mes_final_260106.entity.Material;
-import com.hm.mes_final_260106.entity.Product;
-import com.hm.mes_final_260106.repository.BomItemRepository;
-import com.hm.mes_final_260106.repository.BomRepository;
-import com.hm.mes_final_260106.repository.MaterialRepository;
-import com.hm.mes_final_260106.repository.ProductRepository;
+import com.hm.mes_final_260106.entity.*;
+import com.hm.mes_final_260106.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,6 +33,8 @@ public class MasterDataService {
     private final MaterialRepository materialRepo;
     private final BomRepository bomRepo;
     private final BomItemRepository bomItemRepo;
+    private final EquipmentRepository equipmentRepo;
+    private final WarehouseRepository warehouseRepo;
 
     // 1. 제품 등록
 //    public void createProduct(ProductReqDto dto) {
@@ -151,7 +152,7 @@ public class MasterDataService {
     }
 
     public List<BomResDto> getAllBom() {
-        List<Bom> boms  = bomRepo.findLatestBomForAllProducts();
+        List<Bom> boms = bomRepo.findLatestBomForAllProductsOrderByProductId();
 
         return boms
                 .stream()
@@ -194,13 +195,13 @@ public class MasterDataService {
         newBom.setStatus(BomStatus.OBSOLETE);
 
         Bom finalNewBom = bomRepo.save(newBom);
-        List<BomItem> newBomItems = dto.getBomItem()
+        List<BomItem> newBomItems = dto.getBomItems()
                 .stream()
                 .map(bomItem -> new BomItem(
                         null,
                         finalNewBom,
                         materialRepo.findByCode(bomItem.getMaterialCode())
-                                .orElseThrow((()-> new EntityNotFoundException("자재를 찾을 수 없습니다"))),
+                                .orElseThrow((() -> new EntityNotFoundException("자재를 찾을 수 없습니다"))),
                         bomItem.getQuantity()))
                 .toList();
 
@@ -208,6 +209,127 @@ public class MasterDataService {
     }
 
     public void createEquipment(EquipmentCreateReqDto dto) {
+    }
+
+    public List<WarehouseResDto> getAllWarehouses() {
+        List<Warehouse> warehouses = warehouseRepo.findAll();
+
+        return warehouses.stream()
+                .map(warehouse -> new WarehouseResDto(
+                        warehouse.getId(),
+                        warehouse.getCode(),
+                        warehouse.getName(),
+                        warehouse.getType(),
+                        warehouse.getAddress(),
+                        warehouse.getStatus().toString(),
+                        warehouse.getCapacity(),
+                        warehouse.getOccupancy()
+                ))
+                .toList();
+
+    }
+
+    public void createWarehouse(WarehouseCreateReqDto reqDto) {
+        Warehouse warehouse = Warehouse.builder()
+                .code(reqDto.getCode())
+                .name(reqDto.getName())
+                .type(reqDto.getType())
+                .address(reqDto.getAddress())
+                .status(WarehouseStatus.AVAILABLE)
+                .capacity(reqDto.getCapacity())
+                .occupancy(0)
+                .build();
+
+        warehouseRepo.save(warehouse);
+    }
+
+    public void updateWarehouse(Long id, WarehouseCreateReqDto dto) {
+        Warehouse warehouse = warehouseRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Warehouse not found with id: " + id));
+
+        warehouse.setCode(dto.getCode());
+        warehouse.setName(dto.getName());
+        warehouse.setType(dto.getType());
+        warehouse.setAddress(dto.getAddress());
+        warehouse.setCapacity(dto.getCapacity());
+
+        if (warehouse.getOccupancy() > warehouse.getCapacity())
+            warehouse.setStatus(WarehouseStatus.FULL);
+
+        warehouseRepo.save(warehouse);
+    }
+
+    public void deleteWarehouse(Long id) {
+        Warehouse warehouse = warehouseRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Warehouse not found with id: " + id));
+
+        warehouseRepo.delete(warehouse);
+    }
+
+    // CREATE
+    public void createMaterial(MaterialCreateReqDto dto) {
+        Material material = new Material();
+        material.setCode(dto.getCode());
+        material.setName(dto.getName());
+        material.setCategory(dto.getCategory());
+        material.setCurrentStock(dto.getCurrentStock());
+        material.setSafetyStock(dto.getSafetyStock());
+        material.setLocation(dto.getLocation());
+
+        materialRepo.save(material);
+    }
+
+    // READ (단건 조회)
+    public MaterialResDto getMaterial(Long id) {
+        Material material = materialRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 자재가 존재하지 않습니다. id=" + id));
+
+        return MaterialResDto.builder()
+                .id(material.getId())
+                .code(material.getCode())
+                .name(material.getName())
+                .category(material.getCategory())
+                .currentStock(material.getCurrentStock())
+                .safetyStock(material.getSafetyStock())
+                .location(material.getLocation())
+                .build();
+    }
+
+    // READ (전체 조회)
+    public List<MaterialResDto> getAllMaterials() {
+        return materialRepo.findAll().stream()
+                .map(material -> MaterialResDto.builder()
+                        .id(material.getId())
+                        .code(material.getCode())
+                        .name(material.getName())
+                        .category(material.getCategory())
+                        .currentStock(material.getCurrentStock())
+                        .safetyStock(material.getSafetyStock())
+                        .location(material.getLocation())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    // UPDATE
+    public void updateMaterial(Long id, MaterialUpdateReqDto dto) {
+        Material material = materialRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 자재가 존재하지 않습니다. id=" + id));
+
+        material.setName(dto.getName());
+        material.setCategory(dto.getCategory());
+        material.setCurrentStock(dto.getCurrentStock());
+        material.setSafetyStock(dto.getSafetyStock());
+        material.setLocation(dto.getLocation());
+
+        materialRepo.save(material);
+    }
+
+    // DELETE
+    public void deleteMaterial(Long id) {
+        Material material = materialRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 자재가 존재하지 않습니다. id=" + id));
+
+        materialRepo.delete(material);
     }
     /// 111111
 }

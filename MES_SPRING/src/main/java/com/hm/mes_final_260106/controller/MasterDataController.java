@@ -1,10 +1,14 @@
 package com.hm.mes_final_260106.controller;
 
-import com.hm.mes_final_260106.dto.BomItem.BomItemCreateReqDto;
-import com.hm.mes_final_260106.dto.BomItem.BomItemResDto;
 import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
+import com.hm.mes_final_260106.dto.Warehouse.WarehouseCreateReqDto;
+import com.hm.mes_final_260106.dto.Warehouse.WarehouseResDto;
 import com.hm.mes_final_260106.dto.bom.BomResDto;
 import com.hm.mes_final_260106.dto.bom.BomUpdateReqDto;
+import com.hm.mes_final_260106.dto.bomItem.BomItemResDto;
+import com.hm.mes_final_260106.dto.material.MaterialCreateReqDto;
+import com.hm.mes_final_260106.dto.material.MaterialResDto;
+import com.hm.mes_final_260106.dto.material.MaterialUpdateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductCreateReqDto;
 import com.hm.mes_final_260106.dto.product.ProductResDto;
 import com.hm.mes_final_260106.dto.product.ProductUpdateReqDto;
@@ -47,6 +51,43 @@ public class MasterDataController {
         masterService.updateMaterial(code, name, category);
         return ResponseEntity.ok("자재 정보 수정 완료");
     }
+
+    // CREATE
+    @PostMapping("/material")
+    public ResponseEntity<String> createMaterial(@RequestBody MaterialCreateReqDto dto) {
+        masterService.createMaterial(dto);
+        return ResponseEntity.ok("자재 등록 완료");
+    }
+
+    // READ (단건 조회)
+    @GetMapping("/material/{id}")
+    public ResponseEntity<MaterialResDto> getMaterial(@PathVariable Long id) {
+        MaterialResDto material = masterService.getMaterial(id);
+        return ResponseEntity.ok(material);
+    }
+
+    // READ (전체 조회)
+    @GetMapping("/material/list")
+    public ResponseEntity<List<MaterialResDto>> getAllMaterials() {
+        List<MaterialResDto> materials = masterService.getAllMaterials();
+        return ResponseEntity.ok(materials);
+    }
+
+    // UPDATE
+    @PutMapping("/material/{id}")
+    public ResponseEntity<String> updateMaterial(@PathVariable Long id,
+                                                 @RequestBody MaterialUpdateReqDto dto) {
+        masterService.updateMaterial(id, dto);
+        return ResponseEntity.ok("자재 수정 완료");
+    }
+
+    // DELETE
+    @DeleteMapping("/material/{id}")
+    public ResponseEntity<String> deleteMaterial(@PathVariable Long id) {
+        masterService.deleteMaterial(id);
+        return ResponseEntity.ok("자재 삭제 완료");
+    }
+
 
     // CREATE
     @PostMapping("/product")
@@ -110,6 +151,32 @@ public class MasterDataController {
     public ResponseEntity<String> createEquipment(@RequestBody EquipmentCreateReqDto dto) {
         masterService.createEquipment(dto);
         return ResponseEntity.ok("설비 등록 완료");
+    }
+
+    @GetMapping("/warehouse/list")
+    public ResponseEntity<List<WarehouseResDto>> getAllWarehouses() {
+        List<WarehouseResDto> Warehouses = masterService.getAllWarehouses();
+        return ResponseEntity.ok(Warehouses);
+    }
+
+    @PostMapping("/warehouse")
+    public ResponseEntity<String> createWarehouse(@RequestBody WarehouseCreateReqDto dto) {
+        masterService.createWarehouse(dto);
+        return ResponseEntity.ok("창고 등록 완료");
+    }
+
+    @PutMapping("/warehouse/{id}")
+    public ResponseEntity<String> UpdateWarehouse(
+            @PathVariable Long id,
+            @RequestBody WarehouseCreateReqDto dto) {
+        masterService.updateWarehouse(id, dto);
+        return ResponseEntity.ok("창고 수정 완료");
+    }
+
+    @DeleteMapping("/warehouse/{id}")
+    public ResponseEntity<String> deleteWarehouse(@PathVariable Long id) {
+        masterService.deleteWarehouse(id);
+        return ResponseEntity.ok("창고 삭제 완료");
     }
 
     /// 1111111

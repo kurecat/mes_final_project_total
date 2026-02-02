@@ -6,12 +6,14 @@ import {
   FaSitemap,
   FaCube,
   FaCubes,
-  FaPlus,
+  FaMinus,
   FaEdit,
   FaFileExport,
   FaFlask,
   FaMicrochip,
   FaSync,
+  FaTools,
+  FaTimes,
 } from "react-icons/fa";
 
 /* =========================================================================
@@ -116,29 +118,6 @@ const StatusBadge = styled.span`
   background-color: ${(props) =>
     props.$status === "ACTIVE" ? "#e8f5e9" : "#eee"};
   color: ${(props) => (props.$status === "ACTIVE" ? "#2e7d32" : "#888")};
-`;
-
-const AddButtonContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const AddButton = styled.button`
-  margin: 15px;
-  padding: 12px;
-  background-color: #1a4f8b;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 8px;
-  &:hover {
-    background-color: #133b6b;
-  }
 `;
 
 const ContentArea = styled.div`
@@ -294,6 +273,124 @@ const EmptyState = styled.div`
   font-size: 16px;
 `;
 
+/* Modal Styles */
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+`;
+
+const ModalBox = styled.div`
+  width: 760px;
+  max-width: calc(100vw - 40px);
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const CloseBtn = styled.button`
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  color: #888;
+
+  &:hover {
+    color: #333;
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 14px 0;
+  overflow-y: auto;
+`;
+
+const ModalFooter = styled.div`
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const ModalBtn = styled.button`
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 800;
+  cursor: pointer;
+
+  &.close {
+    background: #1a4f8b;
+    color: white;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
+const QuantityInput = styled.input`
+  height: 30px;
+  width: 60px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0 12px;
+  outline: none;
+
+  &:focus {
+    border-color: #1a4f8b;
+  }
+`;
+
+const MaterialSelect = styled.select`
+  height: 34px;
+  min-width: 160px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 14px;
+  color: #333;
+  background-color: #fff;
+  outline: none;
+  cursor: pointer;
+
+  &:focus {
+    border-color: #1a4f8b;
+    box-shadow: 0 0 0 2px rgba(26, 79, 139, 0.15);
+  }
+
+  option {
+    font-size: 14px;
+    padding: 6px;
+  }
+`;
+
 /* =========================================================================
    Optimized Sub-Components
    ========================================================================= */
@@ -361,7 +458,7 @@ const SidebarPanel = React.memo(
 );
 
 // 3. Detail View - Table Row (Memoized)
-const BomTableRow = React.memo(({ bomItem, onAdd }) => {
+const BomTableRow = React.memo(({ bomItem, isEdit, onChange, onDelete }) => {
   return (
     <tr>
       <td style={{ textAlign: "center", color: "#888" }}>{1}</td>
@@ -385,14 +482,28 @@ const BomTableRow = React.memo(({ bomItem, onAdd }) => {
       <td>
         <TypeLabel $category={bomItem.category}>{bomItem.category}</TypeLabel>
       </td>
-      <td style={{ fontWeight: "600" }}>{bomItem.quantity}</td>
+
+      <td style={{ fontWeight: "600" }}>
+        {!isEdit ? (
+          bomItem.quantity
+        ) : (
+          <QuantityInput defaultValue={bomItem.quantity} onChange={onChange} />
+        )}
+      </td>
       <td style={{ color: "#666" }}>{bomItem.unit}</td>
+      {isEdit && (
+        <td>
+          <ActionButton onClick={onDelete}>
+            <FaMinus></FaMinus>
+          </ActionButton>
+        </td>
+      )}
     </tr>
   );
 });
 
 // 4. Detail View Component (Memoized)
-const DetailView = React.memo(({ bom, bomItems }) => {
+const DetailView = React.memo(({ bom, bomItems, onClickRevisionChange }) => {
   if (!bom) return <EmptyState>Select a Bom to view details</EmptyState>;
 
   return (
@@ -408,8 +519,8 @@ const DetailView = React.memo(({ bom, bomItems }) => {
           </BomMeta>
         </HeaderLeft>
         <HeaderRight>
-          <ActionButton>
-            <FaEdit /> Revision Change
+          <ActionButton onClick={onClickRevisionChange}>
+            <FaEdit /> Revision
           </ActionButton>
           <ActionButton $primary>
             <FaFileExport /> Export Excel
@@ -424,9 +535,9 @@ const DetailView = React.memo(({ bom, bomItems }) => {
               <th width="5%">Lv.</th>
               <th width="25%">Material Code</th>
               <th width="25%">Material Name</th>
-              <th width="10%">Type</th>
-              <th width="10%">Qty</th>
-              <th width="10%">Unit</th>
+              <th width="5%">Type</th>
+              <th width="5%">Qty</th>
+              <th width="5%">Unit</th>
             </tr>
           </thead>
           <tbody>
@@ -450,18 +561,124 @@ const DetailView = React.memo(({ bom, bomItems }) => {
                 <BomTableRow key={child.id} bomItem={child} />
               ))}
           </tbody>
-          <td colSpan="6">
-            <AddButtonContainer>
-              <AddButton>
-                <FaPlus /> New BOM Item
-              </AddButton>
-            </AddButtonContainer>
-          </td>
         </BomTable>
       </TableContainer>
     </>
   );
 });
+
+const BomRevisionModal = React.memo(
+  ({ bom, bomItems, materials, onClose, onAdd, onEdit, onDelete, onSave }) => {
+    return (
+      <ModalOverlay onClick={onClose}>
+        <ModalBox onClick={(e) => e.stopPropagation()}>
+          <ModalHeader>
+            <ModalTitle>
+              <FaTools />
+              Edit BOM
+            </ModalTitle>
+            <CloseBtn onClick={onClose}>
+              <FaTimes />
+            </CloseBtn>
+          </ModalHeader>
+
+          <ModalBody>
+            <TableContainer>
+              <BomTable>
+                <thead>
+                  <tr>
+                    <th width="5%">Lv.</th>
+                    <th width="20%">Material Code</th>
+                    <th width="30%">Material Name</th>
+                    <th width="5%">Type</th>
+                    <th width="5%">Qty</th>
+                    <th width="5%">Unit</th>
+                    <th width="5%"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Root Item */}
+                  <RootRow>
+                    <td>0</td>
+                    <td>{bom.productCode}</td>
+                    <td className="name">
+                      <FaCubes style={{ marginRight: 8, color: "#1a4f8b" }} />
+                      {bom.productName}
+                    </td>
+                    <td>
+                      <TypeLabel $type="FG">FG</TypeLabel>
+                    </td>
+                    <td>1</td>
+                    <td colSpan={2}>ea</td>
+                  </RootRow>
+                  {/* Children Items */}
+                  {bomItems &&
+                    bomItems.map((child) => (
+                      <BomTableRow
+                        key={child.id}
+                        bomItem={child}
+                        isEdit={true}
+                        onChange={(e) =>
+                          onEdit(child.materialCode, e.target.value)
+                        }
+                        onDelete={() => onDelete(child.materialCode)}
+                      />
+                    ))}
+                  <tr>
+                    <td></td>
+                    <td>
+                      <MaterialSelect
+                        onChange={(e) => {
+                          onAdd(
+                            materials.find(
+                              (material) => material.code === e.target.value,
+                            ),
+                          );
+                        }}
+                      >
+                        <option value="">-- 자재 선택 --</option>
+                        {materials &&
+                          (() => {
+                            // 비교용 Set 생성 (O(n))
+                            const bomCodes = new Set(
+                              bomItems.map((item) => item.materialCode),
+                            );
+
+                            // 필터링 시 O(1)로 체크 가능
+                            return materials
+                              .filter(
+                                (material) => !bomCodes.has(material.code),
+                              )
+                              .map((material) => (
+                                <option key={material.id} value={material.code}>
+                                  {material.code}
+                                </option>
+                              ));
+                          })()}
+                      </MaterialSelect>
+                    </td>
+                  </tr>
+                </tbody>
+              </BomTable>
+            </TableContainer>
+          </ModalBody>
+
+          <ModalFooter>
+            <ModalBtn
+              className="close"
+              onClick={() => {
+                onSave(bom, bomItems); // 수정 시 id와 formData 전달
+                onClose();
+              }}
+            >
+              Save
+            </ModalBtn>
+          </ModalFooter>
+        </ModalBox>
+      </ModalOverlay>
+    );
+  },
+);
 
 /* =========================================================================
    Main Component
@@ -474,6 +691,22 @@ const BomPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [reqFetch, setReqFetch] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [materials, setMaterials] = useState([]);
+  const [bomItemsEdit, setBomItemsEdit] = useState([]);
+
+  const [selectedProductCode, setSelectedProductCode] = useState(null);
+
+  const openModal = () => {
+    setBomItemsEdit(bomItems);
+    setIsModalOpen(true);
+  };
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
   // [Optimization] fetchData with useCallback
   const fetchBomList = useCallback(async () => {
     setLoading(true);
@@ -483,15 +716,16 @@ const BomPage = () => {
         "http://localhost:8111/api/mes/master/bom/list",
       );
       setBomList(res.data);
-      if (res.data.length > 0) setSelectedBom(res.data[0]);
-      setLoading(false);
+      setSelectedBom(res.data[0]);
+      return res;
     } catch (err) {
       console.error(err);
+    } finally {
       setLoading(false);
     }
   }, []);
 
-  const fetchBom = useCallback(async () => {
+  const fetchBomItems = useCallback(async () => {
     setLoading(true);
     try {
       if (selectedBom) {
@@ -514,8 +748,27 @@ const BomPage = () => {
   }, [fetchBomList]);
 
   useEffect(() => {
-    fetchBom();
-  }, [fetchBom]);
+    if (!reqFetch) return;
+    setReqFetch(false);
+
+    const fetch = async () => {
+      const res = await fetchBomList();
+      if (res.data.length > 0) {
+        if (selectedProductCode) {
+          setSelectedBom(
+            res.data.find((bom) => bom.productCode === selectedProductCode),
+          );
+          setSelectedProductCode(null);
+        } else setSelectedBom(res.data[0]);
+      }
+    };
+
+    fetch();
+  }, [fetchBomList, reqFetch, selectedProductCode]);
+
+  useEffect(() => {
+    fetchBomItems();
+  }, [fetchBomItems]);
 
   // [Optimization] Handlers with useCallback
   const handleSearchChange = useCallback((e) => {
@@ -526,7 +779,67 @@ const BomPage = () => {
     setSelectedBom(bom);
   }, []);
 
-  const handleAddBomItem = useCallback((e) => {}, []);
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      try {
+        if (isModalOpen) {
+          const res = await axiosInstance.get(
+            "http://localhost:8111/api/mes/master/material/list",
+          );
+          setMaterials(res.data);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchMaterials();
+  }, [isModalOpen]);
+
+  const handleAdd = useCallback((material) => {
+    if (!material || material.code === "") return;
+    const bomItem = {
+      materialCode: material.code,
+      materialName: material.name,
+      category: material.category,
+      quantity: 0,
+      unit: material.unit,
+    };
+    setBomItemsEdit((prev) => [...prev, bomItem]);
+  }, []);
+
+  const handleDelete = (code) => {
+    setBomItemsEdit((prev) =>
+      prev.filter((item) => item.materialCode !== code),
+    );
+  };
+
+  const handleEdit = useCallback((code, qty) => {
+    setBomItemsEdit((prev) =>
+      prev.map((item) =>
+        item.materialCode === code ? { ...item, quantity: qty } : item,
+      ),
+    );
+  }, []);
+
+  const handleSave = useCallback(
+    async (bom, bomItems) => {
+      try {
+        if (isModalOpen) {
+          await axiosInstance.put(
+            `http://localhost:8111/api/mes/master/bom/${bom.id}`,
+            {
+              bomItems,
+            },
+          );
+          setSelectedProductCode(bom.productCode);
+          setReqFetch(true);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    },
+    [isModalOpen],
+  );
 
   // [Optimization] Filtering with useMemo
   const filteredBoms = useMemo(() => {
@@ -554,9 +867,21 @@ const BomPage = () => {
         <DetailView
           bom={selectedBom}
           bomItems={bomItems}
-          onAdd={handleAddBomItem}
+          onClickRevisionChange={openModal}
         />
       </ContentArea>
+      {isModalOpen && (
+        <BomRevisionModal
+          bom={selectedBom}
+          bomItems={bomItemsEdit}
+          materials={materials}
+          onClose={closeModal}
+          onAdd={handleAdd}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onSave={handleSave}
+        ></BomRevisionModal>
+      )}
     </Container>
   );
 };
