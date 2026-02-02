@@ -143,8 +143,8 @@ INSERT INTO lot (code, material_id, location, status) VALUES
 ('LOT-20260122-08', 8, '클린룸', '공정중');
 
 -- Equipment 등록
-INSERT INTO equipment (code, name, type, location, status) VALUES
-('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', 'RUN');
+INSERT INTO equipment (code, name, type, location, status,install_date) VALUES
+('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', 'RUN','2026-02-11');
 
 -- 작업지시 등록
 INSERT INTO work_order

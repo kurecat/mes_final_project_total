@@ -7,6 +7,7 @@ import com.hm.mes_final_260106.repository.ProductionLogRepository;
 import com.hm.mes_final_260106.repository.ProductionResultRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.hm.mes_final_260106.constant.EquipmentStatus;
 
 import java.time.LocalDate;
 import java.util.*;
@@ -32,11 +33,13 @@ public class DashboardService {
         double yesterdayYield = productionResultRepo.avgYieldByDate(yesterday);
         double yieldTrend = trend(todayYield, yesterdayYield);
 
+
+
         int totalEquip = (int) equipmentRepo.count();
-        int runningEquip = equipmentRepo.countByStatus("RUN");
+        int runningEquip = equipmentRepo.countByStatus(EquipmentStatus.RUN);
         double utilization = totalEquip == 0 ? 0 : (runningEquip * 100.0 / totalEquip);
 
-        int issues = equipmentRepo.countByStatus("DOWN");
+        int issues = equipmentRepo.countByStatus(EquipmentStatus.DOWN);
 
         return DashboardSummaryResDto.builder()
                 .waferOut(todayOut)
@@ -123,7 +126,8 @@ public class DashboardService {
 
     public List<EquipmentAlertDto> getRealtimeEquipmentAlerts() {
 
-        return equipmentRepo.findByStatusOrderByUpdatedAtDesc("DOWN")
+        return equipmentRepo
+                .findByStatusOrderByUpdatedAtDesc(EquipmentStatus.DOWN)
                 .stream()
                 .map(e -> new EquipmentAlertDto(
                         e.getUpdatedAt() != null

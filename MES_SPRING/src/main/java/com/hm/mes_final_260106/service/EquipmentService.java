@@ -1,14 +1,19 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.constant.EquipmentEventType;
+import com.hm.mes_final_260106.constant.EquipmentStatus;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.entity.Equipment;
+import com.hm.mes_final_260106.entity.EquipmentEventLog;
 import com.hm.mes_final_260106.entity.ProductionLog;
+import com.hm.mes_final_260106.repository.EquipmentEventLogRepository;
 import com.hm.mes_final_260106.repository.EquipmentRepository;
 import com.hm.mes_final_260106.repository.ProductionLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -19,6 +24,7 @@ public class EquipmentService {
 
     private final EquipmentRepository equipmentRepo;
     private final ProductionLogRepository productionLogRepo;
+    private final EquipmentEventLogRepository eventLogRepo;
 
     private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
@@ -88,7 +94,7 @@ public class EquipmentService {
     // ✅ 설비 추가 저장 (Add Equipment -> Save -> DB INSERT)
     // =====================================================
     @Transactional
-    public void createEquipment(EquipmentCreateReqDto dto) {
+    public EquipmentResDto createEquipment(EquipmentCreateReqDto dto) {
 
         // code 중복 방지 (프론트에서 code를 만들어 보내는 구조일 때)
         if (dto.getCode() == null || dto.getCode().isBlank()) {
@@ -104,10 +110,12 @@ public class EquipmentService {
                 .name(dto.getName())
                 .type(dto.getType())
                 .status(dto.getStatus())
-                .location(dto.getLocation())   // dto에 있으면 넣고, 없으면 null 가능
+                .location(dto.getLocation())// dto에 있으면 넣고, 없으면 null 가능
+                .installDate(dto.getInstallDate())
                 .build();
 
         equipmentRepo.save(eq);
+        return null;
     }
     @Transactional
     public void deleteEquipment(Long id) {
@@ -123,9 +131,51 @@ public class EquipmentService {
         Equipment equipment = equipmentRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Equipment not found : " + id));
 
+
+        // DTO가 Enum이므로 그대로 사용
+        EquipmentStatus newStatus = dto.getStatus();
+
+    /* =========================
+       TYPE 변경
+       ========================= */
+        if (!equipment.getType().equals(dto.getType())) {
+
+            eventLogRepo.save(
+                    EquipmentEventLog.builder()
+                            .equipment(equipment)
+                            .eventType(EquipmentEventType.TYPE_CHANGE)
+                            .beforeValue(equipment.getType())
+                            .afterValue(dto.getType())
+                            .message(equipment.getType() + " → " + dto.getType())
+                            .createdAt(LocalDateTime.now())
+                            .build()
+            );
+
+            equipment.setType(dto.getType());
+        }
+
+    /* =========================
+       STATUS 변경
+       ========================= */
+        if (equipment.getStatus() != newStatus) {
+
+            eventLogRepo.save(
+                    EquipmentEventLog.builder()
+                            .equipment(equipment)
+                            .eventType(EquipmentEventType.STATUS_CHANGE)
+                            .beforeValue(equipment.getStatus().name())
+                            .afterValue(newStatus.name())
+                            .message(equipment.getStatus() + " → " + newStatus)
+                            .createdAt(LocalDateTime.now())
+                            .build()
+            );
+
+            equipment.setStatus(newStatus);
+        }
         equipment.setName(dto.getName());
-        equipment.setType(dto.getType());
-        equipment.setStatus(dto.getStatus());
+        equipment.setLocation(dto.getLocation());
+        equipment.setInstallDate(dto.getInstallDate());
+
 //        equipment.setLotId(dto.getLotId());
 //        equipment.setUph(dto.getUph());
 //        equipment.setTemperature(dto.getTemperature());
@@ -135,6 +185,38 @@ public class EquipmentService {
         return new EquipmentResDto(equipment);
     }
 
-//11111
+// 설비상태변경 로직
+@Transactional
+public void changeStatus(Long id, EquipmentStatus nextStatus) {
+
+    Equipment eq = equipmentRepo.findById(id)
+            .orElseThrow(() -> new RuntimeException("설비를 찾을 수 없습니다"));
+
+    EquipmentStatus current = eq.getStatus();
+
+    if (!isValidTransition(current, nextStatus)) {
+        throw new IllegalStateException(
+                "Invalid transition: " + current + " → " + nextStatus
+        );
+    }
+
+    eq.setStatus(nextStatus);
+    eq.setUpdatedAt(LocalDateTime.now());
+
+    if (nextStatus == EquipmentStatus.DOWN) {
+        eq.setErrorCode("E-DOWN");
+    }
+
+    if (nextStatus == EquipmentStatus.RUN) {
+        eq.setErrorCode(null);
+    }
+}
+
+    private boolean isValidTransition(EquipmentStatus current, EquipmentStatus next) {
+        return switch (current) {
+            case RUN -> next == EquipmentStatus.DOWN;
+            case IDLE, DOWN -> next == EquipmentStatus.RUN;
+        };
+    }
 
 }

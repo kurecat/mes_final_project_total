@@ -158,25 +158,37 @@ const MachineCardItem = React.memo(({ machine, onDetail, onStatusChange }) => {
 
         {/* --- [Modified] Control Buttons --- */}
         <ControlGrid>
+          {/* RUN 버튼 (초록색) */}
           <ControlBtn
             $type="RUN"
+            // DOWN 또는 IDLE 상태일 때만 활성화 (현재 RUN이면 비활성화)
             disabled={machine.status === "RUN"}
             onClick={(e) => {
               e.stopPropagation();
+              // DOWN이나 IDLE 상태에서 누르면 RUN으로 변경
               onStatusChange(machine.id, "RUN");
             }}
             title="가동 시작"
           >
             <FaPlay />
           </ControlBtn>
+
+          {/* IDLE/STOP 버튼 (노란색) */}
           <ControlBtn
             $type="IDLE"
-            disabled={machine.status === "IDLE"}
+            // DOWN 상태에서는 더 이상 DOWN을 누를 필요가 없으므로 비활성화 가능 (선택사항)
+            disabled={machine.status === "DOWN"}
             onClick={(e) => {
               e.stopPropagation();
-              onStatusChange(machine.id, "IDLE");
+              // 요청 사항: RUN 상태일 때 누르면 DOWN으로 변경
+              if (machine.status === "RUN") {
+                onStatusChange(machine.id, "DOWN");
+              } else {
+                // 그 외 상태(IDLE 등)에서 누를 경우 기본 IDLE 유지 또는 DOWN 처리
+                onStatusChange(machine.id, "IDLE");
+              }
             }}
-            title="일시 정지"
+            title="상태 변경"
           >
             <FaStop />
           </ControlBtn>
@@ -354,22 +366,47 @@ const MachinePage = () => {
     return () => clearInterval(interval);
   }, [fetchData]);
 
+  // 로그조회 api
+  const fetchEquipmentLogs = async (equipmentId) => {
+    try {
+      const res = await axiosInstance.get(
+        `/api/mes/equipment/${equipmentId}/logs`,
+      );
+      setLogs(res.data ?? []);
+    } catch (err) {
+      console.error("로그 조회 실패:", err);
+      setLogs([]);
+    }
+  };
+
   // ============================
   // Handlers
   // ============================
-  const handleStatusChange = useCallback(async (id, newStatus) => {
-    try {
-      setMachines((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m)),
-      );
-      await axiosInstance.post(`/api/mes/equipment/${id}/status`, {
-        status: newStatus,
-      });
-    } catch (err) {
-      console.error("상태 변경 실패:", err);
-      alert("상태 변경에 실패했습니다.");
-    }
-  }, []);
+  const handleStatusChange = useCallback(
+    async (id, newStatus) => {
+      try {
+        // 1. UI 선반영 (Optimistic UI)
+        setMachines((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m)),
+        );
+
+        // 2. 서버 요청 수정
+        // - .post -> .patch 로 변경
+        // - 데이터를 body가 아닌 params로 전달 (@RequestParam 대응)
+        await axiosInstance.patch(`/api/mes/equipment/${id}/status`, null, {
+          params: { status: newStatus },
+        });
+
+        console.log(`Equipment ${id} status changed to ${newStatus}`);
+      } catch (err) {
+        console.error("상태 변경 실패:", err);
+        alert("권한이 없거나 상태 변경에 실패했습니다.");
+        // 실패 시 데이터 다시 불러오기 (원복)
+        fetchData();
+      }
+    },
+    [fetchData],
+  );
 
   const handleFilterChange = useCallback((status) => {
     setFilterStatus(status);
