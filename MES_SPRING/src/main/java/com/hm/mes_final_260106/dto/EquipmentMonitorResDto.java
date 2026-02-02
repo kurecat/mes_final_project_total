@@ -1,7 +1,10 @@
 package com.hm.mes_final_260106.dto;
 
+import com.hm.mes_final_260106.constant.EquipmentStatus;
 import com.hm.mes_final_260106.entity.Equipment;
 import lombok.*;
+
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -18,7 +21,8 @@ public class EquipmentMonitorResDto {
 
     private String name;
     private String type;
-    private String status;
+    private EquipmentStatus status;
+    private LocalDate installDate;
 
     // 모니터링 값 (DB에 없어도 됨)
     private String lotId;
