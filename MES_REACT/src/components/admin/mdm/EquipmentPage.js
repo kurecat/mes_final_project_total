@@ -10,6 +10,8 @@ import {
   FaTrash,
   FaSync,
   FaCircle,
+  FaTimes, // 닫기 아이콘
+  FaSave, // 저장 아이콘
 } from "react-icons/fa";
 
 // --- Fallback Mock Data ---
@@ -81,15 +83,13 @@ const EquipmentHeader = React.memo(
 );
 
 // 2. Table Row Component
-const EquipmentRow = React.memo(({ eq, onToggleStatus, onDelete }) => {
+// [수정] onToggleStatus 제거
+const EquipmentRow = React.memo(({ eq, onEdit, onDelete }) => {
   return (
     <tr>
       <td>
-        <StatusBadge
-          $status={eq.status}
-          onClick={() => onToggleStatus(eq.id, eq.status)}
-          title="Click to Toggle Status"
-        >
+        {/* [수정] onClick 이벤트 제거 (단순 표시용) */}
+        <StatusBadge $status={eq.status}>
           <FaCircle size={8} /> {eq.status}
         </StatusBadge>
       </td>
@@ -102,7 +102,7 @@ const EquipmentRow = React.memo(({ eq, onToggleStatus, onDelete }) => {
       <td>{eq.location}</td>
       <td style={{ color: "#666" }}>{eq.installDate}</td>
       <td className="center">
-        <IconButton className="edit">
+        <IconButton className="edit" onClick={() => onEdit(eq)}>
           <FaEdit />
         </IconButton>
         <IconButton className="del" onClick={() => onDelete(eq.id)}>
@@ -120,14 +120,23 @@ const EquipmentPage = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. 데이터 조회 (READ) - useCallback
+  // --- Modal State ---
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState("ADD"); // "ADD" or "EDIT"
+  const [formData, setFormData] = useState({
+    id: "",
+    name: "",
+    type: "PHOTO",
+    model: "",
+    location: "",
+    status: "IDLE",
+    installDate: "",
+  });
+
+  // 1. 데이터 조회 (READ)
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // API call logic...
-      // const res = await axiosInstance.get("/equipments");
-      // setEquipments(res.data);
-
       setTimeout(() => {
         setEquipments(MOCK_EQUIPMENTS);
         setLoading(false);
@@ -142,38 +151,84 @@ const EquipmentPage = () => {
     fetchData();
   }, [fetchData]);
 
-  // 2. Handlers - useCallback
-  const toggleStatus = useCallback(async (id, currentStatus) => {
-    const newStatus = currentStatus === "RUN" ? "IDLE" : "RUN";
-    try {
-      // await axiosInstance.patch(`http://localhost:3001/equipments/${id}`, { status: newStatus });
-      setEquipments((prev) =>
-        prev.map((eq) => (eq.id === id ? { ...eq, status: newStatus } : eq)),
-      );
-    } catch (err) {
-      console.error("Update Error", err);
-    }
-  }, []);
+  // 2. Handlers - CRUD Logic
 
+  // [수정] toggleStatus 함수 삭제됨
+
+  // 삭제 핸들러
   const handleDelete = useCallback(async (id) => {
-    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+    if (!window.confirm(`장비(${id})를 정말 삭제하시겠습니까?`)) return;
     try {
-      // await axiosInstance.delete(`http://localhost:3001/equipments/${id}`);
       setEquipments((prev) => prev.filter((eq) => eq.id !== id));
     } catch (err) {
       console.error("Delete Error", err);
     }
   }, []);
 
+  // 검색 핸들러
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
   }, []);
 
+  // --- Modal Handlers ---
+
+  // 추가 버튼 클릭 (모달 열기)
   const handleAddClick = useCallback(() => {
-    alert("Add Modal Open");
+    setFormData({
+      id: "",
+      name: "",
+      type: "PHOTO",
+      model: "",
+      location: "",
+      status: "IDLE",
+      installDate: new Date().toISOString().split("T")[0], // 오늘 날짜 기본값
+    });
+    setModalMode("ADD");
+    setIsModalOpen(true);
   }, []);
 
-  // 3. Filtering - useMemo
+  // 수정 버튼 클릭 (모달 열기)
+  const handleEditClick = useCallback((eq) => {
+    setFormData({ ...eq }); // 선택된 객체 복사
+    setModalMode("EDIT");
+    setIsModalOpen(true);
+  }, []);
+
+  // 모달 닫기
+  const handleCloseModal = () => setIsModalOpen(false);
+
+  // 입력값 변경 핸들러
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // 저장 (Save / Update) 핸들러
+  const handleSave = () => {
+    // 유효성 검사 (간단)
+    if (!formData.id || !formData.name) {
+      alert("ID와 장비명은 필수입니다.");
+      return;
+    }
+
+    if (modalMode === "ADD") {
+      // ID 중복 체크
+      if (equipments.some((eq) => eq.id === formData.id)) {
+        alert("이미 존재하는 Equipment ID 입니다.");
+        return;
+      }
+      // 추가 로직
+      setEquipments((prev) => [formData, ...prev]);
+    } else {
+      // 수정 로직
+      setEquipments((prev) =>
+        prev.map((eq) => (eq.id === formData.id ? formData : eq)),
+      );
+    }
+    setIsModalOpen(false);
+  };
+
+  // 3. Filtering
   const filteredList = useMemo(() => {
     return equipments.filter(
       (eq) =>
@@ -184,7 +239,7 @@ const EquipmentPage = () => {
 
   return (
     <Container>
-      {/* 헤더 (Memoized) */}
+      {/* 헤더 */}
       <EquipmentHeader
         loading={loading}
         searchTerm={searchTerm}
@@ -212,13 +267,135 @@ const EquipmentPage = () => {
               <EquipmentRow
                 key={eq.id}
                 eq={eq}
-                onToggleStatus={toggleStatus}
+                // onToggleStatus prop 제거됨
+                onEdit={handleEditClick}
                 onDelete={handleDelete}
               />
             ))}
+            {filteredList.length === 0 && (
+              <tr>
+                <td
+                  colSpan="8"
+                  style={{ textAlign: "center", padding: "30px" }}
+                >
+                  No Data Found
+                </td>
+              </tr>
+            )}
           </tbody>
         </Table>
       </TableContainer>
+
+      {/* --- Modal UI --- */}
+      {isModalOpen && (
+        <ModalOverlay>
+          <ModalContent>
+            <ModalHeader>
+              <h3>
+                {modalMode === "ADD" ? "Add New Equipment" : "Edit Equipment"}
+              </h3>
+              <CloseBtn onClick={handleCloseModal}>
+                <FaTimes />
+              </CloseBtn>
+            </ModalHeader>
+            <ModalBody>
+              <FormRow>
+                <FormGroup>
+                  <Label>Equipment ID</Label>
+                  <Input
+                    name="id"
+                    value={formData.id}
+                    onChange={handleInputChange}
+                    placeholder="e.g. EQ-PHO-05"
+                    // 수정 모드일 때는 ID 변경 불가
+                    readOnly={modalMode === "EDIT"}
+                    disabled={modalMode === "EDIT"}
+                    style={
+                      modalMode === "EDIT" ? { background: "#f0f0f0" } : {}
+                    }
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label>Type</Label>
+                  <Select
+                    name="type"
+                    value={formData.type}
+                    onChange={handleInputChange}
+                  >
+                    <option value="PHOTO">PHOTO</option>
+                    <option value="ETCH">ETCH</option>
+                    <option value="DEPO">DEPO</option>
+                    <option value="CMP">CMP</option>
+                    <option value="IMP">IMP</option>
+                  </Select>
+                </FormGroup>
+              </FormRow>
+
+              <FormGroup>
+                <Label>Equipment Name</Label>
+                <Input
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="e.g. Photo Stepper NEW"
+                />
+              </FormGroup>
+
+              <FormRow>
+                <FormGroup>
+                  <Label>Model</Label>
+                  <Input
+                    name="model"
+                    value={formData.model}
+                    onChange={handleInputChange}
+                    placeholder="e.g. ASML-NXE"
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label>Location</Label>
+                  <Input
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    placeholder="e.g. Bay-09"
+                  />
+                </FormGroup>
+              </FormRow>
+
+              <FormRow>
+                <FormGroup>
+                  <Label>Install Date</Label>
+                  <Input
+                    type="date"
+                    name="installDate"
+                    value={formData.installDate}
+                    onChange={handleInputChange}
+                  />
+                </FormGroup>
+                <FormGroup>
+                  <Label>Initial Status</Label>
+                  <Select
+                    name="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                  >
+                    <option value="IDLE">IDLE</option>
+                    <option value="RUN">RUN</option>
+                    <option value="DOWN">DOWN</option>
+                    <option value="PM">PM</option>
+                  </Select>
+                </FormGroup>
+              </FormRow>
+            </ModalBody>
+            <ModalFooter>
+              <CancelBtn onClick={handleCloseModal}>Cancel</CancelBtn>
+              <SaveBtn onClick={handleSave}>
+                <FaSave /> Save
+              </SaveBtn>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };
@@ -355,6 +532,7 @@ const Table = styled.table`
   }
 `;
 
+// [수정] 클릭 가능한 스타일(커서, hover 효과 등) 제거
 const StatusBadge = styled.span`
   display: flex;
   align-items: center;
@@ -363,8 +541,8 @@ const StatusBadge = styled.span`
   border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
-  cursor: pointer;
-  user-select: none;
+  // cursor: pointer; // 삭제됨
+  // user-select: none; // 삭제됨
   width: fit-content;
   background-color: ${(props) =>
     props.$status === "RUN"
@@ -378,10 +556,8 @@ const StatusBadge = styled.span`
       : props.$status === "DOWN"
         ? "#c62828"
         : "#f39c12"};
-  transition: transform 0.1s;
-  &:active {
-    transform: scale(0.95);
-  }
+  // transition: transform 0.1s; // 삭제됨
+  // &:active { transform: scale(0.95); } // 삭제됨
 `;
 
 const TypeTag = styled.span`
@@ -411,5 +587,154 @@ const IconButton = styled.button`
   &.del:hover {
     color: #e74c3c;
     border-color: #e74c3c;
+  }
+`;
+
+// --- Modal Styled Components ---
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  width: 500px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  animation: slideDown 0.3s ease-out;
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const ModalHeader = styled.div`
+  padding: 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  h3 {
+    margin: 0;
+    color: #333;
+  }
+`;
+
+const CloseBtn = styled.button`
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  &:hover {
+    color: #333;
+  }
+`;
+
+const ModalBody = styled.div`
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+`;
+
+const FormRow = styled.div`
+  display: flex;
+  gap: 15px;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+`;
+
+const Label = styled.label`
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+`;
+
+const Input = styled.input`
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  &:focus {
+    outline: none;
+    border-color: #1a4f8b;
+  }
+  &:disabled {
+    color: #999;
+    cursor: not-allowed;
+  }
+`;
+
+const Select = styled.select`
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+  &:focus {
+    outline: none;
+    border-color: #1a4f8b;
+  }
+`;
+
+const ModalFooter = styled.div`
+  padding: 15px 20px;
+  background: #f9f9f9;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+`;
+
+const SaveBtn = styled.button`
+  background: #1a4f8b;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  &:hover {
+    background: #133b6b;
+  }
+`;
+
+const CancelBtn = styled.button`
+  background: white;
+  color: #666;
+  border: 1px solid #ddd;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  &:hover {
+    background: #f5f5f5;
   }
 `;
