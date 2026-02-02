@@ -24,7 +24,8 @@ INSERT INTO material (code, name, current_stock, safety_stock) VALUES
 ('MAT-WIRE', '금 와이어', 500,600),
 ('MAT-LEADFRAME', '리드프레임', 400,500),
 ('MAT-ENCAPSULANT', '에폭시 봉지재', 250,300),
-('MAT-WAFER', 'DRAM 웨이퍼', 100,100);
+('MAT-WAFER', 'DRAM 웨이퍼', 100,100),
+('8801234567891', '웨이퍼 기판', 500, 1000);
 
 -- MaterialTransaction 등록 (초기 입고 기록)
 INSERT INTO material_transaction
@@ -144,3 +145,109 @@ INSERT INTO lot (code, material_id, location, status) VALUES
 -- Equipment 등록
 INSERT INTO equipment (code, name, type, location, status) VALUES
 ('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', 'RUN');
+
+-- 작업지시 등록
+INSERT INTO work_order
+(
+  work_order_number,
+  product_id,
+  target_qty,
+  current_qty,
+  status,
+  assigned_machine_id,
+  target_line
+)
+VALUES
+('WO-20260120-1001', 1, 1200, 1150, 'IN_PROGRESS', 'MACHINE-01', 'Fab-Line-A');
+
+-- 생산로그 등록
+INSERT INTO production_log (
+  id, work_order_id, equipment_id, process_step, lot_no,
+  result_qty, defect_qty, status, result_date, start_time, end_time,
+  level, category, message
+) VALUES
+-- 06시대 완료
+(1, 1, 1, 'PHOTO', 'LOT-0601', 220, 3, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 4 HOUR, CURRENT_DATE + INTERVAL 6 HOUR + INTERVAL 5 MINUTE,
+ 'INFO', 'PRODUCTION', '06시 PHOTO 공정 완료'),
+
+-- 08시대 완료
+(2, 1, 1, 'PHOTO', 'LOT-0801', 260, 4, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 6 HOUR, CURRENT_DATE + INTERVAL 8 HOUR + INTERVAL 10 MINUTE,
+ 'INFO', 'PRODUCTION', '08시 PHOTO 공정 완료'),
+
+(3, 1, 1, 'PHOTO', 'LOT-0802', 240, 2, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 6 HOUR + INTERVAL 20 MINUTE, CURRENT_DATE + INTERVAL 8 HOUR + INTERVAL 40 MINUTE,
+ 'WARN', 'PRODUCTION', '08시 자재 지연'),
+
+-- 10시대 완료
+(4, 1, 1, 'ETCH', 'LOT-1001', 300, 5, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 8 HOUR, CURRENT_DATE + INTERVAL 10 HOUR + INTERVAL 15 MINUTE,
+ 'INFO', 'PRODUCTION', '10시 ETCH 공정 완료'),
+
+-- 12시대 완료
+(5, 1, 1, 'ETCH', 'LOT-1201', 320, 6, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 10 HOUR, CURRENT_DATE + INTERVAL 12 HOUR + INTERVAL 20 MINUTE,
+ 'WARN', 'PRODUCTION', '12시 불량 일부 발생'),
+
+(6, 1, 1, 'ETCH', 'LOT-1202', 310, 4, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 10 HOUR + INTERVAL 30 MINUTE, CURRENT_DATE + INTERVAL 12 HOUR + INTERVAL 45 MINUTE,
+ 'INFO', 'PRODUCTION', '12시 ETCH 추가 LOT'),
+
+-- 14시대 완료
+(7, 1, 1, 'CMP', 'LOT-1401', 350, 5, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 12 HOUR, CURRENT_DATE + INTERVAL 14 HOUR + INTERVAL 5 MINUTE,
+ 'INFO', 'PRODUCTION', '14시 CMP 공정 완료'),
+
+-- 16시대 완료
+(8, 1, 1, 'CMP', 'LOT-1601', 370, 6, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 14 HOUR, CURRENT_DATE + INTERVAL 16 HOUR + INTERVAL 10 MINUTE,
+ 'WARN', 'PRODUCTION', '16시 CMP 진동 감지'),
+
+-- 18시대 완료
+(9, 1, 1, 'PHOTO', 'LOT-1801', 400, 7, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 16 HOUR, CURRENT_DATE + INTERVAL 18 HOUR + INTERVAL 15 MINUTE,
+ 'INFO', 'PRODUCTION', '18시 PHOTO 공정 완료'),
+
+(10, 1, 1, 'PHOTO', 'LOT-1802', 390, 6, 'DONE',
+ CURRENT_DATE, CURRENT_DATE + INTERVAL 16 HOUR + INTERVAL 20 MINUTE, CURRENT_DATE + INTERVAL 18 HOUR + INTERVAL 40 MINUTE,
+ 'INFO', 'PRODUCTION', '18시 추가 생산 완료');
+
+
+
+-- Production_result 등록
+INSERT INTO production_result
+(defect_qty, good_qty, plan_qty, result_date, result_hour, created_at, product_id, line)
+VALUES
+-- Fab (product_id=1 : DDR5 1znm Wafer)
+(1, 48, 50, '2026-02-02', 8,  '2026-01-20 08:05:00', 1, 'Fab-Line-A'),
+(0, 55, 55, '2026-02-03', 9,  '2026-01-20 09:05:00', 1, 'Fab-Line-A'),
+(2, 58, 60, '2026-02-04', 10, '2026-01-20 10:05:00', 1, 'Fab-Line-A'),
+(0, 62, 60, '2026-02-05', 11, '2026-01-20 11:05:00', 1, 'Fab-Line-A'),
+
+-- EDS (product_id=3 : 16Gb DDR5 SDRAM)
+(5, 4700, 4800, '2026-02-02', 12, '2026-01-20 12:05:00', 3, 'EDS-Line-01'),
+(8, 4850, 4900, '2026-02-03', 13, '2026-01-20 13:05:00', 3, 'EDS-Line-01'),
+(12, 4600, 4800, '2026-02-04', 14, '2026-01-20 14:05:00', 3, 'EDS-Line-01'),
+
+-- Module (product_id=5 : DDR5 32GB UDIMM)
+(0, 180, 180, '2026-02-02', 15, '2026-01-20 15:05:00', 5, 'Mod-Line-C'),
+(1, 195, 200, '2026-02-03', 16, '2026-01-20 16:05:00', 5, 'Mod-Line-C'),
+(0, 210, 210, '2026-02-04', 17, '2026-01-20 17:05:00', 5, 'Mod-Line-C');
+
+-- 작업자 추가
+INSERT INTO worker (
+  id, name, join_date, shift, status, dept, certifications
+) VALUES
+(1, '김철수', '2024-03-15', 'Day',   'WORKING', 'PHOTO', 'Basic Safety, ESD'),
+
+(2, '이영희', '2023-11-01', 'Day',   'WORKING', 'ETCH',  'Chemical Safety'),
+
+(3, '박민수', '2022-06-20', 'Night', 'BREAK',   'CMP',   'Equipment Safety'),
+
+(4, '정지훈', '2021-09-10', 'Swing', 'OFF',     'PHOTO', 'Basic Safety'),
+
+(5, '최은지', '2020-04-05', 'Night', 'BREAK',   'ETCH',  'Hazard Material'),
+
+(6, '한지민', '2026-02-02', 'Swing', 'OFF',     'TBD',   'Basic Safety');
+

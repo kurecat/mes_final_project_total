@@ -30,11 +30,11 @@ const AdminSideBar = () => {
   const MENU_LIST = [
     {
       id: "dashboard",
-      title: "모니터링/대시보드",
+      title: "대시보드",
       icon: <FaChartPie />,
       subMenus: [
         { title: "종합 상황판", path: "/admin/dashboard" },
-        { title: "KPI 분석", path: "/admin/dashboard/kpi" },
+        //{ title: "KPI 분석", path: "/admin/dashboard/kpi" },
       ],
     },
     {
@@ -45,6 +45,7 @@ const AdminSideBar = () => {
         { title: "생산 계획", path: "/admin/production/plan" },
         { title: "작업 지시", path: "/admin/production/workorder" },
         { title: "생산 실적 현황", path: "/admin/production/performance" },
+        { title: "생산 로그", path: "/admin/production/productionlogs" },
         { title: "작업자 배치", path: "/admin/production/worker" },
         { title: "바코드", path: "/admin/production/barcode" },
       ],
@@ -75,7 +76,7 @@ const AdminSideBar = () => {
       title: "기준 정보 관리",
       icon: <FaDatabase />,
       subMenus: [
-        { title: "자재 관리", path: "/admin/mdm/material" },
+        //{ title: "자재 관리", path: "/admin/mdm/material" },
         { title: "제품 관리", path: "/admin/mdm/product" },
         { title: "BOM 관리", path: "/admin/mdm/bom" },
         // { title: "공정/라우팅", path: "/admin/mdm/routing" },

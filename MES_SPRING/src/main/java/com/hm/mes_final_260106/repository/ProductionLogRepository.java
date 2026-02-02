@@ -20,24 +20,23 @@ public interface ProductionLogRepository extends JpaRepository<ProductionLog, Lo
     // 최근 로그 N개 (endTime 포함)
     List<ProductionLog> findTop10ByEquipmentOrderByStartTimeDesc(Equipment equipment);
 
+    // 이벤트 로그만 조회
+    List<ProductionLog> findByMessageIsNotNullOrderByStartTimeDesc();
     @Query("""
-        SELECT HOUR(pl.endTime) AS hour, COALESCE(SUM(pl.resultQty), 0)
-        FROM ProductionLog pl
-        WHERE pl.status = 'DONE'
-          AND pl.resultDate = (
-              SELECT MAX(pl2.resultDate)
-              FROM ProductionLog pl2
-          )
-          AND HOUR(pl.endTime) BETWEEN :startHour AND :endHour
-        GROUP BY HOUR(pl.endTime)
-        ORDER BY HOUR(pl.endTime)
-    """)
+    SELECT
+        HOUR(pl.endTime) AS hour,
+        SUM(pl.resultQty) AS totalQty
+    FROM ProductionLog pl
+    WHERE pl.status = 'DONE'
+      AND pl.endTime IS NOT NULL
+      AND pl.resultDate = CURRENT_DATE
+      AND pl.endTime <= CURRENT_TIMESTAMP
+    GROUP BY HOUR(pl.endTime)
+    ORDER BY HOUR(pl.endTime)
+""")
+    List<Object[]> findTodayHourlyCompletedOutput();
 
 
-    List<Object[]> findHourlyActualOnLatestDate(
-            @Param("startHour") int startHour,
-            @Param("endHour") int endHour
-    );
     //dashboard-wip-balance
     @Query("""
         SELECT pl.processStep, SUM(pl.resultQty)

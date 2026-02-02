@@ -6,10 +6,7 @@ import lombok.*;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "worker",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_worker_member_id", columnNames = "member_id")
-        })
+@Table(name = "worker")
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,22 +17,21 @@ public class Worker {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ⭐ Member는 그대로 두고, Worker에서만 1:1로 연결
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", nullable = false)
-    private Member member;
+    // ⭐ 작업자 실명 (로그인과 무관)
+    @Column(nullable = false, length = 50)
+    private String name;
 
     @Column(length = 50)
-    private String dept;      // 예: Photo / Etch / Fab-Common / EDS
+    private String dept;      // PHOTO / ETCH / CMP / TBD
 
     @Column(length = 20)
-    private String shift;     // 예: Day / Swing / Night
+    private String shift;     // Day / Night
 
     @Column(length = 20)
-    private String status;    // 예: OFF / WORKING / BREAK
+    private String status;    // ON / OFF / LEAVE
 
     private LocalDate joinDate;
 
     @Column(length = 300)
-    private String certifications; // "Basic Safety,Lam Etcher"
+    private String certifications; // Basic Safety, Lam Etcher
 }

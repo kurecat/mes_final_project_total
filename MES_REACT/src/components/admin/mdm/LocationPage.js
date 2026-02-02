@@ -16,7 +16,7 @@ import {
   FaMicrochip,
 } from "react-icons/fa";
 
-// --- Fallback Mock Data ---
+// --- [Mock Data] 초기 데이터 ---
 const MOCK_LOCATIONS = [
   {
     id: "WH-RAW-A",
@@ -113,7 +113,7 @@ const ControlBarSection = React.memo(
   },
 );
 
-// 2. Location Card Item Component
+// 2. 개별 위치 카드
 const LocationCardItem = React.memo(({ loc, onDelete, onEdit }) => {
   const percent = Math.round((loc.occupancy / loc.capacity) * 100);
   const isFull = percent >= 95;
@@ -389,7 +389,7 @@ const LocationPage = () => {
     setSelectedWarehouse(null);
   }, []);
 
-  // 3. Filtering - useMemo
+  // 4. Filtering Logic
   const filteredList = useMemo(() => {
     return locations.filter((loc) => {
       const matchType = filterType === "ALL" || loc.type === filterType;
@@ -402,7 +402,7 @@ const LocationPage = () => {
 
   return (
     <Container>
-      {/* 헤더 */}
+      {/* Header Area */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -423,7 +423,7 @@ const LocationPage = () => {
         </ActionGroup>
       </Header>
 
-      {/* 컨트롤 바 (Memoized) */}
+      {/* Search & Filter Bar */}
       <ControlBarSection
         filterType={filterType}
         onFilterChange={handleFilterChange}
@@ -431,7 +431,7 @@ const LocationPage = () => {
         onSearchChange={handleSearchChange}
       />
 
-      {/* 위치 카드 그리드 */}
+      {/* Grid Content */}
       <GridContainer>
         {filteredList.map((loc) => (
           <LocationCardItem
@@ -459,7 +459,9 @@ const LocationPage = () => {
 
 export default LocationPage;
 
-// --- Styled Components ---
+/* =========================================================================
+   Styled Components
+   ========================================================================= */
 
 const Container = styled.div`
   width: 100%;
@@ -472,6 +474,7 @@ const Container = styled.div`
   box-sizing: border-box;
 `;
 
+/* Header Styles */
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
@@ -504,7 +507,6 @@ const SubTitle = styled.span`
   margin-top: 5px;
   margin-left: 34px;
 `;
-
 const ActionGroup = styled.div`
   display: flex;
   gap: 10px;
@@ -525,6 +527,7 @@ const AddButton = styled.button`
   }
 `;
 
+/* Control Bar Styles */
 const ControlBar = styled.div`
   display: flex;
   justify-content: space-between;
@@ -568,6 +571,7 @@ const SearchBox = styled.div`
   }
 `;
 
+/* Grid & Card Styles */
 const GridContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -575,7 +579,6 @@ const GridContainer = styled.div`
   padding-bottom: 20px;
   overflow-y: auto;
 `;
-
 const LocationCard = styled.div`
   background: white;
   border-radius: 12px;
@@ -590,7 +593,6 @@ const LocationCard = styled.div`
     box-shadow: 0 8px 12px rgba(0, 0, 0, 0.1);
   }
 `;
-
 const CardHeader = styled.div`
   padding: 15px;
   background: #f9f9f9;
@@ -638,7 +640,6 @@ const EditIcon = styled.div`
     color: #1a4f8b;
   }
 `;
-
 const CardBody = styled.div`
   padding: 15px;
   flex: 1;
@@ -658,7 +659,6 @@ const ConditionInfo = styled.div`
   align-items: center;
   gap: 6px;
 `;
-
 const CapacityWrapper = styled.div`
   margin-top: 5px;
 `;
@@ -685,7 +685,6 @@ const ProgressFill = styled.div`
   width: ${(props) => props.$width}%;
   background-color: ${(props) => (props.$isFull ? "#e74c3c" : "#2ecc71")};
 `;
-
 const CardFooter = styled.div`
   padding: 12px 15px;
   border-top: 1px solid #eee;

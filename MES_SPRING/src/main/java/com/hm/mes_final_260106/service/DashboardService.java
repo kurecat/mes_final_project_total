@@ -70,7 +70,8 @@ public class DashboardService {
         int endHour = 18;
 
         // 1) production_log에서 hour별 actual 조회
-        List<Object[]> rows = productionLogRepo.findHourlyActualOnLatestDate(startHour, endHour);
+        List<Object[]> rows =
+                productionLogRepo.findTodayHourlyCompletedOutput();
 
         // 2) hour -> actualQty 맵핑
         Map<Integer, Integer> actualByHour = new HashMap<>();

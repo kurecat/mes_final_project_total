@@ -712,9 +712,7 @@ const BomPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      const res = await axiosInstance.get(
-        "http://localhost:8111/api/mes/master/bom/list",
-      );
+      const res = await axiosInstance.get("/api/mes/master/bom/list");
       setBomList(res.data);
       setSelectedBom(res.data[0]);
       return res;
@@ -732,7 +730,7 @@ const BomPage = () => {
         // API call logic...
         const bomId = selectedBom.id;
         const res = await axiosInstance.get(
-          `http://localhost:8111/api/mes/master/bom-item/${bomId}`,
+          `/api/mes/master/bom-item/${bomId}`,
         );
         setBomItems(res.data);
       }

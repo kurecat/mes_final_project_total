@@ -1,32 +1,24 @@
 package com.hm.mes_final_260106.service;
 
-import com.hm.mes_final_260106.constant.Authority;
 import com.hm.mes_final_260106.dto.*;
-import com.hm.mes_final_260106.entity.Bom;
-import com.hm.mes_final_260106.entity.Material;
-import com.hm.mes_final_260106.entity.ProductionLog;
-import com.hm.mes_final_260106.entity.WorkOrder;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
-import com.hm.mes_final_260106.repository.*;
 import com.hm.mes_final_260106.mapper.Mapper;
-import com.hm.mes_final_260106.repository.ProductionResultRepository;
+import com.hm.mes_final_260106.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.sound.sampled.TargetDataLine;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
-@Service @RequiredArgsConstructor @Slf4j
+@Service
+@RequiredArgsConstructor
+@Slf4j
 public class ProductionService {
 
     private final ProductionLogRepository logRepo;
@@ -37,9 +29,9 @@ public class ProductionService {
     private final LotRepository lotRepo;
     private final LotMappingRepository lotMappingRepo;
     private final EquipmentRepository equipmentRepo;
-    private final MemberRepository memberRepo;
+
+    // ✅ Worker 분리 후: memberRepo / passwordEncoder / Authority 사용 X (Worker CRUD에서 제거)
     private final WorkerRepository workerRepo;
-    private final PasswordEncoder passwordEncoder;
 
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
@@ -80,7 +72,7 @@ public class ProductionService {
     public WorkOrder createWorkOrder(String productCode, int targetQty, String targetLine) {
 
         Product product = productRepo.findByCode(productCode)
-                .orElseThrow(()-> new RuntimeException("품목을 찾을 수 없습니다"));
+                .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다"));
 
         WorkOrder order = WorkOrder.builder()
                 .workOrderNumber(generateWorkOrderNumber())
@@ -122,17 +114,12 @@ public class ProductionService {
         WorkOrder order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
 
-        // 정책: RELEASED만 시작 가능
         if (!"RELEASED".equals(order.getStatus())) {
             throw new RuntimeException("RELEASED 상태에서만 Start 할 수 있습니다. 현재 상태: " + order.getStatus());
         }
 
         order.setStatus("IN_PROGRESS");
-        order.setAssignedMachineId(machineId); // 더미/선택값
-
-        // start_date는 PrePersist로 생성되지만
-        // 실제 시작시간을 따로 두고 싶으면 start_date 대신 run_start_date를 분리하는게 정석
-        // 지금은 구조 유지
+        order.setAssignedMachineId(machineId);
 
         return orderRepo.save(order);
     }
@@ -145,7 +132,6 @@ public class ProductionService {
         WorkOrder order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
 
-        // 정책: IN_PROGRESS만 완료 가능
         if (!"IN_PROGRESS".equals(order.getStatus())) {
             throw new RuntimeException("IN_PROGRESS 상태에서만 Finish 할 수 있습니다. 현재 상태: " + order.getStatus());
         }
@@ -154,6 +140,40 @@ public class ProductionService {
         order.setEndDate(LocalDateTime.now());
 
         return orderRepo.save(order);
+    }
+
+    // 작업지시 로그 기록 (이벤트)
+    @Transactional
+    public void createEventLog(ProductionLogEventReqDto dto) {
+        String level = "INFO";
+        String message = "";
+
+        if ("START".equals(dto.getActionType())) {
+            level = "INFO";
+            message = "작업을 시작했습니다";
+        } else if ("PAUSE".equals(dto.getActionType())) {
+            level = "WARN";
+            message = "작업중단사유를 작성해주세요";
+        } else if ("FINISH".equals(dto.getActionType())) {
+            level = "INFO";
+            message = "작업이 완료되었습니다";
+        }
+
+        WorkOrder workOrder = orderRepo.findById(dto.getWorkOrderId())
+                .orElseThrow(() -> new RuntimeException("WorkOrder not found"));
+
+        ProductionLog log = ProductionLog.builder()
+                .workOrder(workOrder)
+                .level(level)
+                .category("PRODUCTION")
+                .message(message)
+                .startTime(LocalDateTime.now())
+                .resultDate(LocalDate.now())
+                .resultQty(0)
+                .status(com.hm.mes_final_260106.constant.ProductionStatus.RUN)
+                .build();
+
+        logRepo.save(log);
     }
 
     // =========================
@@ -182,7 +202,7 @@ public class ProductionService {
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + id));
 
         Product product = productRepo.findByCode(productCode)
-                .orElseThrow(()-> new RuntimeException("품목을 찾을 수 없습니다"));
+                .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다"));
 
         if ("IN_PROGRESS".equals(order.getStatus()) || "COMPLETED".equals(order.getStatus())) {
             throw new RuntimeException("진행중/완료된 작업은 수정할 수 없습니다.");
@@ -201,12 +221,10 @@ public class ProductionService {
         WorkOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + id));
 
-        if (status == null) {
-            throw new RuntimeException("status는 필수입니다.");
-        }
+        if (status == null) throw new RuntimeException("status는 필수입니다.");
 
         String next = status.trim().toUpperCase();
-        // 완료 상태는 변경 불가
+
         if (!next.equals("WAITING") &&
                 !next.equals("RELEASED") &&
                 !next.equals("IN_PROGRESS") &&
@@ -217,15 +235,14 @@ public class ProductionService {
 
         String current = order.getStatus();
 
-        // 상태 전이 정책 수정 (WAITING -> IN_PROGRESS 허용)
         boolean allowed =
-                ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) ||   // ★ [추가됨] 대기 -> 바로 시작 허용
-                        ("WAITING".equals(current) && "RELEASED".equals(next)) ||      // 대기 -> 출고
-                        ("RELEASED".equals(current) && "IN_PROGRESS".equals(next)) ||  // 출고 -> 시작
-                        ("IN_PROGRESS".equals(current) && "PAUSED".equals(next)) ||    // 일시정지
-                        ("PAUSED".equals(current) && "IN_PROGRESS".equals(next)) ||    // 재개
-                        ("IN_PROGRESS".equals(current) && "COMPLETED".equals(next)) || // 완료
-                        ("PAUSED".equals(current) && "COMPLETED".equals(next));        // 정지 후 완료
+                ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) ||
+                        ("WAITING".equals(current) && "RELEASED".equals(next)) ||
+                        ("RELEASED".equals(current) && "IN_PROGRESS".equals(next)) ||
+                        ("IN_PROGRESS".equals(current) && "PAUSED".equals(next)) ||
+                        ("PAUSED".equals(current) && "IN_PROGRESS".equals(next)) ||
+                        ("IN_PROGRESS".equals(current) && "COMPLETED".equals(next)) ||
+                        ("PAUSED".equals(current) && "COMPLETED".equals(next));
 
         if (!allowed) {
             throw new RuntimeException("허용되지 않는 상태 변경입니다. (" + current + " -> " + next + ")");
@@ -233,7 +250,6 @@ public class ProductionService {
 
         order.setStatus(next);
 
-        // 시작/종료 시간 기록
         if ("IN_PROGRESS".equals(next) && order.getStartDate() == null) {
             order.setStartDate(LocalDateTime.now());
         }
@@ -247,16 +263,13 @@ public class ProductionService {
 
     // =========================
     // 6) 설비 작업 할당 (C# 폴링)
-    // RELEASED -> IN_PROGRESS
     // =========================
     @Transactional
     public WorkOrder assignWorkToMachine(String machineId) {
 
-        // 이미 이 설비에 진행중 작업이 있으면 그 작업 반환
         WorkOrder current = orderRepo.findByStatusAndAssignedMachineId("IN_PROGRESS", machineId).orElse(null);
         if (current != null) return current;
 
-        // RELEASED 상태인 가장 오래된 작업지시를 할당
         WorkOrder waiting = orderRepo.findFirstByStatusOrderByIdAsc("RELEASED").orElse(null);
         if (waiting == null) return null;
 
@@ -268,31 +281,46 @@ public class ProductionService {
 
     // =========================
     // 7) 생산 실적 보고
-    // (로그 저장 + BOM 차감 + 수량 증가 + 완료 처리)
     // =========================
     @Transactional
     public void reportProduction(ProductionReportDto dto) {
         log.info("reportProduction 실행 : {}", dto.getWorkOrderId());
         log.info("itemDtos : {}", dto.getItemDtos());
         log.info("inputLots : {}", dto.getInputLots());
+
         Long orderId = dto.getWorkOrderId();
 
-        // 지시 정보 확인
         WorkOrder workOrder = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
 
         Product product = workOrder.getProduct();
 
-        Member member = memberRepo.findById(dto.getMemberId())
-                .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다"));
-
         Equipment equipment = equipmentRepo.findByCode(dto.getEquipmentCode())
                 .orElseThrow(() -> new RuntimeException("설비를 찾을 수 없습니다"));
 
+        // ✅ Worker 분리 후: 작업자 지정은 workerId로 받는 게 정석
+        // dto에 workerId가 없다면 DTO부터 추가해야 함.
+        Worker worker = null;
+        if (dto.getWorkerId() != null) {
+            worker = workerRepo.findById(dto.getWorkerId())
+                    .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + dto.getWorkerId()));
+        }
+
         ProductionLog productionLog = mapper.toEntity(dto);
         productionLog.setWorkOrder(workOrder);
-        productionLog.setMember(member);
         productionLog.setEquipment(equipment);
+
+        // ✅ 여기 중요:
+        // 기존 ProductionLog가 member 필드를 갖고 있으면, 분리 설계에서는 worker로 바꿔야 함.
+        // 1) ProductionLog에 worker 필드를 추가한 경우:
+        // productionLog.setWorker(worker);
+        // 2) 아직 ProductionLog가 member만 있다면, 일단 null로 두고 추후 마이그레이션:
+        // productionLog.setMember(null);
+        //
+        // 아래는 1) worker 필드를 추가했다고 가정한 코드야.
+        if (worker != null) {
+            productionLog.setWorker(worker);
+        }
 
         Dicing dicing = mapper.toEntity(dto.getDicingDto());
         dicing.setProductionLog(productionLog);
@@ -318,7 +346,6 @@ public class ProductionService {
         MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
         moldingInspection.setMolding(molding);
 
-
         List<Item> items = new ArrayList<>();
         List<FinalInspection> finalInspections = new ArrayList<>();
 
@@ -335,7 +362,7 @@ public class ProductionService {
         }
 
         List<Lot> lots = new ArrayList<>();
-        List<LotMapping>  lotMappings = new ArrayList<>();
+        List<LotMapping> lotMappings = new ArrayList<>();
 
         for (String lotCode : dto.getInputLots()) {
             Lot lot = lotRepo.findByCode(lotCode)
@@ -379,17 +406,16 @@ public class ProductionService {
             log.info("[Backflushing] 자재: {}, 차감후 재고: {}", mat.getName(), mat.getCurrentStock());
         }
 
-        // 수량 증가
         workOrder.setCurrentQty(workOrder.getCurrentQty() + 1);
 
-        // 완료 처리
         if (workOrder.getCurrentQty() >= workOrder.getTargetQty()) {
             workOrder.setStatus("COMPLETED");
-            workOrder.setEndDate(LocalDateTime.now()); // 생산 마감 시점 기록
+            workOrder.setEndDate(LocalDateTime.now());
         }
 
         log.info("[생산 보고] 제품:{} 상태:{} 수량:{}/{}",
-                workOrder.getProduct().getCode(), workOrder.getStatus(), workOrder.getCurrentQty(), workOrder.getTargetQty());
+                workOrder.getProduct().getCode(), workOrder.getStatus(),
+                workOrder.getCurrentQty(), workOrder.getTargetQty());
 
         orderRepo.save(workOrder);
     }
@@ -408,50 +434,30 @@ public class ProductionService {
         return matRepo.findAll();
     }
 
-    // =========================
-    // util) 작업지시 번호 생성
-    // =========================
     private String generateWorkOrderNumber() {
-        // 예: WO-20260116-1234
         String date = LocalDate.now().toString().replace("-", "");
         int random = (int) (Math.random() * 9000) + 1000;
         return "WO-" + date + "-" + random;
     }
 
-    // =========================
-    // util) 시리얼 번호 생성
-    // =========================
-    private String generateSerial(String productId) {
-        return productId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-    }
-
     // 생산실적현황 서비스
     @Transactional(readOnly = true)
     public PerformanceSummaryResDto getPerformanceSummary(LocalDate date, String line) {
-
-        // ✅ 수정: Repository에서 DTO를 바로 받으므로 캐스팅/배열처리 하면 안됨
         PerformanceSummaryResDto dto = productionResultRepo.getSummary(date, line);
-
-        // ✅ 추가: 혹시 null 방어 (데이터 없을 때)
-        if (dto == null) {
-            return new PerformanceSummaryResDto(0L, 0L, 0L, 0.0);
-        }
-
+        if (dto == null) return new PerformanceSummaryResDto(0L, 0L, 0L, 0.0);
         return dto;
     }
 
     @Transactional(readOnly = true)
     public List<HourlyPerformanceResDto> getHourlyPerformance(LocalDate date, String line) {
-        // 1. Repository에서 Native Query 실행 (Object[] 리스트 반환)
         List<Object[]> results = productionResultRepo.getHourlyNative(date, line);
 
-        // 2. Object[]를 DTO로 변환
         return results.stream()
                 .map(result -> new HourlyPerformanceResDto(
-                        (String) result[0],                      // time
-                        ((Number) result[1]).longValue(),        // plan
-                        ((Number) result[2]).longValue(),        // actual
-                        ((Number) result[3]).longValue()         // scrap
+                        (String) result[0],
+                        ((Number) result[1]).longValue(),
+                        ((Number) result[2]).longValue(),
+                        ((Number) result[3]).longValue()
                 ))
                 .collect(Collectors.toList());
     }
@@ -459,12 +465,9 @@ public class ProductionService {
     @Transactional(readOnly = true)
     public List<WorkOrderPerformanceResDto> getWorkOrderPerformanceList(LocalDate date, String line) {
 
-        // 1) 라인 기준 WorkOrder 조회
         List<WorkOrder> orders = orderRepo.findByLineForPerformance(line);
 
-        // 2) DTO 변환
         return orders.stream().map(wo -> {
-
             long plan = (long) wo.getTargetQty();
             long actual = (long) wo.getCurrentQty();
             long loss = Math.max(plan - actual, 0L);
@@ -472,10 +475,10 @@ public class ProductionService {
             String status = "IN_PROGRESS".equals(wo.getStatus()) ? "RUNNING" : wo.getStatus();
 
             return new WorkOrderPerformanceResDto(
-                    wo.getWorkOrderNumber(),   // woId
+                    wo.getWorkOrderNumber(),
                     wo.getProduct().getCode(),
-                    wo.getTargetLine(),         // line
-                    "wfrs",                     // unit (고정, 필요시 제품단위로 바꿀 수 있음)
+                    wo.getTargetLine(),
+                    "wfrs",
                     plan,
                     actual,
                     loss,
@@ -484,49 +487,66 @@ public class ProductionService {
             );
         }).toList();
     }
-    // 작업자 조회
+
+    // =========================
+    // 이벤트 로그 저장
+    // =========================
+    public void saveEventLog(EventLogReqDto dto) {
+
+        ProductionLog log = ProductionLog.builder()
+                .startTime(LocalDateTime.now())
+                .level(dto.getLevel())
+                .category("PRODUCTION")
+                .message(dto.getMessage())
+                .build();
+
+        logRepo.save(log);
+    }
+
+    // =========================
+    // 이벤트 로그 조회
+    // =========================
     @Transactional(readOnly = true)
-    public List<WorkerResDto> getAllWorkers() {
-        return workerRepo.findAll().stream()
-                .map(WorkerResDto::fromEntity)
+    public List<EventLogResDto> getEventLogs() {
+        return logRepo.findByMessageIsNotNullOrderByStartTimeDesc()
+                .stream()
+                .map(EventLogResDto::fromEntity)
                 .toList();
     }
 
-    // 작업자 등록
+    // 이벤트 로그 메시지 수정
+    @Transactional
+    public void updateMessage(Long id, String message) {
+        ProductionLog log = logRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Log not found"));
+        log.setMessage(message);
+    }
+
+    // =========================
+    // 작업자 조회
+    // =========================
+    @Transactional(readOnly = true)
+    public List<WorkerResDto> getAllWorkers() {
+        return workerRepo.findAll().stream()
+                .map(WorkerResDto::fromEntity) // WorkerResDto도 member 기반이면 수정 필요
+                .toList();
+    }
+
+    // =========================
+    // 작업자 등록 (Member 생성 로직 제거)
+    // =========================
     @Transactional
     public WorkerResDto registerWorker(WorkerCreateReqDto dto) {
 
-        // 1) Member 생성
-        memberRepo.findByEmail(dto.getEmail()).ifPresent(m -> {
-            throw new RuntimeException("이미 존재하는 이메일입니다: " + dto.getEmail());
-        });
+        // ✅ Worker 분리 후: email/password/authority 같은 계정정보는 Worker가 들지 않음
+        // ✅ WorkerCreateReqDto는 name/shift/status/dept/joinDate/certifications만 갖도록 수정 권장
 
-        String authorityStr = (dto.getAuthority() == null || dto.getAuthority().isBlank())
-                ? "ROLE_OPERATOR"
-                : dto.getAuthority().trim().toUpperCase();
-
-// 프론트에서 OPERATOR / ADMIN 같은 값이 오면 ROLE_ 붙여서 보정
-        if (!authorityStr.startsWith("ROLE_")) {
-            authorityStr = "ROLE_" + authorityStr;
-        }
-
-        Member member = Member.builder()
-                .email(dto.getEmail())
-                .password(passwordEncoder.encode(dto.getPassword()))
-                .name(dto.getName())
-                .authority(Authority.valueOf(authorityStr))
-                .build();
-
-
-        Member savedMember = memberRepo.save(member);
-
-        // 2) Worker 생성
         String certStr = (dto.getCertifications() == null || dto.getCertifications().isEmpty())
                 ? ""
                 : String.join(",", dto.getCertifications());
 
         Worker worker = Worker.builder()
-                .member(savedMember)
+                .name(dto.getName()) // ✅ name 필수 (Worker에 name 컬럼 있어야 함)
                 .dept(dto.getDept() == null ? "TBD" : dto.getDept())
                 .shift(dto.getShift() == null ? "Day" : dto.getShift())
                 .status(dto.getStatus() == null ? "OFF" : dto.getStatus())
@@ -535,137 +555,115 @@ public class ProductionService {
                 .build();
 
         Worker savedWorker = workerRepo.save(worker);
-
         return WorkerResDto.fromEntity(savedWorker);
     }
-    // 작업자 수정
+
+    // =========================
+    // 작업자 수정 (Member 수정 로직 제거)
+    // =========================
     @Transactional
     public WorkerResDto updateWorker(Long workerId, WorkerUpdateReqDto dto) {
 
         Worker worker = workerRepo.findById(workerId)
                 .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + workerId));
 
-        // 1) WorkerProfile(Worker 테이블) 수정
+        if (dto.getName() != null) worker.setName(dto.getName());
         if (dto.getDept() != null) worker.setDept(dto.getDept());
         if (dto.getShift() != null) worker.setShift(dto.getShift());
         if (dto.getStatus() != null) worker.setStatus(dto.getStatus());
-
 
         if (dto.getCertifications() != null) {
             worker.setCertifications(String.join(",", dto.getCertifications()));
         }
 
-        // 2) Member 수정 (name/authority)
-        Member member = worker.getMember();
-        if (dto.getName() != null) member.setName(dto.getName());
-        if (dto.getAuthority() != null) member.setAuthority(Authority.valueOf(dto.getAuthority()));
-
-        // 저장 (worker만 save해도 member는 영속 상태라 반영됨)
         Worker saved = workerRepo.save(worker);
-
         return WorkerResDto.fromEntity(saved);
     }
+
+    // =========================
     // 작업자 삭제
+    // =========================
     @Transactional
     public void deleteWorker(Long workerId) {
-
         Worker worker = workerRepo.findById(workerId)
                 .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + workerId));
-
-        // ⭐ Worker만 삭제 (Member는 유지)
         workerRepo.delete(worker);
     }
 
     // ==========================================
-    //  8. 기준 정보 조회 (Frontend 연동용) - [추가됨]
+    // 기준 정보 조회
     // ==========================================
-
-    // 1) 설비 목록 조회
     public List<Equipment> getAllEquipments() {
         return equipmentRepo.findAll();
     }
 
-    // 2) 자재 목록 조회
     public List<Material> getAllMaterials() {
         return matRepo.findAll();
     }
 
-    // 3) 품목(제품) 목록 조회
     public List<Product> getAllProducts() {
         return productRepo.findAll();
     }
 
     // ==========================================
-    //  11. 품질(Quality) 및 BOM API 로직 - [추가됨]
+    // 품질(Quality) 및 BOM API 로직
     // ==========================================
-
-    // 1) BOM 목록 조회
     public List<Bom> getAllBoms() {
         return bomRepo.findAll();
     }
 
-    // 2) 불량 현황 조회 (DefectPage용)
     public List<FinalInspection> getAllDefectLogs() {
-        return finalInspectionLRepo.findAll(); // 변수명 finalInspectionLRepo 주의
+        return finalInspectionLRepo.findAll();
     }
 
-    // 3) SPC 차트 데이터 (DieBonding 온도/압력 등)
     public List<DieBonding> getAllDieBondingLogs() {
         return dieBondingRepo.findAll();
     }
 
-    // (선택사항) Molding SPC 데이터도 필요하다면 추가
     public List<Molding> getAllMoldingLogs() {
         return moldingRepo.findAll();
     }
+
     // ==========================================
-    //  12. 실시간 실적 집계 (Dashboard용) - [추가됨]
+    // 실시간 실적 집계 (Dashboard용)
     // ==========================================
     private void updateProductionResult(WorkOrder order, Product product, int goodQty, int defectQty) {
         LocalDate today = LocalDate.now();
         int currentHour = LocalDateTime.now().getHour();
-        String line = order.getTargetLine(); // 작업지시의 라인 정보 사용
+        String line = order.getTargetLine();
 
-        // 1. 해당 시간대의 실적 데이터가 있는지 확인
         ProductionResult result = productionResultRepo
                 .findByResultDateAndResultHourAndLineAndProduct(today, currentHour, line, product)
                 .orElseGet(() -> {
-                    // 없으면 새로 생성
                     ProductionResult newResult = new ProductionResult();
                     newResult.setResultDate(today);
                     newResult.setResultHour(currentHour);
                     newResult.setLine(line);
                     newResult.setProduct(product);
-                    newResult.setPlanQty(0); // 계획 수량은 별도 로직이나 0으로 시작
+                    newResult.setPlanQty(0);
                     newResult.setGoodQty(0);
                     newResult.setDefectQty(0);
                     newResult.setCreatedAt(LocalDateTime.now());
                     return newResult;
                 });
 
-        // 2. 수량 누적
         result.setGoodQty(result.getGoodQty() + goodQty);
         result.setDefectQty(result.getDefectQty() + defectQty);
 
-        // 3. 저장
         productionResultRepo.save(result);
     }
+
     // ==========================================
-    //  14. 품질 검사 기준 조회 (Quality Standard)
+    // 품질 검사 기준 조회 (Quality Standard)
     // ==========================================
     public List<InspectionStandard> getInspectionStandards(String processName) {
-        // 데이터가 하나도 없으면 테스트용 더미 데이터 자동 생성 (편의상)
         if (standardRepo.count() == 0) {
             standardRepo.save(InspectionStandard.builder().processName("DieBonding").checkItem("Bonding Temp").lsl(150.0).usl(180.0).unit("°C").description("접합 온도 기준").build());
             standardRepo.save(InspectionStandard.builder().processName("WireBonding").checkItem("Tensile Strength").lsl(50.0).usl(100.0).unit("N").description("와이어 인장 강도").build());
             standardRepo.save(InspectionStandard.builder().processName("Molding").checkItem("Pressure").lsl(10.0).usl(20.0).unit("Bar").description("몰딩 압력 기준").build());
         }
 
-        if (processName == null || "ALL".equals(processName)) {
-            return standardRepo.findAll();
-        }
+        if (processName == null || "ALL".equals(processName)) return standardRepo.findAll();
         return standardRepo.findByProcessName(processName);
     }
- //11
 }
-

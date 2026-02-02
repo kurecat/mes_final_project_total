@@ -38,6 +38,7 @@ public class Bom {
     @Enumerated(EnumType.STRING)
     private BomStatus status;
 
+    @Builder.Default
     @OneToMany(mappedBy = "bom", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BomItem> items = new ArrayList<>();
 }

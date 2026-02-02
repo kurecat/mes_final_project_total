@@ -18,6 +18,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 // 웹 대시 보드 및 설비를 연결
 
 // 웹 대시보드 및 설비(C#)를 연결하는 Controller
@@ -25,6 +26,7 @@ import java.util.List;
 @RequestMapping("/api/mes")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*", allowedHeaders = "*")
+//@CrossOrigin(origins = "http://localhost:3000")
 @Slf4j
 public class MesController {
 
@@ -99,6 +101,18 @@ public class MesController {
     public ResponseEntity<WorkOrderResDto> finishOrder(@PathVariable Long id) {
         WorkOrder order = productionService.finishWorkOrder(id);
         return ResponseEntity.ok(WorkOrderResDto.fromEntity(order));
+    }
+    // 작업지시 로그 기록
+    @PostMapping("/production-log/event")
+    public ResponseEntity<?> createLog(@RequestBody ProductionLogEventReqDto dto) {
+        productionService.createEventLog(dto);
+        return ResponseEntity.ok().build();
+    }
+    // 작업지시(시작,중단,완료) 로그 기록 전송
+    @PostMapping("/workorder/log")
+    public ResponseEntity<String> createEventLog(@RequestBody ProductionLogEventReqDto dto) {
+        productionService.createEventLog(dto);
+        return ResponseEntity.ok("Log recorded successfully");
     }
 
     // =========================
@@ -197,6 +211,33 @@ public class MesController {
                 productionService.getWorkOrderPerformanceList(date, line)
         );
     }
+    // =========================
+    // 이벤트 로그 등록
+    // =========================
+    @PostMapping("/event-log")
+    public ResponseEntity<?> createEventLog(@RequestBody EventLogReqDto dto) {
+        productionService.saveEventLog(dto);
+        return ResponseEntity.ok().body("Event log saved");
+    }
+
+    // =========================
+    // 이벤트 로그 조회
+    // =========================
+    @GetMapping("/event-log")
+    public ResponseEntity<List<EventLogResDto>> getEventLogs() {
+        return ResponseEntity.ok(productionService.getEventLogs());
+    }
+    // 이벤트 로그 메시지 수정
+    @PatchMapping("/event-log/{id}")
+    public ResponseEntity<?> updateMessage(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+
+        productionService.updateMessage(id, body.get("message"));
+        return ResponseEntity.ok().build();
+    }
+
+
     // 작업자 조회
     @GetMapping("/worker/list")
     public ResponseEntity<List<WorkerResDto>> getWorkerList() {

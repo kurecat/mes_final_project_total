@@ -13,12 +13,7 @@ import java.util.List;
 public class WorkerResDto {
 
     private Long workerId;
-    private Long memberId;
-
-    private String email;
     private String name;
-    private String authority;
-
     private String dept;
     private String shift;
     private String status;
@@ -35,10 +30,7 @@ public class WorkerResDto {
 
         return WorkerResDto.builder()
                 .workerId(w.getId())
-                .memberId(w.getMember().getId())
-                .email(w.getMember().getEmail())
-                .name(w.getMember().getName())
-                .authority(w.getMember().getAuthority().name())
+                .name(w.getName())
                 .dept(w.getDept())
                 .shift(w.getShift())
                 .status(w.getStatus())

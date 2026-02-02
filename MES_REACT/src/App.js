@@ -4,6 +4,7 @@ import { Routes, Route } from "react-router-dom";
 import styled from "styled-components";
 import GlobalStyle from "./style/GlobalStyle";
 import BarcodeGenerator from "./pages/Auth/BarcodeGenerator";
+import Test from "./Test";
 
 // --- Lazy Load Pages (Code Splitting) ---
 // 초기 로딩 속도 개선을 위해 각 페이지를 동적으로 불러옵니다.
@@ -24,6 +25,9 @@ const ProductionPlanPage = lazy(
 );
 const WorkOrderPage = lazy(
   () => import("./components/admin/production/WorkOrderPage"),
+);
+const ProductionLogPage = lazy(
+  () => import("./components/admin/production/ProductionLogPage"),
 );
 const PerformancePage = lazy(
   () => import("./components/admin/production/PerformancePage"),
@@ -100,6 +104,7 @@ const App = () => {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/barcode-gen" element={<BarcodeGenerator />} />
+          <Route path="/test" element={<Test />} />
           <Route path="/admin" element={<AdminMainPage />}>
             <Route index element={<DashboardPage />} />
 
@@ -113,6 +118,10 @@ const App = () => {
             <Route
               path="production/performance"
               element={<PerformancePage />}
+            />
+            <Route
+              path="production/productionlogs"
+              element={<ProductionLogPage />}
             />
             <Route path="production/worker" element={<WorkerPage />} />
             <Route path="production/barcode" element={<BarcodePage />} />

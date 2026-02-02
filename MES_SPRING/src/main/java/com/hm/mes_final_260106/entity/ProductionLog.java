@@ -22,8 +22,8 @@ public class ProductionLog {
     private WorkOrder workOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id")
-    private Member member;
+    @JoinColumn(name = "worker_id")
+    private Worker worker;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "equipment_id")
@@ -53,4 +53,20 @@ public class ProductionLog {
 
     @Column(name = "end_time")
     private LocalDateTime endTime;
+
+    @Column(length = 10)
+    private String level;   // INFO, WARN
+
+    @Column(length = 20)
+    private String category; // PRODUCTION
+
+    @Column(length = 255)
+    private String message;
+
+    private LocalDateTime logTime;
+
+    @PrePersist
+    public void prePersist() {
+        this.logTime = LocalDateTime.now();
+    }
 }

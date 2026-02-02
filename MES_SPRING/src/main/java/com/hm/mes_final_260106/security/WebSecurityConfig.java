@@ -47,12 +47,12 @@ public class WebSecurityConfig {
                         .requestMatchers("/auth/login", "/auth/signup", "/auth/refresh").permitAll()
 
                         // ★ [핵심 수정] MES 관련 모든 API 요청을 일단 허용 (개발 중 401 에러 방지)
-                        .requestMatchers("/api/mes/**").permitAll()
+                        .requestMatchers("/api/**").permitAll()
 
                         /* * 아래의 엄격한 제한 코드는 주석 처리하거나, 위 줄(permitAll) 덕분에
                          * 자동으로 무시됩니다. (순서상 위에 있는 설정이 먼저 적용됨)
                          * * // 관리자 전용
-                         * .requestMatchers(
+                         * .requestMatchers(1
                          * "/api/mes/material/in",
                          * "/api/mes/material/out",
                          * "/api/mes/order/**"

@@ -8,11 +8,7 @@ import java.util.List;
 @Data
 public class WorkerCreateReqDto {
 
-    // Member 정보
-    private String email;
-    private String password;
     private String name;
-    private String authority;
 
     // Worker 정보
     private String dept;
