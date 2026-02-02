@@ -6,8 +6,9 @@ import com.hm.mes_final_260106.entity.DicingInspection;
 import com.hm.mes_final_260106.entity.ProductionLog;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface ProductionLogMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -16,3 +17,5 @@ public interface ProductionLogMapper {
     @Mapping(target = "equipment", ignore = true)
     ProductionLog toEntity(ProductionReportDto dto);
 }
+
+

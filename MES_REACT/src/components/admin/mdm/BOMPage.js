@@ -450,22 +450,23 @@ const DetailView = React.memo(({ bom, bomItems }) => {
                 <BomTableRow key={child.id} bomItem={child} />
               ))}
           </tbody>
-          <td colSpan="6">
-            <AddButtonContainer>
-              <AddButton>
-                <FaPlus /> New BOM Item
-              </AddButton>
-            </AddButtonContainer>
-          </td>
+          {/* ✅ 수정된 부분: tfoot과 tr로 감싸주었습니다 */}
+          <tfoot>
+            <tr>
+              <td colSpan="6">
+                <AddButtonContainer>
+                  <AddButton>
+                    <FaPlus /> New BOM Item
+                  </AddButton>
+                </AddButtonContainer>
+              </td>
+            </tr>
+          </tfoot>
         </BomTable>
       </TableContainer>
     </>
   );
 });
-
-/* =========================================================================
-   Main Component
-   ========================================================================= */
 
 const BomPage = () => {
   const [bomList, setBomList] = useState([]);
@@ -479,9 +480,7 @@ const BomPage = () => {
     setLoading(true);
     try {
       // API call logic...
-      const res = await axiosInstance.get(
-        "http://localhost:8111/api/mes/master/bom/list",
-      );
+      const res = await axiosInstance.get("/api/mes/master/bom/list");
       setBomList(res.data);
       if (res.data.length > 0) setSelectedBom(res.data[0]);
       setLoading(false);
@@ -498,7 +497,7 @@ const BomPage = () => {
         // API call logic...
         const bomId = selectedBom.id;
         const res = await axiosInstance.get(
-          `http://localhost:8111/api/mes/master/bom-item/${bomId}`,
+          `/api/mes/master/bom-item/${bomId}`,
         );
         setBomItems(res.data);
       }
