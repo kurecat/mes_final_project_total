@@ -41,16 +41,16 @@ public class MasterDataController {
 //        return ResponseEntity.ok("BOM 등록 완료");
 //    }
 
-    // 3. 자재 정보 수정
-    @PutMapping("/material/{code}")
-    public ResponseEntity<String> updateMaterial(
-            @PathVariable String code,
-            @RequestParam String name,
-            @RequestParam String category
-    ) {
-        masterService.updateMaterial(code, name, category);
-        return ResponseEntity.ok("자재 정보 수정 완료");
-    }
+//    // 3. 자재 정보 수정
+//    @PutMapping("/material/{code}")
+//    public ResponseEntity<String> updateMaterial(
+//            @PathVariable String code,
+//            @RequestParam String name,
+//            @RequestParam String category
+//    ) {
+//        masterService.updateMaterial(code, name, category);
+//        return ResponseEntity.ok("자재 정보 수정 완료");
+//    }
 
     // CREATE
     @PostMapping("/material")
