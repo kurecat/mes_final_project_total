@@ -416,30 +416,17 @@ const MachinePage = () => {
     setSearchTerm(e.target.value);
   }, []);
 
-  const openDetailModal = useCallback((machine) => {
+  const openDetailModal = useCallback(async (machine) => {
     setDetailTarget(machine);
     setDetailOpen(true);
-    setLogs([
-      {
-        time: "2026-01-20 10:22:11",
-        type: "INFO",
-        message: "Monitoring started",
-      },
-      {
-        time: "2026-01-20 10:35:12",
-        type: machine.status === "DOWN" ? "ALARM" : "RUN",
-        message:
-          machine.status === "DOWN"
-            ? machine.errorCode
-            : "Running successfully",
-      },
-    ]);
+
+    await fetchEquipmentLogs(machine.id);
   }, []);
 
   const closeDetailModal = useCallback(() => {
     setDetailOpen(false);
     setDetailTarget(null);
-    setLogs([]);
+    setLogs([]); // 모달 닫을 때 로그 비우기
   }, []);
 
   const filteredData = useMemo(() => {

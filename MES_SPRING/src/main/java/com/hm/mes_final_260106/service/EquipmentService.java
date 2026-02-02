@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -219,5 +220,10 @@ public void changeStatus(Long id, EquipmentStatus nextStatus) {
             case IDLE, DOWN -> next == EquipmentStatus.RUN;
         };
     }
-
+    public List<EquipmentEventLogResDto> getEquipmentLogs(Long equipmentId) {
+        return eventLogRepo.findByEquipmentIdOrderByCreatedAtDesc(equipmentId)
+                .stream()
+                .map(EquipmentEventLogResDto::from)
+                .collect(Collectors.toList());
+    }
 }

@@ -5,7 +5,7 @@ import com.hm.mes_final_260106.dto.Warehouse.WarehouseCreateReqDto;
 import com.hm.mes_final_260106.dto.Warehouse.WarehouseResDto;
 import com.hm.mes_final_260106.dto.bom.BomResDto;
 import com.hm.mes_final_260106.dto.bom.BomUpdateReqDto;
-import com.hm.mes_final_260106.dto.bomItem.BomItemResDto;
+import com.hm.mes_final_260106.dto.bomitem.BomItemResDto;
 import com.hm.mes_final_260106.dto.material.MaterialCreateReqDto;
 import com.hm.mes_final_260106.dto.material.MaterialResDto;
 import com.hm.mes_final_260106.dto.material.MaterialUpdateReqDto;
