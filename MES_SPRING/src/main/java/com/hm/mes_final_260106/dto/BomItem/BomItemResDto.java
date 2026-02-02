@@ -1,4 +1,4 @@
-package com.hm.mes_final_260106.dto.BomItem;
+package com.hm.mes_final_260106.dto.bomItem;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

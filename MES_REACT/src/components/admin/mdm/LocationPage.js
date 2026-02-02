@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axiosInstance from "../../api/axios"; // 실제 API 연동 시 주석 해제
+import axiosInstance from "../../../api/axios";
 import {
   FaWarehouse,
   FaSearch,
@@ -11,8 +11,9 @@ import {
   FaBox,
   FaThermometerHalf,
   FaExclamationTriangle,
+  FaTools,
   FaTimes,
-  FaSave,
+  FaMicrochip,
 } from "react-icons/fa";
 
 // --- [Mock Data] 초기 데이터 ---
@@ -64,17 +65,24 @@ const MOCK_LOCATIONS = [
   },
 ];
 
-/* =========================================================================
-   Sub-Components (렌더링 최적화)
-   ========================================================================= */
+const defaultWarehouse = {
+  code: "code",
+  name: "name",
+  type: "Main",
+  address: "address",
+  capacity: 1,
+  mainParam: "mainParam",
+};
 
-// 1. 상단 검색 및 필터 바
+// --- [Optimized] Sub-Components with React.memo ---
+
+// 1. Control Bar Component
 const ControlBarSection = React.memo(
   ({ filterType, onFilterChange, searchTerm, onSearchChange }) => {
     return (
       <ControlBar>
         <FilterGroup>
-          {["ALL", "RAW", "WIP", "FG"].map((type) => (
+          {["ALL", "Main", "Sub", "ColdStorage", "CleanRoom"].map((type) => (
             <FilterBtn
               key={type}
               $active={filterType === type}
@@ -82,11 +90,13 @@ const ControlBarSection = React.memo(
             >
               {type === "ALL"
                 ? "All"
-                : type === "RAW"
-                  ? "Raw Material"
-                  : type === "WIP"
-                    ? "WIP (Stocker)"
-                    : "Finished Goods"}
+                : type === "Main"
+                  ? "Main"
+                  : type === "Sub"
+                    ? "Sub"
+                    : type === "ColdStorage"
+                      ? "ColdStorage"
+                      : "CleanRoom"}
             </FilterBtn>
           ))}
         </FilterGroup>
@@ -105,15 +115,15 @@ const ControlBarSection = React.memo(
 
 // 2. 개별 위치 카드
 const LocationCardItem = React.memo(({ loc, onDelete, onEdit }) => {
-  const percent = Math.round((loc.current / loc.capacity) * 100);
+  const percent = Math.round((loc.occupancy / loc.capacity) * 100);
   const isFull = percent >= 95;
 
   return (
     <LocationCard $isFull={isFull}>
       <CardHeader>
         <LocType $type={loc.type}>{loc.type}</LocType>
-        <LocId>{loc.id}</LocId>
-        <EditIcon onClick={() => onEdit(loc.id)}>
+        <LocCode>{loc.code}</LocCode>
+        <EditIcon onClick={() => onEdit(loc)}>
           <FaEdit />
         </EditIcon>
       </CardHeader>
@@ -121,21 +131,21 @@ const LocationCardItem = React.memo(({ loc, onDelete, onEdit }) => {
       <CardBody>
         <LocName>{loc.name}</LocName>
         <ConditionInfo>
-          {loc.condition.includes("Cold") ? (
+          {loc.type.includes("Cold") ? (
             <FaThermometerHalf color="#3498db" />
-          ) : loc.condition.includes("Dry") ? (
+          ) : loc.type.includes("Dry") ? (
             <FaBox color="#e67e22" />
           ) : (
             <FaWarehouse color="#999" />
           )}
-          {loc.condition}
+          {loc.type}
         </ConditionInfo>
 
         <CapacityWrapper>
           <CapLabel>
             <span>Occupancy</span>
             <span className={isFull ? "full" : ""}>
-              {percent}% ({loc.current}/{loc.capacity})
+              {percent}% ({loc.occupancy}/{loc.capacity})
             </span>
           </CapLabel>
           <ProgressBar>
@@ -162,130 +172,230 @@ const LocationCardItem = React.memo(({ loc, onDelete, onEdit }) => {
   );
 });
 
-/* =========================================================================
-   Main Component
-   ========================================================================= */
+const CrudModal = React.memo(
+  ({ isEdit, formData, onChange, onAdd, onEdit, onClose }) => {
+    return (
+      <ModalOverlay onClick={onClose}>
+        <ModalBox onClick={(e) => e.stopPropagation()}>
+          <ModalHeader>
+            <ModalTitle>
+              <FaTools />
+              {isEdit ? "Edit Warehouse" : "Add Warehouse"}
+            </ModalTitle>
+            <CloseBtn onClick={onClose}>
+              <FaTimes />
+            </CloseBtn>
+          </ModalHeader>
+
+          <ModalBody>
+            <SectionTitle>
+              <FaMicrochip /> Warehouse Form
+            </SectionTitle>
+            <FormGrid>
+              <FormItem>
+                <FormLabel>Code</FormLabel>
+                <FormInput
+                  name="code"
+                  value={formData.code}
+                  placeholder="Warehouse code"
+                  onChange={onChange}
+                />
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormInput
+                  name="name"
+                  value={formData.name}
+                  placeholder="Warehouse name"
+                  onChange={onChange}
+                />
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Type</FormLabel>
+                <FormSelect
+                  name="type"
+                  value={formData.type}
+                  onChange={onChange}
+                >
+                  <option value="Main">Main</option>
+                  <option value="Sub">Sub</option>
+                  <option value="ColdStorage">ColdStorage</option>
+                  <option value="CleanRoom">CleanRoom</option>
+                </FormSelect>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Address</FormLabel>
+                <FormInput
+                  name="address"
+                  value={formData.address}
+                  onChange={onChange}
+                ></FormInput>
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Capacity</FormLabel>
+                <FormInput
+                  type="number"
+                  name="capacity"
+                  value={formData.capacity}
+                  onChange={onChange}
+                />
+              </FormItem>
+
+              <FormItem>
+                <FormLabel>Occupancy</FormLabel>
+                <FormInput
+                  type="number"
+                  name="occupancy"
+                  value={formData.occupancy}
+                  disabled
+                />
+              </FormItem>
+
+              <FormItem style={{ gridColumn: "1 / -1" }}>
+                <FormLabel>Main Param</FormLabel>
+                <FormInput
+                  name="param"
+                  value={formData.param}
+                  placeholder="ex) Pressure=3.2Torr"
+                  onChange={onChange}
+                />
+              </FormItem>
+            </FormGrid>
+          </ModalBody>
+
+          <ModalFooter>
+            <ModalBtn
+              className="close"
+              onClick={() => {
+                if (!isEdit) {
+                  onAdd(formData); // 추가 시 formData만 전달
+                } else {
+                  onEdit(formData.id, formData); // 수정 시 id와 formData 전달
+                }
+                onClose();
+              }}
+            >
+              {!isEdit ? "Add" : "Save"}
+            </ModalBtn>
+          </ModalFooter>
+        </ModalBox>
+      </ModalOverlay>
+    );
+  },
+);
+
+// --- Main Component ---
 
 const LocationPage = () => {
-  // --- State: Data & UI ---
-  const [locations, setLocations] = useState(MOCK_LOCATIONS);
+  const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("ALL");
 
-  // --- State: Modal (Add & Edit 통합) ---
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState("ADD"); // "ADD" or "EDIT"
-  const [newLocation, setNewLocation] = useState({
-    id: "",
-    name: "",
-    type: "RAW",
-    condition: "Normal",
-    capacity: 1000,
-    current: 0,
-    status: "ACTIVE",
-  });
+  const [reqFetch, setReqFetch] = useState(false);
 
-  // 1. 데이터 조회 (Simulated API)
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+  const [editingWarehouse, setEditingWarehouse] = useState(null);
+
+  // 1. 데이터 조회 (READ) - useCallback
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // API 호출 대기 시뮬레이션
-      setTimeout(() => {
-        setLocations(MOCK_LOCATIONS);
-        setLoading(false);
-      }, 500);
+      // API call logic...
+      const res = await axiosInstance.get("/api/mes/master/warehouse/list");
+      setLocations(res.data);
+
+      // setTimeout(() => {
+      //   setLocations(MOCK_LOCATIONS);
+      //   setLoading(false);
+      // }, 500);
     } catch (err) {
       console.error(err);
+    } finally {
+      setReqFetch(false);
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, reqFetch]);
 
-  // 2. Handlers: CRUD
-  const handleDelete = useCallback((id) => {
-    if (!window.confirm("정말로 삭제하시겠습니까?")) return;
-    setLocations((prev) => prev.filter((loc) => loc.id !== id));
+  // 2. Handlers - useCallback
+  const handleDelete = useCallback(async (id) => {
+    if (!window.confirm("이 위치 정보를 삭제하시겠습니까?")) return;
+    try {
+      await axiosInstance.delete(`/api/mes/master/warehouse/${id}`);
+      setReqFetch(true);
+    } catch (err) {
+      console.error(err);
+    }
   }, []);
 
-  // [추가 버튼] 클릭 핸들러
-  const handleAdd = useCallback(() => {
-    setNewLocation({
-      id: "",
-      name: "",
-      type: "RAW",
-      condition: "Normal",
-      capacity: 1000,
-      current: 0,
-      status: "ACTIVE",
-    });
-    setModalMode("ADD");
-    setIsModalOpen(true);
+  const handleEdit = useCallback(async (id, formData) => {
+    try {
+      await axiosInstance.put(`/api/mes/master/warehouse/${id}`, formData);
+      setReqFetch(true);
+    } catch (err) {
+      console.error(err);
+    }
   }, []);
 
-  // [수정 버튼] 클릭 핸들러
-  const handleEdit = useCallback(
-    (id) => {
-      const target = locations.find((loc) => loc.id === id);
-      if (target) {
-        setNewLocation({ ...target }); // 기존 데이터 복사
-        setModalMode("EDIT");
-        setIsModalOpen(true);
-      }
-    },
-    [locations],
-  );
-
-  // [저장/업데이트] 핸들러
-  const handleSaveLocation = () => {
-    if (!newLocation.id || !newLocation.name) {
-      alert("ID와 Location Name은 필수 입력 항목입니다.");
-      return;
+  const handleAdd = useCallback(async (formData) => {
+    try {
+      await axiosInstance.post(`/api/mes/master/warehouse`, formData);
+      setReqFetch(true);
+    } catch (err) {
+      console.error(err);
     }
+  }, []);
 
-    if (modalMode === "ADD") {
-      // 중복 ID 체크
-      if (locations.some((loc) => loc.id === newLocation.id)) {
-        alert("이미 존재하는 Location ID입니다.");
-        return;
-      }
-      const newItem = { ...newLocation, current: 0, status: "ACTIVE" };
-      setLocations((prev) => [newItem, ...prev]);
-    } else {
-      // EDIT 모드: ID가 같은 항목을 찾아 업데이트
-      setLocations((prev) =>
-        prev.map((loc) =>
-          loc.id === newLocation.id ? { ...loc, ...newLocation } : loc,
-        ),
-      );
-    }
-    setIsModalOpen(false);
-  };
+  const handleFilterChange = useCallback((type) => {
+    setFilterType(type);
+  }, []);
 
-  // 3. Handlers: Input & UI
-  const handleCloseModal = () => setIsModalOpen(false);
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
 
-  const handleInputChange = (e) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setNewLocation((prev) => ({ ...prev, [name]: value }));
+    setSelectedWarehouse((prev) => ({
+      ...prev,
+      [name]: name === "capacity" ? Math.max(1, Number(value)) : value,
+    }));
   };
 
-  const handleFilterChange = useCallback((type) => setFilterType(type), []);
-  const handleSearchChange = useCallback(
-    (e) => setSearchTerm(e.target.value),
-    [],
-  );
+  const handleEditClick = useCallback((location) => {
+    console.log(location);
+    setEditingWarehouse(true);
+    setIsModalOpen(true);
+    setSelectedWarehouse(location);
+  }, []);
+
+  const handleAddClick = useCallback(() => {
+    setEditingWarehouse(false);
+    setIsModalOpen(true);
+    setSelectedWarehouse({ ...defaultWarehouse });
+  }, []);
+
+  const closeCrudModal = useCallback(() => {
+    setIsModalOpen(false);
+    setSelectedWarehouse(null);
+  }, []);
 
   // 4. Filtering Logic
   const filteredList = useMemo(() => {
     return locations.filter((loc) => {
       const matchType = filterType === "ALL" || loc.type === filterType;
       const matchSearch =
-        loc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loc.id.toLowerCase().includes(searchTerm.toLowerCase());
+        loc.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        loc.name.toLowerCase().includes(searchTerm.toLowerCase());
       return matchType && matchSearch;
     });
   }, [locations, filterType, searchTerm]);
@@ -307,7 +417,7 @@ const LocationPage = () => {
           <SubTitle>Manage Storage Zones & Capacity</SubTitle>
         </TitleArea>
         <ActionGroup>
-          <AddButton onClick={handleAdd}>
+          <AddButton onClick={handleAddClick}>
             <FaPlus /> Add Location
           </AddButton>
         </ActionGroup>
@@ -328,88 +438,20 @@ const LocationPage = () => {
             key={loc.id}
             loc={loc}
             onDelete={handleDelete}
-            onEdit={handleEdit}
+            onEdit={handleEditClick}
           />
         ))}
       </GridContainer>
-
-      {/* Add / Edit Modal */}
+      {}
       {isModalOpen && (
-        <ModalOverlay>
-          <ModalContent>
-            <ModalHeader>
-              <h3>
-                {modalMode === "ADD" ? "Add New Location" : "Edit Location"}
-              </h3>
-              <CloseBtn onClick={handleCloseModal}>
-                <FaTimes />
-              </CloseBtn>
-            </ModalHeader>
-            <ModalBody>
-              <FormGroup>
-                <Label>Location ID</Label>
-                <Input
-                  name="id"
-                  placeholder="e.g. WH-RAW-B"
-                  value={newLocation.id}
-                  onChange={handleInputChange}
-                  readOnly={modalMode === "EDIT"} // 수정 시 ID 변경 불가
-                  disabled={modalMode === "EDIT"}
-                  style={{
-                    backgroundColor: modalMode === "EDIT" ? "#f0f0f0" : "white",
-                  }}
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Location Name</Label>
-                <Input
-                  name="name"
-                  placeholder="e.g. Raw Material Storage B"
-                  value={newLocation.name}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-              <Row>
-                <FormGroup style={{ flex: 1 }}>
-                  <Label>Type</Label>
-                  <Select
-                    name="type"
-                    value={newLocation.type}
-                    onChange={handleInputChange}
-                  >
-                    <option value="RAW">Raw Material</option>
-                    <option value="WIP">WIP (Stocker)</option>
-                    <option value="FG">Finished Goods</option>
-                  </Select>
-                </FormGroup>
-                <FormGroup style={{ flex: 1 }}>
-                  <Label>Max Capacity</Label>
-                  <Input
-                    type="number"
-                    name="capacity"
-                    value={newLocation.capacity}
-                    onChange={handleInputChange}
-                  />
-                </FormGroup>
-              </Row>
-              <FormGroup>
-                <Label>Condition</Label>
-                <Input
-                  name="condition"
-                  placeholder="e.g. Dry Box (20°C)"
-                  value={newLocation.condition}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
-            </ModalBody>
-            <ModalFooter>
-              <CancelButton onClick={handleCloseModal}>Cancel</CancelButton>
-              <SaveButton onClick={handleSaveLocation}>
-                <FaSave /> {modalMode === "ADD" ? "Save" : "Update"}
-              </SaveButton>
-            </ModalFooter>
-          </ModalContent>
-        </ModalOverlay>
+        <CrudModal
+          isEdit={!!editingWarehouse}
+          formData={selectedWarehouse}
+          onChange={handleChange}
+          onAdd={handleAdd}
+          onEdit={handleEdit}
+          onClose={closeCrudModal}
+        />
       )}
     </Container>
   );
@@ -565,19 +607,28 @@ const LocType = styled.span`
   padding: 2px 6px;
   border-radius: 4px;
   background: ${(props) =>
-    props.$type === "RAW"
-      ? "#e8f5e9"
-      : props.$type === "WIP"
-        ? "#fff3e0"
-        : "#e3f2fd"};
+    props.$type === "Main"
+      ? "#e8f5e9" // 연한 초록 배경
+      : props.$type === "Sub"
+        ? "#fff3e0" // 연한 주황 배경
+        : props.$type === "ColdStorage"
+          ? "#e0f7fa" // 연한 청록 배경
+          : props.$type === "CleanRoom"
+            ? "#f3e5f5" // 연한 보라 배경
+            : "#e3f2fd"}; // 기본값 (연한 파랑)
+
   color: ${(props) =>
-    props.$type === "RAW"
-      ? "#2e7d32"
-      : props.$type === "WIP"
-        ? "#e67e22"
-        : "#1976d2"};
+    props.$type === "Main"
+      ? "#2e7d32" // 진한 초록 글자
+      : props.$type === "Sub"
+        ? "#e67e22" // 주황 글자
+        : props.$type === "ColdStorage"
+          ? "#006064" // 청록 글자
+          : props.$type === "CleanRoom"
+            ? "#6a1b9a" // 보라 글자
+            : "#1976d2"}; // 기본값 (파랑 글자)
 `;
-const LocId = styled.span`
+const LocCode = styled.span`
   font-weight: 700;
   color: #333;
   font-size: 14px;
@@ -663,138 +714,135 @@ const DeleteBtn = styled.button`
 /* Modal Styles */
 const ModalOverlay = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 1000;
+  justify-content: center;
+  z-index: 9999;
 `;
-const ModalContent = styled.div`
+
+const ModalBox = styled.div`
+  width: 760px;
+  max-width: calc(100vw - 40px);
   background: white;
-  padding: 0;
   border-radius: 12px;
-  width: 450px;
-  max-width: 90%;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  animation: slideDown 0.3s ease-out;
-
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
+  max-height: 90vh;
 `;
+
 const ModalHeader = styled.div`
-  padding: 20px;
-  border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  h3 {
-    margin: 0;
-    color: #333;
-    font-size: 18px;
-  }
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eee;
 `;
-const CloseBtn = styled.button`
-  background: none;
-  border: none;
+
+const ModalTitle = styled.h3`
+  margin: 0;
   font-size: 18px;
-  color: #999;
+  font-weight: 800;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const CloseBtn = styled.button`
+  border: none;
+  background: transparent;
   cursor: pointer;
+  font-size: 18px;
+  color: #888;
+
   &:hover {
     color: #333;
   }
 `;
+
 const ModalBody = styled.div`
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  padding: 14px 0;
+  overflow-y: auto;
 `;
+
+const SectionTitle = styled.div`
+  font-size: 13px;
+  font-weight: 800;
+  color: #1a4f8b;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
 const ModalFooter = styled.div`
-  padding: 15px 20px;
+  padding-top: 12px;
   border-top: 1px solid #eee;
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
-  background-color: #f9f9f9;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
 `;
-const FormGroup = styled.div`
+
+const ModalBtn = styled.button`
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 800;
+  cursor: pointer;
+
+  &.close {
+    background: #1a4f8b;
+    color: white;
+  }
+
+  &:hover {
+    opacity: 0.9;
+  }
+`;
+
+/* CRUD Form */
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+`;
+
+const FormItem = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
 `;
-const Row = styled.div`
-  display: flex;
-  gap: 15px;
-`;
-const Label = styled.label`
-  font-size: 13px;
-  font-weight: 600;
-  color: #555;
-`;
-const Input = styled.input`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  outline: none;
-  &:focus {
-    border-color: #1a4f8b;
-  }
-  &:disabled {
-    color: #999;
-  }
-`;
-const Select = styled.select`
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  outline: none;
-  background: white;
-  &:focus {
-    border-color: #1a4f8b;
-  }
-`;
-const SaveButton = styled.button`
-  background: #1a4f8b;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  &:hover {
-    background: #133b6b;
-  }
-`;
-const CancelButton = styled.button`
-  background: white;
+
+const FormLabel = styled.div`
+  font-size: 12px;
+  font-weight: 800;
   color: #666;
+`;
+
+const FormInput = styled.input`
+  height: 38px;
   border: 1px solid #ddd;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  &:hover {
-    background: #f5f5f5;
+  border-radius: 10px;
+  padding: 0 12px;
+  outline: none;
+
+  &:focus {
+    border-color: #1a4f8b;
+  }
+`;
+
+const FormSelect = styled.select`
+  height: 38px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: 0 12px;
+  outline: none;
+  background: white;
+
+  &:focus {
+    border-color: #1a4f8b;
   }
 `;
