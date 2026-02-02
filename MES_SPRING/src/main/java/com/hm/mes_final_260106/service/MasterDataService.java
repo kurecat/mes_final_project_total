@@ -2,7 +2,7 @@ package com.hm.mes_final_260106.service;
 
 import com.hm.mes_final_260106.constant.BomStatus;
 import com.hm.mes_final_260106.constant.WarehouseStatus;
-import com.hm.mes_final_260106.dto.bomItem.BomItemResDto;
+import com.hm.mes_final_260106.dto.bomitem.BomItemResDto;
 import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
 import com.hm.mes_final_260106.dto.Warehouse.WarehouseCreateReqDto;
 import com.hm.mes_final_260106.dto.Warehouse.WarehouseResDto;

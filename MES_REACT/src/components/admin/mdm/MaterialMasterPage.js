@@ -1,7 +1,6 @@
-// src/pages/mdm/ItemPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
-// import axiosInstance from "../../api/axios";
+import axiosInstance from "../../../api/axios";
 import {
   FaBox,
   FaSearch,
@@ -10,76 +9,40 @@ import {
   FaEdit,
   FaSync,
   FaBarcode,
+  FaCheck,
 } from "react-icons/fa";
-
-// --- Fallback Mock Data ---
-const MOCK_ITEMS = [
-  {
-    id: "ITM-DDR5-16G",
-    name: "DDR5 16GB UDIMM",
-    type: "FERT",
-    spec: "5600MHz, 1.1V",
-    unit: "EA",
-    safetyStock: 1000,
-  },
-  {
-    id: "ITM-WF-PROC",
-    name: "Processed D-RAM Wafer",
-    type: "HALB",
-    spec: "1znm Node, 12-inch",
-    unit: "WF",
-    safetyStock: 50,
-  },
-  {
-    id: "ITM-CHIP-16Gb",
-    name: "16Gb SDRAM Die",
-    type: "HALB",
-    spec: "x8, BGA Type",
-    unit: "EA",
-    safetyStock: 20000,
-  },
-  {
-    id: "ITM-RAW-WF",
-    name: "12-inch Prime Wafer",
-    type: "ROH",
-    spec: "Si (100) P-Type",
-    unit: "BOX",
-    safetyStock: 200,
-  },
-  {
-    id: "ITM-PR-ARF",
-    name: "Photo Resist (ArF)",
-    type: "ROH",
-    spec: "Immersion Grade",
-    unit: "BTL",
-    safetyStock: 20,
-  },
-];
 
 // --- [Optimized] Sub-Components with React.memo ---
 
 // 1. Control Bar Component
+
+const categoryLabels = {
+  ALL: "All",
+  RAW_MATERIAL: "원재료",
+  SEMI_FINISHED: "반제품",
+  FINISHED_GOOD: "완제품",
+  PACKAGING: "포장재",
+  CONSUMABLE: "소모품",
+  PHANTOM: "가상품목",
+  ALTERNATIVE: "대체품",
+};
+
 const ControlBarSection = React.memo(
   ({ filterType, onFilterChange, searchTerm, onSearchChange }) => {
     return (
       <ControlBar>
         <FilterGroup>
-          {["ALL", "FERT", "HALB", "ROH"].map((type) => (
+          {Object.keys(categoryLabels).map((category) => (
             <FilterBtn
-              key={type}
-              $active={filterType === type}
-              onClick={() => onFilterChange(type)}
+              key={category}
+              $active={filterType === category}
+              onClick={() => onFilterChange(category)}
             >
-              {type === "ALL"
-                ? "All"
-                : type === "FERT"
-                  ? "Finished (FERT)"
-                  : type === "HALB"
-                    ? "Semi-Finish (HALB)"
-                    : "Raw Material (ROH)"}
+              {categoryLabels[category]}
             </FilterBtn>
           ))}
         </FilterGroup>
+
         <SearchBox>
           <FaSearch color="#999" />
           <input
@@ -94,113 +57,208 @@ const ControlBarSection = React.memo(
 );
 
 // 2. Table Row Component
-const ItemTableRow = React.memo(({ item, onDelete }) => {
-  return (
-    <tr>
-      <td
-        style={{
-          fontFamily: "monospace",
-          color: "#1a4f8b",
-          fontWeight: "bold",
-        }}
-      >
-        <FaBarcode style={{ marginRight: 5, color: "#999" }} />
-        {item.id}
-      </td>
-      <td style={{ fontWeight: "600" }}>{item.name}</td>
-      <td>
-        <TypeBadge $type={item.type}>{item.type}</TypeBadge>
-      </td>
-      <td style={{ color: "#555" }}>{item.spec}</td>
-      <td>
-        <UnitBadge>{item.unit}</UnitBadge>
-      </td>
-      <td style={{ fontWeight: "bold" }}>
-        {item.safetyStock.toLocaleString()}
-      </td>
-      <td className="center">
-        <IconButton className="edit">
-          <FaEdit />
-        </IconButton>
-        <IconButton className="del" onClick={() => onDelete(item.id)}>
-          <FaTrash />
-        </IconButton>
-      </td>
-    </tr>
-  );
-});
+const MaterialTableRow = React.memo(
+  ({ material, onDelete, onEdit, editingId, editValues, onChangeEdit }) => {
+    const isEditing = editingId === material.id;
+
+    return (
+      <tr>
+        <td
+          style={{
+            fontFamily: "monospace",
+            color: "#1a4f8b",
+            fontWeight: "bold",
+          }}
+        >
+          <FaBarcode style={{ marginRight: 5, color: "#999" }} />
+          {isEditing ? (
+            <InlineInput
+              value={editValues.code || ""}
+              placeholder={material.code}
+              onChange={(e) => onChangeEdit("code", e.target.value)}
+            />
+          ) : (
+            material.code
+          )}
+        </td>
+        <td style={{ fontWeight: "600" }}>
+          {isEditing ? (
+            <InlineInput
+              value={editValues.name || ""}
+              placeholder={material.name}
+              onChange={(e) => onChangeEdit("name", e.target.value)}
+            />
+          ) : (
+            material.name
+          )}
+        </td>
+        <td>
+          {isEditing ? (
+            <InlineInput
+              value={editValues.category || ""}
+              placeholder={material.category}
+              onChange={(e) => onChangeEdit("category", e.target.value)}
+            />
+          ) : (
+            <TypeBadge $category={material.category}>
+              {material.category}
+            </TypeBadge>
+          )}
+        </td>
+        <td style={{ color: "#555" }}>
+          {isEditing ? (
+            <InlineInput
+              value={editValues.spec || ""}
+              placeholder={material.spec}
+              onChange={(e) => onChangeEdit("spec", e.target.value)}
+            />
+          ) : (
+            material.spec
+          )}
+        </td>
+        <td className="center">
+          {isEditing ? (
+            <IconButton className="edit" onClick={() => onEdit(material)}>
+              <FaCheck />
+            </IconButton>
+          ) : (
+            <IconButton className="edit" onClick={() => onEdit(material)}>
+              <FaEdit />
+            </IconButton>
+          )}
+          <IconButton className="del" onClick={() => onDelete(material.id)}>
+            <FaTrash />
+          </IconButton>
+        </td>
+      </tr>
+    );
+  },
+);
 
 // --- Main Component ---
 
 const MaterialMasterPage = () => {
-  const [items, setItems] = useState(MOCK_ITEMS);
+  const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+
+  const [editingId, setEditingId] = useState(null);
+  const [editValues, setEditValues] = useState({});
+
+  const [reqFetch, setReqFetch] = useState(false);
+
+  const handleEdit = useCallback(
+    async (material) => {
+      if (editingId === material.id) {
+        // 완료 → PUT 요청
+        try {
+          await axiosInstance.put(
+            `http://localhost:8111/api/mes/master/material/${material.id}`,
+            { ...material, ...editValues },
+          );
+          // setMaterials((prev) =>
+          //   prev.map((p) =>
+          //     p.id === material.id ? { ...p, ...editValues } : p,
+          //   ),
+          // );
+          setEditingId(null);
+          setEditValues({});
+          setReqFetch(true);
+        } catch (err) {
+          console.error("Update Error", err);
+        }
+      } else {
+        // 수정 시작
+        setEditingId(material.id);
+        setEditValues({
+          code: material.code,
+          name: material.name,
+          category: material.category,
+          spec: material.spec,
+        });
+      }
+    },
+    [editingId, editValues],
+  );
+
+  const handleChangeEdit = useCallback((field, value) => {
+    setEditValues((prev) => ({ ...prev, [field]: value }));
+  }, []);
 
   // 1. 데이터 조회 (READ) - useCallback
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       // API call logic...
-      // const res = await axiosInstance.get("http://localhost:3001/items");
-      // setItems(res.data);
-
-      setTimeout(() => {
-        setItems(MOCK_ITEMS);
-        setLoading(false);
-      }, 500);
+      const res = await axiosInstance.get("/api/mes/master/material/list");
+      setMaterials(res.data);
     } catch (err) {
       console.error(err);
+    } finally {
       setLoading(false);
+      setReqFetch(false);
     }
   }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   // 2. Handlers - useCallback
   const handleDelete = useCallback(async (id) => {
     if (!window.confirm(`품목 코드 [${id}]를 삭제하시겠습니까?`)) return;
+    setLoading(true);
     try {
-      // await axiosInstance.delete(`http://localhost:3001/items/${id}`);
-      setItems((prev) => prev.filter((item) => item.id !== id));
+      await axiosInstance.delete(
+        `http://localhost:8111/api/mes/master/material/${id}`,
+      );
+      // setMaterials((prev) => prev.filter((material) => material.id !== id));
+      setReqFetch(true);
     } catch (err) {
       console.error("Delete Error", err);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  const handleAdd = useCallback(() => {
-    const newItem = {
-      id: `ITM-NEW-${Math.floor(Math.random() * 1000)}`,
-      name: "New Item Entry",
-      type: "ROH",
+  const handleAdd = useCallback(async () => {
+    setLoading(true);
+    const newMaterial = {
+      code: `ITM-NEW-0000`,
+      name: "New Material Entry",
+      category: "ROH",
       spec: "TBD",
-      unit: "EA",
-      safetyStock: 0,
     };
-    setItems((prev) => [newItem, ...prev]);
+    try {
+      await axiosInstance.post(`/api/mes/master/material`, newMaterial);
+    } catch (err) {
+      console.error("Create Error", err);
+    } finally {
+      setLoading(false);
+      setReqFetch(true);
+    }
   }, []);
 
-  const handleFilterChange = useCallback((type) => {
-    setFilterType(type);
+  const handleFilterChange = useCallback((category) => {
+    setFilterType(category);
   }, []);
 
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
   }, []);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData, reqFetch]);
+
   // 3. Filtering - useMemo
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      const matchType = filterType === "ALL" || item.type === filterType;
+  const filteredMaterials = useMemo(() => {
+    return materials.filter((material) => {
+      const matchType =
+        filterType === "ALL" || material.category === filterType;
       const matchSearch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.id.toLowerCase().includes(searchTerm.toLowerCase());
+        material.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        material.code.toLowerCase().includes(searchTerm.toLowerCase());
       return matchType && matchSearch;
     });
-  }, [items, filterType, searchTerm]);
+  }, [materials, filterType, searchTerm]);
 
   return (
     <Container>
@@ -208,7 +266,7 @@ const MaterialMasterPage = () => {
       <Header>
         <TitleArea>
           <PageTitle>
-            <FaBox /> Item Master Information
+            <FaBox /> Material Master Information
             {loading && (
               <FaSync
                 className="spin"
@@ -216,11 +274,11 @@ const MaterialMasterPage = () => {
               />
             )}
           </PageTitle>
-          <SubTitle>Standard Information for Product, Assy, Material</SubTitle>
+          <SubTitle>Standard Information for Material, Assy, Material</SubTitle>
         </TitleArea>
         <ActionGroup>
           <AddButton onClick={handleAdd}>
-            <FaPlus /> New Item
+            <FaPlus /> New Material
           </AddButton>
         </ActionGroup>
       </Header>
@@ -238,20 +296,26 @@ const MaterialMasterPage = () => {
         <Table>
           <thead>
             <tr>
-              <th width="15%">Item Code</th>
-              <th width="25%">Item Name</th>
-              <th width="10%">Type</th>
+              <th width="25%">Material Code</th>
+              <th width="25%">Material Name</th>
+              <th width="11%">Type</th>
               <th width="25%">Specification</th>
-              <th width="8%">Unit</th>
-              <th width="10%">Safety Stock</th>
               <th width="7%" className="center">
                 Action
               </th>
             </tr>
           </thead>
           <tbody>
-            {filteredItems.map((item) => (
-              <ItemTableRow key={item.id} item={item} onDelete={handleDelete} />
+            {filteredMaterials.map((material) => (
+              <MaterialTableRow
+                key={material.id}
+                material={material}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+                editingId={editingId}
+                editValues={editValues}
+                onChangeEdit={handleChangeEdit}
+              />
             ))}
           </tbody>
         </Table>
@@ -372,6 +436,7 @@ const SearchBox = styled.div`
 `;
 
 const TableContainer = styled.div`
+  max-height: calc(100vh - 340px);
   flex: 1;
   background: white;
   border-radius: 12px;
@@ -425,15 +490,15 @@ const TypeBadge = styled.span`
   font-size: 11px;
   font-weight: 700;
   background-color: ${(props) =>
-    props.$type === "FERT"
+    props.$category === "FERT"
       ? "#e3f2fd"
-      : props.$type === "HALB"
+      : props.$category === "HALB"
         ? "#fff3e0"
         : "#f3e5f5"};
   color: ${(props) =>
-    props.$type === "FERT"
+    props.$category === "FERT"
       ? "#1976d2"
-      : props.$type === "HALB"
+      : props.$category === "HALB"
         ? "#e67e22"
         : "#7b1fa2"};
 `;
@@ -463,5 +528,30 @@ const IconButton = styled.button`
   &.del:hover {
     color: #e74c3c;
     border-color: #e74c3c;
+  }
+`;
+
+const InlineInput = styled.input`
+  width: calc(100% - 20px);
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #333;
+  background: #fafafa;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: #1a4f8b;
+    background: #fff;
+    box-shadow: 0 0 0 2px rgba(26, 79, 139, 0.1);
+  }
+
+  &::placeholder {
+    color: #aaa;
+    font-size: 13px;
   }
 `;

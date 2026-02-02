@@ -1,8 +1,10 @@
 package com.hm.mes_final_260106.entity;
 
+import com.hm.mes_final_260106.constant.EquipmentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -33,7 +35,11 @@ public class Equipment {
     private String location;
 
     @Column(length = 50)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private EquipmentStatus status;
+
+    @Column(name = "install_date")
+    private LocalDate installDate;
 
     private String errorCode; // 장애 사유
 

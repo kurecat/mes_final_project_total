@@ -15,17 +15,30 @@ INSERT INTO product (code, name, category) VALUES
 ('DRAM-4G-EM-008', 'Embedded DRAM 4Gb', 'DRAM');
 
 -- Material 등록
-INSERT INTO material (code, name, current_stock, safety_stock) VALUES
-('MAT-SUBSTRATE', '패키지 기판', 50,30),
-('MAT-SOLDERBALL', '솔더 볼', 2000,500),
-('MAT-UNDERFILL', '언더필 수지', 300,500),
-('MAT-MOLD', '몰딩 컴파운드', 30,400),
-('MAT-HEATSINK', '히트싱크', 10,300),
-('MAT-WIRE', '금 와이어', 500,600),
-('MAT-LEADFRAME', '리드프레임', 400,500),
-('MAT-ENCAPSULANT', '에폭시 봉지재', 250,300),
-('MAT-WAFER', 'DRAM 웨이퍼', 100,100),
-('8801234567891', '웨이퍼 기판', 500, 1000);
+INSERT INTO material (code, name, category, current_stock, safety_stock) VALUES
+('MAT-SUBSTRATE', '패키지 기판', 'RAW_MATERIAL', 50, 30),
+('MAT-SOLDERBALL', '솔더 볼', 'RAW_MATERIAL', 2000, 500),
+('MAT-UNDERFILL', '언더필 수지', 'RAW_MATERIAL', 300, 500),
+('MAT-MOLD', '몰딩 컴파운드', 'RAW_MATERIAL', 30, 400),
+('MAT-HEATSINK', '히트싱크', 'SEMI_FINISHED', 10, 300),
+('MAT-WIRE', '금 와이어', 'RAW_MATERIAL', 500, 600),
+('MAT-LEADFRAME', '리드프레임', 'RAW_MATERIAL', 400, 500),
+('MAT-ENCAPSULANT', '에폭시 봉지재', 'RAW_MATERIAL', 250, 300),
+('MAT-WAFER', 'DRAM 웨이퍼', 'RAW_MATERIAL', 100, 100),
+('8801234567891', '웨이퍼 기판', 'RAW_MATERIAL', 500, 1000);
+
+/*
+  본사 워크센터(천안시 동남구 물류센터)에 집중된 창고 데이터 예시
+  - 창고 유형: All, Main, Sub, ColdStorage, CleanRoom
+*/
+INSERT INTO Warehouse (code, name, type, address, capacity, occupancy, status)
+VALUES
+('WH-ALL-001', '전체 창고', 'All', '천안시 동남구 본사 물류센터', 10000, 0, 'AVAILABLE'),
+('WH-MAIN-001', '메인 창고', 'Main', '천안시 동남구 본사 물류센터', 8000, 0, 'AVAILABLE'),
+('WH-SUB-001', '서브 창고', 'Sub', '천안시 동남구 본사 물류센터', 5000, 0, 'AVAILABLE'),
+('WH-COLD-001', '냉동 창고', 'ColdStorage', '천안시 동남구 본사 물류센터', 3000, 0, 'AVAILABLE'),
+('WH-CLEAN-001', '클린룸 창고', 'CleanRoom', '천안시 동남구 본사 물류센터', 2000, 0, 'AVAILABLE');
+
 
 -- MaterialTransaction 등록 (초기 입고 기록)
 INSERT INTO material_transaction
@@ -143,8 +156,8 @@ INSERT INTO lot (code, material_id, location, status) VALUES
 ('LOT-20260122-08', 8, '클린룸', '공정중');
 
 -- Equipment 등록
-INSERT INTO equipment (code, name, type, location, status) VALUES
-('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', 'RUN');
+INSERT INTO equipment (code, name, type, location, status,install_date) VALUES
+('LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', 'RUN','2026-02-11');
 
 -- 작업지시 등록
 INSERT INTO work_order

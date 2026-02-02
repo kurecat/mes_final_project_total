@@ -1,8 +1,10 @@
 // src/main/java/com/hm/mes_final_260106/dto/EquipmentDetailResDto.java
 package com.hm.mes_final_260106.dto;
 
+import com.hm.mes_final_260106.constant.EquipmentStatus;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Getter @Setter
@@ -16,7 +18,8 @@ public class EquipmentDetailResDto {
     private String name;
     private String type;
     private String location;
-    private String status;
+    private EquipmentStatus status;
+    private LocalDate installDate;
 
     // 현재 진행중인 작업(있으면)
     private CurrentRunInfo currentRun;

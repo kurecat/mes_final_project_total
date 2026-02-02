@@ -5,7 +5,7 @@ import com.hm.mes_final_260106.dto.Warehouse.WarehouseCreateReqDto;
 import com.hm.mes_final_260106.dto.Warehouse.WarehouseResDto;
 import com.hm.mes_final_260106.dto.bom.BomResDto;
 import com.hm.mes_final_260106.dto.bom.BomUpdateReqDto;
-import com.hm.mes_final_260106.dto.bomItem.BomItemResDto;
+import com.hm.mes_final_260106.dto.bomitem.BomItemResDto;
 import com.hm.mes_final_260106.dto.material.MaterialCreateReqDto;
 import com.hm.mes_final_260106.dto.material.MaterialResDto;
 import com.hm.mes_final_260106.dto.material.MaterialUpdateReqDto;
@@ -41,16 +41,16 @@ public class MasterDataController {
 //        return ResponseEntity.ok("BOM 등록 완료");
 //    }
 
-    // 3. 자재 정보 수정
-    @PutMapping("/material/{code}")
-    public ResponseEntity<String> updateMaterial(
-            @PathVariable String code,
-            @RequestParam String name,
-            @RequestParam String category
-    ) {
-        masterService.updateMaterial(code, name, category);
-        return ResponseEntity.ok("자재 정보 수정 완료");
-    }
+//    // 3. 자재 정보 수정
+//    @PutMapping("/material/{code}")
+//    public ResponseEntity<String> updateMaterial(
+//            @PathVariable String code,
+//            @RequestParam String name,
+//            @RequestParam String category
+//    ) {
+//        masterService.updateMaterial(code, name, category);
+//        return ResponseEntity.ok("자재 정보 수정 완료");
+//    }
 
     // CREATE
     @PostMapping("/material")
