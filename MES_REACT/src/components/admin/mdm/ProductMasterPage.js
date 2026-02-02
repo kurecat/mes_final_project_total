@@ -15,24 +15,30 @@ import {
 // --- [Optimized] Sub-Components with React.memo ---
 
 // 1. Control Bar Component
+
+const categoryLabels = {
+  ALL: "ALL",
+  DRAM: "DRAM",
+  CPU: "CPU",
+  ANA: "ANLG",
+  LED: "LED",
+  SEN: "SNSR",
+  COM: "COMM",
+  AUTO: "AUTO",
+};
+
 const ControlBarSection = React.memo(
   ({ filterType, onFilterChange, searchTerm, onSearchChange }) => {
     return (
       <ControlBar>
         <FilterGroup>
-          {["ALL", "FERT", "HALB", "ROH"].map((category) => (
+          {Object.keys(categoryLabels).map((category) => (
             <FilterBtn
               key={category}
               $active={filterType === category}
               onClick={() => onFilterChange(category)}
             >
-              {category === "ALL"
-                ? "All"
-                : category === "FERT"
-                  ? "카테고리 1"
-                  : category === "HALB"
-                    ? "카테고리 2"
-                    : "카테고리 3"}
+              {categoryLabels[category]}
             </FilterBtn>
           ))}
         </FilterGroup>

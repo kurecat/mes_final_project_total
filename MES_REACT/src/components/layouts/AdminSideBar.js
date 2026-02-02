@@ -76,11 +76,11 @@ const AdminSideBar = () => {
       title: "기준 정보 관리",
       icon: <FaDatabase />,
       subMenus: [
-        //{ title: "자재 관리", path: "/admin/mdm/material" },
+        { title: "자재 관리", path: "/admin/mdm/material" },
         { title: "제품 관리", path: "/admin/mdm/product" },
         { title: "BOM 관리", path: "/admin/mdm/bom" },
         // { title: "공정/라우팅", path: "/admin/mdm/routing" },
-        // { title: "설비 관리", path: "/admin/mdm/equipment" },
+        { title: "설비 관리", path: "/admin/mdm/equipment" },
         { title: "창고/작업장", path: "/admin/mdm/location" },
       ],
     },

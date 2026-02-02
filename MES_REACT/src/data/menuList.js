@@ -20,7 +20,7 @@ export const MENU_LIST = [
   { name: "제품 관리", path: "/admin/mdm/product" },
   { name: "BOM 관리", path: "/admin/mdm/bom" },
   // { name: "공정/라우팅", path: "/admin/mdm/routing" },
-  // { name: "설비 관리", path: "/admin/mdm/equipment" },
+  { name: "설비 관리", path: "/admin/mdm/equipment" },
   { name: "창고/작업장", path: "/admin/mdm/location" },
 
   { name: "사용자 관리", path: "/admin/system/users" },
