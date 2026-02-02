@@ -22,8 +22,8 @@ public class ProductionLog {
     private WorkOrder workOrder;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id")
-    private Member member;
+    @JoinColumn(name = "worker_id")
+    private Worker worker;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "equipment_id")

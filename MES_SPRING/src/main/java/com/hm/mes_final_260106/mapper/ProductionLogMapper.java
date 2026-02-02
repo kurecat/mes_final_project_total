@@ -12,7 +12,7 @@ public interface ProductionLogMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "workOrder", ignore = true)
-    @Mapping(target = "member", ignore = true)
+    @Mapping(target = "worker", ignore = true)
     @Mapping(target = "equipment", ignore = true)
     ProductionLog toEntity(ProductionReportDto dto);
 }
