@@ -10,4 +10,6 @@ public interface EquipmentEventLogRepository
 
     List<EquipmentEventLog>
     findTop10ByEquipmentIdOrderByCreatedAtDesc(Long equipmentId);
+
+    void deleteByEquipmentId(Long id);
 }

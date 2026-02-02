@@ -122,6 +122,7 @@ public class EquipmentService {
         if (!equipmentRepo.existsById(id)) {
             throw new RuntimeException("해당 설비가 존재하지 않습니다. id=" + id);
         }
+        eventLogRepo.deleteByEquipmentId(id);
         equipmentRepo.deleteById(id);
     }
 
