@@ -244,21 +244,13 @@ public class ProductionService {
         String next = status.trim().toUpperCase();
         String current = order.getStatus();
 
-        // ▼ [추가] 이미 같은 상태라면 아무것도 하지 않고 현재 객체 반환 (에러 방지)
+        // (기존) 같은 상태면 return
         if (current.equals(next)) {
-            // Lazy Init 방지
             if (order.getProduct() != null) order.getProduct().getName();
             return order;
         }
 
-        if (!next.equals("WAITING") &&
-                !next.equals("RELEASED") &&
-                !next.equals("IN_PROGRESS") &&
-                !next.equals("PAUSED") &&
-                !next.equals("COMPLETED")) {
-            throw new RuntimeException("허용되지 않는 status: " + next);
-        }
-
+        // (기존) allowed 검증...
         boolean allowed =
                 ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) ||
                         ("WAITING".equals(current) && "RELEASED".equals(next)) ||
@@ -272,7 +264,11 @@ public class ProductionService {
             throw new RuntimeException("허용되지 않는 상태 변경입니다. (" + current + " -> " + next + ")");
         }
 
+        // ✅ [추가] 상태 변경 전/후 로깅을 위해 current를 보존해둠 (이미 위에 있음)
         order.setStatus(next);
+
+        // ✅ [추가] 여기서 로그 1건 저장 (추가 최소 핵심)
+        writeWorkOrderStatusChangeLog(order, current, next);
 
         if ("IN_PROGRESS".equals(next) && order.getStartDate() == null) {
             order.setStartDate(LocalDateTime.now());
@@ -282,13 +278,13 @@ public class ProductionService {
             order.setEndDate(LocalDateTime.now());
         }
 
-        // ▼ [추가] LazyInitializationException 방지
         if (order.getProduct() != null) {
             order.getProduct().getName();
         }
 
         return orderRepo.save(order);
     }
+
 
     // =========================
     // 6) 설비 작업 할당 (C# 폴링)
@@ -512,15 +508,35 @@ public class ProductionService {
                 .toList();
     }
 
-
-
-
     @Transactional
     public void updateMessage(Long id, String message) {
         ProductionLog log = logRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Log not found"));
         log.setMessage(message);
     }
+
+    // ✅ 작업지시 상태 변경 시 ProductionLog(이벤트 로그) 1건 저장
+    private void writeWorkOrderStatusChangeLog(WorkOrder order, String from, String to) {
+        String level = "INFO";
+        if ("PAUSED".equals(to)) level = "WARN";
+
+        String msg = "작업지시 상태 변경: " + from + " → " + to;
+
+        ProductionLog log = ProductionLog.builder()
+                .workOrder(order)
+                .level(level)
+                .category("PRODUCTION")
+                .message(msg)
+                .startTime(LocalDateTime.now())
+                .resultDate(LocalDate.now())
+                .resultQty(0)
+                // ✅ 기존 코드와 동일하게 RUN로 두면 안전 (enum mismatch 방지)
+                .status(com.hm.mes_final_260106.constant.ProductionStatus.RUN)
+                .build();
+
+        logRepo.save(log);
+    }
+
 
     // =========================
     // 작업자 조회 / 등록 / 수정 / 삭제
