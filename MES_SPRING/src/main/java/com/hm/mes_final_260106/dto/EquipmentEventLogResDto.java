@@ -12,15 +12,17 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class EquipmentEventLogResDto {
 
+    private Long id;
     private LocalDateTime time;
     private String type;
     private String message;
 
     public static EquipmentEventLogResDto from(EquipmentEventLog e) {
-        return new EquipmentEventLogResDto(
-                e.getCreatedAt(),
-                e.getEventType().name(),
-                e.getMessage()
-        );
+        return EquipmentEventLogResDto.builder()
+                .id(e.getId())                 // 🔥 핵심
+                .time(e.getCreatedAt())
+                .type(e.getEventType().name())
+                .message(e.getMessage())
+                .build();
     }
 }

@@ -31,7 +31,7 @@ public class EquipmentService {
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     /* =====================================================
-       공통: 상태 변경 로그 메시지 생성 (🔥 핵심)
+       공통: 상태 변경 로그 메시지 생성 (핵심)
        ===================================================== */
     private String buildStatusChangeMessage(
             EquipmentStatus before,
@@ -65,6 +65,7 @@ public class EquipmentService {
                 .orElseThrow(() ->
                         new IllegalArgumentException("Equipment not found: " + equipmentCode));
 
+        // 현재 진행 중 생산 로그
         ProductionLog runningLog =
                 productionLogRepo
                         .findFirstByEquipmentAndEndTimeIsNullOrderByStartTimeDesc(eq)
@@ -87,6 +88,7 @@ public class EquipmentService {
                     .build();
         }
 
+        // 최근 생산 로그
         List<EquipmentDetailResDto.EquipmentLogItem> recentLogs =
                 productionLogRepo.findTop10ByEquipmentOrderByStartTimeDesc(eq)
                         .stream()
@@ -163,7 +165,7 @@ public class EquipmentService {
     }
 
     /* =====================================================
-       설비 수정 (TYPE / STATUS 로그 통합)
+       설비 수정 (TYPE / STATUS 로그 기록)
        ===================================================== */
     @Transactional
     public EquipmentResDto updateEquipment(Long id, EquipmentReqDto dto) {
@@ -189,7 +191,7 @@ public class EquipmentService {
             equipment.setType(dto.getType());
         }
 
-        // STATUS 변경 (🔥 메시지 통일)
+        // STATUS 변경
         if (beforeStatus != newStatus) {
 
             String message = buildStatusChangeMessage(beforeStatus, newStatus);
@@ -246,7 +248,7 @@ public class EquipmentService {
     }
 
     /* =====================================================
-       설비 이벤트 로그 조회
+       설비 이벤트 로그 조회 (설비 로그 페이지 / 상세 공용)
        ===================================================== */
     public List<EquipmentEventLogResDto> getEquipmentLogs(Long equipmentId) {
         return eventLogRepo
@@ -254,5 +256,25 @@ public class EquipmentService {
                 .stream()
                 .map(EquipmentEventLogResDto::from)
                 .collect(Collectors.toList());
+    }
+
+    // 전체 설비 로그 (설비 로그 페이지)
+    public List<EquipmentEventLogResDto> getAllEquipmentEventLogs() {
+        return eventLogRepo
+                .findAllByOrderByCreatedAtDesc()
+                .stream()
+                .map(EquipmentEventLogResDto::from)
+                .toList();
+    }
+    // 설비 로그 메세지 수정
+    @Transactional
+    public void updateEquipmentEventLogMessage(Long logId, String message) {
+
+        EquipmentEventLog log = eventLogRepo.findById(logId)
+                .orElseThrow(() ->
+                        new RuntimeException("EquipmentEventLog not found: " + logId));
+
+        log.setMessage(message);
+        // JPA 더티체킹 → 자동 UPDATE
     }
 }

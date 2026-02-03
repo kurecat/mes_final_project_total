@@ -2,6 +2,9 @@ package com.hm.mes_final_260106.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "product",
         uniqueConstraints = {
@@ -27,4 +30,8 @@ public class Product {
 
     @Column(length = 100)
     private String category;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Bom> boms = new ArrayList<>();
 }

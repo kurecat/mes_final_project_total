@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // 1. [중요] 최상단에서 인스턴스 생성
-const BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.0.117:8111";
+const BASE_URL = process.env.REACT_APP_API_URL;
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -32,6 +32,7 @@ axiosInstance.interceptors.request.use(
     const token = localStorage.getItem("accessToken");
 
     // ★ 디버깅용 로그 추가 (확인 후 삭제하세요)
+    console.log("베이스 URL 확인용: ", BASE_URL);
     console.log("📡 API 요청 출발:", config.url);
     console.log("🔑 헤더에 실을 토큰:", token);
 

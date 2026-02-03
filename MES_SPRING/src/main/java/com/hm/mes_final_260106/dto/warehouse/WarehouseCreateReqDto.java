@@ -1,4 +1,4 @@
-package com.hm.mes_final_260106.dto.Warehouse;
+package com.hm.mes_final_260106.dto.warehouse;
 
 import lombok.*;
 

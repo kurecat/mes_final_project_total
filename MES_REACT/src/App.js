@@ -61,6 +61,9 @@ const MachinePage = lazy(
 const MaterialPage = lazy(
   () => import("./components/admin/material/MaterialPage"),
 );
+const EquipmentLogsPage = lazy(
+  () => import("./components/admin/material/EquipmentLogsPage"),
+);
 
 // MDM (Master Data Management)
 const BOMPage = lazy(() => import("./components/admin/mdm/BOMPage"));
@@ -136,6 +139,10 @@ const App = () => {
             <Route path="resource/inventory" element={<InventoryPage />} />
             <Route path="resource/machine" element={<MachinePage />} />
             <Route path="resource/material" element={<MaterialPage />} />
+            <Route
+              path="resource/equipmentlog"
+              element={<EquipmentLogsPage />}
+            />
 
             {/* MDM */}
             <Route path="mdm/bom" element={<BOMPage />} />
