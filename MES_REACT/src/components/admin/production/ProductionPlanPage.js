@@ -14,34 +14,6 @@ import {
 } from "react-icons/fa";
 
 // =============================
-// Dummy Fallback Data
-// =============================
-const MOCK_PLANS = [
-  {
-    id: "PP-240601-01",
-    orderId: 1,
-    date: "2024-06-01",
-    productCode: "DRAM-4G-DDR4-001",
-    productName: "DRAM 4Gb DDR4 칩",
-    line: "Fab-Line-A",
-    type: "FAB",
-    planQty: 1000,
-    status: "COMPLETED",
-  },
-  {
-    id: "PP-240602-02",
-    orderId: 2,
-    date: "2024-06-02",
-    productCode: "DRAM-16G-DDR5-003",
-    productName: "DRAM 16Gb DDR5 칩",
-    line: "EDS-Line-01",
-    type: "EDS",
-    planQty: 50000,
-    status: "RELEASED",
-  },
-];
-
-// =============================
 // Sub Components
 // =============================
 
@@ -221,7 +193,7 @@ const PlanTableRow = React.memo(
 // Main Component
 // =============================
 const ProductionPlanPage = () => {
-  const [plans, setPlans] = useState(MOCK_PLANS);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [filterLine, setFilterLine] = useState("ALL");
@@ -239,143 +211,110 @@ const ProductionPlanPage = () => {
   });
 
   // =============================
-  // 1) 제품 목록 조회
+  // 1) 통합 데이터 로드 (Promise.all)
   // =============================
-  const fetchProducts = useCallback(async () => {
-    try {
-      const res = await axiosInstance.get(`/api/mes/item`);
-      const list = Array.isArray(res.data) ? res.data : [];
-      // 기대 형태: [{ code: "...", name: "..." }, ...]
-      setProducts(list);
-    } catch (err) {
-      console.error("제품 목록 조회 실패:", err);
-
-      // fallback: DB 캡처 기준 임시 목록
-      setProducts([
-        { code: "DRAM-4G-DDR4-001", name: "DRAM 4Gb DDR4 칩" },
-        { code: "DRAM-8G-DDR4-002", name: "DRAM 8Gb DDR4 칩" },
-        { code: "DRAM-16G-DDR5-003", name: "DRAM 16Gb DDR5 칩" },
-        { code: "DRAM-32G-DDR5-004", name: "DRAM 32Gb DDR5 칩" },
-        { code: "DRAM-4G-LP-005", name: "Low-Power DRAM 4Gb" },
-        { code: "DRAM-8G-MB-006", name: "Mobile DRAM 8Gb" },
-        { code: "DRAM-16G-GR-007", name: "Graphics DRAM 16Gb" },
-        { code: "DRAM-4G-EM-008", name: "Embedded DRAM 4Gb" },
-      ]);
-    }
-  }, []);
-
-  // =============================
-  // WorkOrder -> Plan 변환
-  // =============================
-  const mapWorkOrderToPlan = useCallback(
-    (wo) => {
-      // wo.productId가 code라고 가정 (백엔드 설계상 code로 보내는 게 정상)
-      const code = wo.productId || "";
-
-      // code로 name 매핑 (products가 로드되어 있으면 name 표시 가능)
-      const found = products.find((p) => p.code === code);
-      const name = found?.name || "";
-
-      return {
-        id: wo.workorderNumber || `WO-${wo.id}`,
-        orderId: wo.id,
-        date: wo.startDate ? wo.startDate.split("T")[0] : "",
-        productCode: code,
-        productName: name,
-        line: wo.targetLine || "Fab-Line-A",
-        type: "FAB",
-        planQty: wo.targetQty ?? 0,
-        status: wo.status ?? "WAITING",
-      };
-    },
-    [products],
-  );
-
-  // =============================
-  // 2) 작업지시 조회
-  // =============================
-  const fetchData = useCallback(async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axiosInstance.get(`/api/mes/order`);
-      const list = Array.isArray(res.data) ? res.data : [];
-      const mapped = list.map(mapWorkOrderToPlan);
-      setPlans(mapped);
+      // 두 요청을 동시에 보냄 (병렬 처리)
+      const [productRes, orderRes] = await Promise.all([
+        axiosInstance.get(`/api/mes/item`),
+        axiosInstance.get(`/api/mes/order`),
+      ]);
+
+      // 1. 제품 목록 세팅
+      const productList = Array.isArray(productRes.data) ? productRes.data : [];
+      setProducts(productList);
+
+      // 2. 작업지시 목록 세팅 (여기서 바로 매핑)
+      const orderList = Array.isArray(orderRes.data) ? orderRes.data : [];
+
+      const mappedPlans = orderList.map((wo) => {
+        const code = wo.productId || "";
+        // 미리 받아온 productList에서 이름 찾기
+        const found = productList.find((p) => p.code === code);
+
+        return {
+          id: wo.workOrderNumber || `WO-${wo.id}`,
+          orderId: wo.id,
+          date: wo.startDate ? wo.startDate.split("T")[0] : "",
+          productCode: code,
+          productName: found?.name || "", // 여기서 매핑됨
+          line: wo.targetLine || "Fab-Line-A",
+          type: "FAB",
+          planQty: wo.targetQty ?? 0,
+          status: wo.status ?? "WAITING",
+        };
+      });
+
+      setPlans(mappedPlans);
     } catch (err) {
-      console.error("작업지시 조회 실패:", err);
+      console.error("데이터 로드 실패:", err);
+      // 에러 시 빈 배열 처리 (화면 깨짐 방지)
+      setProducts([]);
+      setPlans([]);
     } finally {
       setLoading(false);
     }
-  }, [mapWorkOrderToPlan]);
+  }, []);
 
+  // 초기 로딩 (딱 한 번만 실행)
   useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-
-  useEffect(() => {
-    // 제품 목록을 먼저 불러온 뒤, name 매핑이 가능해지므로 fetchData 실행
-    fetchData();
-  }, [fetchData]);
+    loadData();
+  }, [loadData]);
 
   // =============================
   // Handlers
   // =============================
   const handleAdd = useCallback(async () => {
     try {
-      // 첫 번째 제품을 기본값으로 생성
       const defaultProductCode = products?.[0]?.code || "DRAM-4G-DDR4-001";
 
       const payload = {
-        productId: defaultProductCode, // 서버는 code를 기대
+        productId: defaultProductCode,
         targetQty: 500,
         targetLine: "Fab-Line-A",
       };
 
       await axiosInstance.post(`/api/mes/order`, payload);
       alert("작업지시가 추가되었습니다.");
-      fetchData();
+      loadData(); // 재조회
     } catch (err) {
       console.error("작업지시 생성 실패:", err);
       alert("작업지시 추가 실패");
     }
-  }, [fetchData, products]);
+  }, [loadData, products]);
 
   const handleRelease = useCallback(
     async (planId, orderId) => {
-      if (!orderId) {
-        alert("orderId가 없습니다.");
-        return;
-      }
+      if (!orderId) return;
       try {
         await axiosInstance.post(`/api/mes/order/${orderId}/release`);
         alert(`Plan [${planId}] Release 완료`);
-        fetchData();
+        loadData(); // 재조회
       } catch (err) {
         console.error("Release 실패:", err);
         alert("Release 실패");
       }
     },
-    [fetchData],
+    [loadData],
   );
 
   const handleDelete = useCallback(
     async (planId, orderId) => {
-      if (!orderId) {
-        alert("orderId가 없습니다.");
-        return;
-      }
+      if (!orderId) return;
       if (!window.confirm("삭제하시겠습니까?")) return;
 
       try {
         await axiosInstance.delete(`/api/mes/order/${orderId}`);
         alert("삭제 완료");
-        fetchData();
+        loadData(); // 재조회
       } catch (err) {
         console.error("삭제 실패:", err);
         alert("삭제 실패");
       }
     },
-    [fetchData],
+    [loadData],
   );
 
   const handleEditStart = useCallback((plan) => {
@@ -398,10 +337,7 @@ const ProductionPlanPage = () => {
 
   const handleEditSave = useCallback(
     async (planId, orderId) => {
-      if (!orderId) {
-        alert("orderId가 없습니다.");
-        return;
-      }
+      if (!orderId) return;
 
       if (!editForm.productCode?.trim()) {
         alert("제품을 선택하세요.");
@@ -421,7 +357,7 @@ const ProductionPlanPage = () => {
 
       try {
         const payload = {
-          productId: editForm.productCode.trim(), // ⭐ code를 전송
+          productId: editForm.productCode.trim(),
           targetQty: qty,
           targetLine: editForm.targetLine.trim(),
         };
@@ -430,13 +366,13 @@ const ProductionPlanPage = () => {
 
         alert(`Plan [${planId}] 수정 저장 완료`);
         setEditingPlanId(null);
-        fetchData();
+        loadData(); // 재조회
       } catch (err) {
         console.error("수정 저장 실패:", err);
         alert("수정 저장 실패");
       }
     },
-    [editForm, fetchData],
+    [editForm, loadData],
   );
 
   const handleFilterChange = useCallback((line) => {
@@ -448,13 +384,11 @@ const ProductionPlanPage = () => {
   }, []);
 
   // =============================
-  // Filtering
+  // Filtering Logic
   // =============================
   const filteredPlans = useMemo(() => {
     return plans.filter((p) => {
-      // ⭐ 핵심 수정 포인트
       const targetLine = (p.line ?? "").toUpperCase();
-
       const matchLine = filterLine === "ALL" || targetLine.includes(filterLine);
 
       const productName = (p.productName ?? "").toLowerCase();
@@ -473,7 +407,6 @@ const ProductionPlanPage = () => {
 
   return (
     <Container>
-      {/* 헤더 */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -495,7 +428,6 @@ const ProductionPlanPage = () => {
         </ActionGroup>
       </Header>
 
-      {/* 컨트롤 바 */}
       <ControlBarSection
         filterLine={filterLine}
         onFilterChange={handleFilterChange}
@@ -503,7 +435,6 @@ const ProductionPlanPage = () => {
         onSearchChange={handleSearchChange}
       />
 
-      {/* 테이블 */}
       <TableContainer>
         <Table>
           <thead>
@@ -521,7 +452,7 @@ const ProductionPlanPage = () => {
           <tbody>
             {filteredPlans.map((plan) => (
               <PlanTableRow
-                key={plan.id}
+                key={plan.id} // map의 key는 여기서 처리
                 plan={plan}
                 isEditing={editingPlanId === plan.id}
                 editForm={editForm}
@@ -543,9 +474,7 @@ const ProductionPlanPage = () => {
 
 export default ProductionPlanPage;
 
-// =============================
-// Styled Components
-// =============================
+// --- Styled Components (기존 코드와 동일) ---
 const Container = styled.div`
   width: 100%;
   height: 100%;
