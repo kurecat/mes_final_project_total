@@ -11,4 +11,6 @@ public interface CommonCodeRepository extends JpaRepository<CommonCode, Long> {
 
     // 2. 전체 조회 + 그룹별/순서별 정렬
     List<CommonCode> findAllByOrderByGroupCodeAscSortOrderAsc();
+
+    List<CommonCode> findByGroupCode(String groupCode);
 }

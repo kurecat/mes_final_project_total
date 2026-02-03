@@ -29,7 +29,12 @@ public class EquipmentController {
     public EquipmentDetailResDto detail(@PathVariable String equipmentCode) {
         return equipmentService.getEquipmentDetail(equipmentCode);
     }
-
+    // 설비 상세 모달 로그 기록
+    @GetMapping("/{equipmentId}/logs")
+    public ResponseEntity<List<EquipmentEventLogResDto>> getLogs(@PathVariable Long equipmentId) {
+        List<EquipmentEventLogResDto> logs = equipmentService.getEquipmentLogs(equipmentId);
+        return ResponseEntity.ok(logs);
+    }
 
     // 장비 모니터링
     @GetMapping("/monitor")
@@ -76,7 +81,7 @@ public class EquipmentController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> changeStatus(
             @PathVariable Long id,
-            @RequestParam EquipmentStatus status
+            @RequestParam String status
     ) {
         equipmentService.changeStatus(id, status);
         return ResponseEntity.ok().build();

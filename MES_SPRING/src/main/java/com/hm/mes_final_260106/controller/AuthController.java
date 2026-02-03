@@ -50,6 +50,26 @@ public class AuthController {
         return ResponseEntity.ok(authService.approveMember(memberId));
     }
 
+    // 6. 회원 정보 수정 - 프론트: api.put("/auth/update/{memberId}")
+    // ★ 새로 추가된 부분
+    @PutMapping("/update/{memberId}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<GlobalResponseDto<MemberResDto>> updateMember(@PathVariable Long memberId, @RequestBody SignUpReqDto dto) {
+        log.info("회원 정보 수정 요청 - ID: {}", memberId);
+        // AuthService에 updateMember 메소드를 만들어야 합니다. (아래 참고)
+        return ResponseEntity.ok(GlobalResponseDto.success("회원 수정 성공", authService.updateMember(memberId, dto)));
+    }
+
+    // 7. 회원 삭제 - 프론트: api.delete("/auth/delete/{memberId}")
+    // ★ 새로 추가된 부분
+    @DeleteMapping("/delete/{memberId}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<GlobalResponseDto<String>> deleteMember(@PathVariable Long memberId) {
+        log.info("회원 삭제 요청 - ID: {}", memberId);
+        authService.deleteMember(memberId);
+        return ResponseEntity.ok(GlobalResponseDto.success("회원 삭제 성공", "Deleted ID: " + memberId));
+    }
+
     @GetMapping("/all")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<GlobalResponseDto<List<MemberResDto>>> getAllMembers() {

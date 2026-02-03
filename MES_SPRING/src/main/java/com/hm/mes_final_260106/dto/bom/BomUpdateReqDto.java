@@ -1,6 +1,6 @@
 package com.hm.mes_final_260106.dto.bom;
 
-import com.hm.mes_final_260106.dto.bomItem.BomItemUpdateReqDto;
+import com.hm.mes_final_260106.dto.bomitem.BomItemUpdateReqDto;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

@@ -158,4 +158,30 @@ public class AuthService {
         log.info("전체 회원 목록 조회 완료 - 총 {}명", list.size());
         return GlobalResponseDto.success("조회 성공", list);
     }
+
+    // 회원 수정
+    @Transactional
+    public MemberResDto updateMember(Long id, SignUpReqDto dto) {
+        Member member = memberRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("회원을 찾을 수 없습니다."));
+
+        // 이름, 부서, 전화번호 등 수정 (비밀번호는 별도 로직 필요)
+        member.setName(dto.getName());
+        member.setDepartment(dto.getDepartment());
+        member.setPhone(dto.getPhone());
+        member.setPassword(dto.getPassword());
+
+        // 비밀번호 변경 요청이 있을 경우에만 변경 (프론트에서 빈 값이면 안 보냄)
+        if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
+            member.setPassword(passwordEncoder.encode(dto.getPassword()));
+        }
+
+        return MemberResDto.of(memberRepository.save(member));
+    }
+
+    // 회원 삭제
+    @Transactional
+    public void deleteMember(Long id) {
+        memberRepository.deleteById(id);
+    }
 }

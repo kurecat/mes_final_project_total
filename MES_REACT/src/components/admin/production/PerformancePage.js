@@ -76,6 +76,54 @@ const getToday = () => {
   return today.toISOString().split("T")[0];
 };
 
+// src/pages/production/PerformancePage.js 내부
+
+const fillMissingHours = (data) => {
+  const filledData = [];
+  const startHour = 8; // 08시부터 시작 (필요시 변경)
+  const endHour = 18; // 18시까지 종료 (필요시 변경)
+
+  for (let i = startHour; i <= endHour; i++) {
+    // 차트 X축에 표시될 시간 문자열 (예: "09:00")
+    const hourLabel = `${String(i).padStart(2, "0")}:00`;
+
+    // ▼ [핵심 수정] DB 시간 포맷("YYYY-MM-DD HH:mm:ss")에서 "HH"만 추출하여 비교
+    const found = data.find((item) => {
+      if (!item.time) return false;
+
+      // 1. 공백을 기준으로 시간을 분리 (날짜와 시간 사이 공백)
+      // "2026-01-20 09:05:00" -> ["2026-01-20", "09:05:00"]
+      const timePart = item.time.includes(" ")
+        ? item.time.split(" ")[1]
+        : item.time;
+
+      // 2. 콜론(:)을 기준으로 시(Hour) 분리
+      // "09:05:00" -> ["09", "05", "00"]
+      const itemHour = parseInt(timePart.split(":")[0], 10);
+
+      // 3. 현재 루프의 시간(i)과 DB 데이터의 시간(itemHour)이 같은지 확인
+      return itemHour === i;
+    });
+
+    if (found) {
+      // DB 데이터를 찾았으면, 차트 표시용 시간(hourLabel)으로 덮어씌워서 push
+      filledData.push({
+        ...found,
+        time: hourLabel, // 차트 X축이 예쁘게 나오도록 "09:00" 형태로 변경
+      });
+    } else {
+      // 데이터가 없으면 0으로 채움
+      filledData.push({
+        time: hourLabel,
+        plan: 0,
+        actual: 0,
+        scrap: 0,
+      });
+    }
+  }
+  return filledData;
+};
+
 // --- Sub-Components ---
 
 // 1. Header Component
@@ -178,7 +226,6 @@ const KpiBoard = React.memo(({ summary }) => {
   );
 });
 
-// 3. Chart Component (높이 100%로 수정)
 const HourlyChart = React.memo(({ data }) => {
   return (
     <ChartSection>
@@ -186,13 +233,17 @@ const HourlyChart = React.memo(({ data }) => {
         <SectionTitle>Hourly Output Trend (Fab Wafer Out)</SectionTitle>
       </SectionHeader>
       <ChartWrapper>
-        <ResponsiveContainer width="100%" height="100%">
+        {/* minHeight로 높이 확보 (이전 답변 내용) */}
+        <ResponsiveContainer width="100%" height="100%" minHeight={300}>
           <ComposedChart
             data={data}
-            margin={{ top: 20, right: 20, bottom: 0, left: 0 }}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }} // 여백 약간 추가
           >
             <CartesianGrid stroke="#f5f5f5" strokeDasharray="3 3" />
-            <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+
+            {/* interval={0}을 주면 모든 시간(9,10,11...)을 다 표시합니다 */}
+            <XAxis dataKey="time" tick={{ fontSize: 12 }} interval={0} />
+
             <YAxis
               yAxisId="left"
               tick={{ fontSize: 12 }}
@@ -216,6 +267,7 @@ const HourlyChart = React.memo(({ data }) => {
                 fill: "#999",
               }}
             />
+
             <Tooltip
               contentStyle={{
                 borderRadius: 8,
@@ -224,12 +276,14 @@ const HourlyChart = React.memo(({ data }) => {
               }}
             />
             <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
+
+            {/* ▼ [수정] barSize를 40 정도로 키워주세요 (기존 16 -> 40) */}
             <Bar
               yAxisId="left"
               dataKey="plan"
               name="Plan"
               fill="#e0e0e0"
-              barSize={16}
+              barSize={40}
               radius={[4, 4, 0, 0]}
             />
             <Bar
@@ -237,17 +291,18 @@ const HourlyChart = React.memo(({ data }) => {
               dataKey="actual"
               name="Actual"
               fill="#1a4f8b"
-              barSize={16}
+              barSize={40}
               radius={[4, 4, 0, 0]}
             />
+
             <Line
               yAxisId="right"
-              type="monotone"
+              type="monotone" // 데이터가 촘촘해지면 곡선이 자연스러워집니다.
               dataKey="scrap"
               name="Scrap/Loss"
               stroke="#e74c3c"
               strokeWidth={2}
-              dot={{ r: 3 }}
+              dot={{ r: 4 }} // 점 크기도 살짝 키움
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -296,8 +351,9 @@ const WorkOrderTable = React.memo(({ data }) => {
             </tr>
           </thead>
           <tbody>
-            {data.map((row) => (
-              <WorkOrderRow key={row.woId} row={row} />
+            {/* ▼ [수정] index를 추가하고, key에 index를 붙여 중복 방지 */}
+            {data.map((row, index) => (
+              <WorkOrderRow key={`${row.woId}-${index}`} row={row} />
             ))}
           </tbody>
         </Table>
@@ -340,7 +396,7 @@ const PerformancePage = () => {
       const resHourly = await axiosInstance.get(`/api/mes/performance/hourly`, {
         params: { date, line: selectedLine },
       });
-      setHourlyData(resHourly.data ?? []);
+      setHourlyData(fillMissingHours(resHourly.data ?? []));
 
       const resList = await axiosInstance.get(`/api/mes/performance/list`, {
         params: { date, line: selectedLine },
@@ -591,7 +647,7 @@ const ContentBody = styled.div`
   display: flex;
   gap: 16px;
   min-height: 0; /* 자식 요소의 스크롤을 위해 필수 */
-  margin-bottom: 16px; /* 하단에 약간의 여백 */
+  margin-bottom: 100px; /* 하단에 약간의 여백 */
 `;
 
 const ChartSection = styled.div`

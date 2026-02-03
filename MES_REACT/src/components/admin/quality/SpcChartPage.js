@@ -1,5 +1,6 @@
 // src/pages/quality/SpcChartPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import axiosInstance from "../../../api/axios";
 import styled from "styled-components";
 import {
   LineChart,
@@ -192,14 +193,16 @@ const SpcChartPage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const baseUrl = "http://localhost:3001";
+        // ▼ [수정 2] fetch 대신 axiosInstance 사용
+        // baseURL이 이미 설정되어 있으므로 뒷부분 경로만 적으면 됨
         const [paramRes, dataRes] = await Promise.all([
-          fetch(`${baseUrl}/spcParameters`),
-          fetch(`${baseUrl}/spcData`),
+          axiosInstance.get("/spcParameters"), // /api/spcParameters 가 아닌 경우 확인 필요
+          axiosInstance.get("/spcData"),
         ]);
 
-        const params = await paramRes.json();
-        const data = await dataRes.json();
+        // axios 결과는 .data 안에 있음
+        const params = paramRes.data;
+        const data = dataRes.data;
 
         setParameters(params);
         setAllData(data);

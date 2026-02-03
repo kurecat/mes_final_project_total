@@ -1,17 +1,22 @@
 package com.hm.mes_final_260106.controller;
 
+import com.hm.mes_final_260106.dto.RoleDto;
+import com.hm.mes_final_260106.dto.RolePermissionUpdateDto;
 import com.hm.mes_final_260106.entity.CommonCode;
+import com.hm.mes_final_260106.entity.Role;
 import com.hm.mes_final_260106.repository.LoginLogRepository;
 import com.hm.mes_final_260106.service.SystemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/mes/system") // URL 주소 확인!
+@RequestMapping("/api/mes/system")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 public class SystemController {
+
     private final LoginLogRepository logRepository;
     private final SystemService systemService;
 
@@ -33,16 +38,59 @@ public class SystemController {
     // ==========================================
     @GetMapping("/log")
     public ResponseEntity<?> getLogs() {
-        // 서비스가 알아서 정렬된 거 가져옵니다.
         return ResponseEntity.ok(systemService.getLogs());
     }
 
     // ==========================================
-    // 3. 권한/그룹 관리 (Role Management)
+    // 3. 사용자 목록 조회 (User Management)
     // ==========================================
-    // 그냥 회원 리스트 뿌려주고, 프론트에서 권한(ROLE_ADMIN 등) 보여주면 그게 권한관리임
-    @GetMapping("/roles")
+    // UsersPage.js에서 사용 (기존 유지)
+    @GetMapping("/role")
     public ResponseEntity<?> getMemberRoles() {
         return ResponseEntity.ok(systemService.getMembers());
+    }
+
+    // ==========================================
+    // 4. 역할(Role) & 권한(Permission) 관리
+    // ==========================================
+
+    // [RolesPage.js] 전체 역할 목록 조회 (권한 ID 포함)
+    @GetMapping("/roles")
+    public ResponseEntity<?> getRoles() {
+        // List<RoleDto> 반환
+        return ResponseEntity.ok(systemService.getAllRoles());
+    }
+
+    // [RolesPage.js] 전체 권한 목록 조회
+    @GetMapping("/permissions")
+    public ResponseEntity<?> getPermissions() {
+        // List<Permission> 반환 (DB 조회)
+        return ResponseEntity.ok(systemService.getAllPermissions());
+    }
+
+    // [RolesPage.js] 새 역할 생성
+    @PostMapping("/role")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<?> createRole(@RequestBody Role role) {
+        return ResponseEntity.ok(systemService.createRole(role));
+    }
+
+    // [RolesPage.js] 역할 삭제
+    @DeleteMapping("/role/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<?> deleteRole(@PathVariable Long id) {
+        systemService.deleteRole(id);
+        return ResponseEntity.ok("Role deleted successfully");
+    }
+
+    // [RolesPage.js] 역할별 권한 설정 업데이트 (체크박스 저장)
+    @PutMapping("/role/{id}/permissions")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<?> updateRolePermissions(
+            @PathVariable Long id,
+            @RequestBody RolePermissionUpdateDto dto) {
+
+        systemService.updateRolePermissions(id, dto.getPermissionIds());
+        return ResponseEntity.ok("Permissions updated successfully");
     }
 }

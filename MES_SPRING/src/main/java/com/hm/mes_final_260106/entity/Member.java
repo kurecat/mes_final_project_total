@@ -12,7 +12,6 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-
 public class Member {
 
     @Id
@@ -28,18 +27,32 @@ public class Member {
     @Column(nullable = false, length = 100)
     private String name;
 
+    // ★ 추가됨: 부서명
+    @Column(length = 50)
+    private String department;
+
+    // ★ 추가됨: 전화번호
+    @Column(length = 20)
+    private String phone;
+
     @Enumerated(EnumType.STRING)
     private Authority authority;
 
     @Enumerated(EnumType.STRING)
-    private MemberStatus status; // 관리자 승인 로직을 위한 필드 추가 (PENDING, ACTIVE, INACTIVE)
+    private MemberStatus status;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id")
+    private Role role;
 
     @Builder
-    public Member(String email, String password, String name, Authority authority, MemberStatus status) {
+    public Member(String email, String password, String name, String department, String phone, Authority authority, MemberStatus status) {
         this.email = email;
         this.password = password;
         this.name = name;
+        this.department = department; // ★ 추가
+        this.phone = phone;           // ★ 추가
         this.authority = authority;
-        this.status = status != null ? status : MemberStatus.PENDING; // 회원가입 시 기본값 PENDING
+        this.status = status != null ? status : MemberStatus.PENDING;
     }
 }

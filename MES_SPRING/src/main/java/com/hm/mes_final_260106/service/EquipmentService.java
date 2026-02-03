@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,56 +27,89 @@ public class EquipmentService {
     private final ProductionLogRepository productionLogRepo;
     private final EquipmentEventLogRepository eventLogRepo;
 
-    private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private final DateTimeFormatter fmt =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
-    // ✅ 모니터링 리스트 (MachinePage 카드용)
+    /* =====================================================
+       공통: 상태 변경 로그 메시지 생성 (🔥 핵심)
+       ===================================================== */
+    private String buildStatusChangeMessage(
+            EquipmentStatus before,
+            EquipmentStatus after
+    ) {
+        if (before != EquipmentStatus.RUN && after == EquipmentStatus.RUN) {
+            return "설비 가동 시작 (" + before + " → RUN)";
+        }
+        if (before == EquipmentStatus.RUN && after != EquipmentStatus.RUN) {
+            return "설비 정지 (RUN → " + after + ")";
+        }
+        return "설비 상태 변경 (" + before + " → " + after + ")";
+    }
+
+    /* =====================================================
+       모니터링 리스트 (MachinePage 카드)
+       ===================================================== */
     public List<EquipmentMonitorResDto> getMonitoringList() {
-        List<Equipment> list = equipmentRepo.findAll();
-
-        return list.stream()
+        return equipmentRepo.findAll()
+                .stream()
                 .map(EquipmentMonitorResDto::fromEntity)
                 .toList();
     }
 
-    // ✅ 상세 모달 (equipmentCode 기반)
+    /* =====================================================
+       설비 상세 조회
+       ===================================================== */
     public EquipmentDetailResDto getEquipmentDetail(String equipmentCode) {
-        Equipment eq = equipmentRepo.findByCode(equipmentCode)
-                .orElseThrow(() -> new IllegalArgumentException("Equipment not found: " + equipmentCode));
 
-        // 진행중 로그
-        ProductionLog runningLog = productionLogRepo
-                .findFirstByEquipmentAndEndTimeIsNullOrderByStartTimeDesc(eq)
-                .orElse(null);
+        Equipment eq = equipmentRepo.findByCode(equipmentCode)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Equipment not found: " + equipmentCode));
+
+        ProductionLog runningLog =
+                productionLogRepo
+                        .findFirstByEquipmentAndEndTimeIsNullOrderByStartTimeDesc(eq)
+                        .orElse(null);
 
         EquipmentDetailResDto.CurrentRunInfo currentRun = null;
         if (runningLog != null) {
             currentRun = EquipmentDetailResDto.CurrentRunInfo.builder()
                     .productionLogId(runningLog.getId())
-//                    .lotCode(runningLog.getLot() != null ? runningLog.getLot().getCode() : "-")
                     .workOrderNumber(
                             runningLog.getWorkOrder() != null
                                     ? runningLog.getWorkOrder().getWorkOrderNumber()
                                     : "-"
                     )
-                    .startTime(runningLog.getStartTime() != null ? runningLog.getStartTime().format(fmt) : "-")
+                    .startTime(
+                            runningLog.getStartTime() != null
+                                    ? runningLog.getStartTime().format(fmt)
+                                    : "-"
+                    )
                     .build();
         }
 
-        // 최근 로그 10개
         List<EquipmentDetailResDto.EquipmentLogItem> recentLogs =
                 productionLogRepo.findTop10ByEquipmentOrderByStartTimeDesc(eq)
                         .stream()
-                        .map(log -> EquipmentDetailResDto.EquipmentLogItem.builder()
-                                .productionLogId(log.getId())
-//                                .lotCode(log.getLot() != null ? log.getLot().getCode() : "-")
-                                .workOrderNumber(
-                                        log.getWorkOrder() != null
-                                                ? log.getWorkOrder().getWorkOrderNumber()
-                                                : "-"
-                                )
-                                .startTime(log.getStartTime() != null ? log.getStartTime().format(fmt) : "-")
-                                .endTime(log.getEndTime() != null ? log.getEndTime().format(fmt) : "-")
-                                .build())
+                        .map(log ->
+                                EquipmentDetailResDto.EquipmentLogItem.builder()
+                                        .productionLogId(log.getId())
+                                        .workOrderNumber(
+                                                log.getWorkOrder() != null
+                                                        ? log.getWorkOrder().getWorkOrderNumber()
+                                                        : "-"
+                                        )
+                                        .startTime(
+                                                log.getStartTime() != null
+                                                        ? log.getStartTime().format(fmt)
+                                                        : "-"
+                                        )
+                                        .endTime(
+                                                log.getEndTime() != null
+                                                        ? log.getEndTime().format(fmt)
+                                                        : "-"
+                                        )
+                                        .build()
+                        )
                         .toList();
 
         return EquipmentDetailResDto.builder()
@@ -90,17 +124,15 @@ public class EquipmentService {
                 .build();
     }
 
-    // =====================================================
-    // ✅ 설비 추가 저장 (Add Equipment -> Save -> DB INSERT)
-    // =====================================================
+    /* =====================================================
+       설비 생성
+       ===================================================== */
     @Transactional
     public EquipmentResDto createEquipment(EquipmentCreateReqDto dto) {
 
-        // code 중복 방지 (프론트에서 code를 만들어 보내는 구조일 때)
         if (dto.getCode() == null || dto.getCode().isBlank()) {
             throw new IllegalArgumentException("Equipment code is required.");
         }
-
         if (equipmentRepo.existsByCode(dto.getCode())) {
             throw new IllegalArgumentException("Equipment code already exists: " + dto.getCode());
         }
@@ -110,36 +142,40 @@ public class EquipmentService {
                 .name(dto.getName())
                 .type(dto.getType())
                 .status(dto.getStatus())
-                .location(dto.getLocation())// dto에 있으면 넣고, 없으면 null 가능
+                .location(dto.getLocation())
                 .installDate(dto.getInstallDate())
                 .build();
 
         equipmentRepo.save(eq);
-        return null;
+        return new EquipmentResDto(eq);
     }
+
+    /* =====================================================
+       설비 삭제
+       ===================================================== */
     @Transactional
     public void deleteEquipment(Long id) {
         if (!equipmentRepo.existsById(id)) {
-            throw new RuntimeException("해당 설비가 존재하지 않습니다. id=" + id);
+            throw new RuntimeException("설비 없음 id=" + id);
         }
+        eventLogRepo.deleteByEquipmentId(id);
         equipmentRepo.deleteById(id);
     }
 
+    /* =====================================================
+       설비 수정 (TYPE / STATUS 로그 통합)
+       ===================================================== */
     @Transactional
     public EquipmentResDto updateEquipment(Long id, EquipmentReqDto dto) {
 
         Equipment equipment = equipmentRepo.findById(id)
-                .orElseThrow(() -> new RuntimeException("Equipment not found : " + id));
+                .orElseThrow(() -> new RuntimeException("Equipment not found: " + id));
 
-
-        // DTO가 Enum이므로 그대로 사용
+        EquipmentStatus beforeStatus = equipment.getStatus();
         EquipmentStatus newStatus = dto.getStatus();
 
-    /* =========================
-       TYPE 변경
-       ========================= */
+        // TYPE 변경
         if (!equipment.getType().equals(dto.getType())) {
-
             eventLogRepo.save(
                     EquipmentEventLog.builder()
                             .equipment(equipment)
@@ -150,73 +186,73 @@ public class EquipmentService {
                             .createdAt(LocalDateTime.now())
                             .build()
             );
-
             equipment.setType(dto.getType());
         }
 
-    /* =========================
-       STATUS 변경
-       ========================= */
-        if (equipment.getStatus() != newStatus) {
+        // STATUS 변경 (🔥 메시지 통일)
+        if (beforeStatus != newStatus) {
+
+            String message = buildStatusChangeMessage(beforeStatus, newStatus);
 
             eventLogRepo.save(
                     EquipmentEventLog.builder()
                             .equipment(equipment)
                             .eventType(EquipmentEventType.STATUS_CHANGE)
-                            .beforeValue(equipment.getStatus().name())
+                            .beforeValue(beforeStatus.name())
                             .afterValue(newStatus.name())
-                            .message(equipment.getStatus() + " → " + newStatus)
+                            .message(message)
                             .createdAt(LocalDateTime.now())
                             .build()
             );
 
             equipment.setStatus(newStatus);
         }
+
         equipment.setName(dto.getName());
         equipment.setLocation(dto.getLocation());
         equipment.setInstallDate(dto.getInstallDate());
 
-//        equipment.setLotId(dto.getLotId());
-//        equipment.setUph(dto.getUph());
-//        equipment.setTemperature(dto.getTemperature());
-//        equipment.setParam(dto.getParam());
-
-        // JPA 더티체킹으로 자동 UPDATE 반영됨
         return new EquipmentResDto(equipment);
     }
 
-// 설비상태변경 로직
-@Transactional
-public void changeStatus(Long id, EquipmentStatus nextStatus) {
+    /* =====================================================
+       설비 상태 변경 (RUN / STOP 버튼)
+       ===================================================== */
+    @Transactional
+    public void changeStatus(Long equipmentId, String statusValue) {
 
-    Equipment eq = equipmentRepo.findById(id)
-            .orElseThrow(() -> new RuntimeException("설비를 찾을 수 없습니다"));
+        EquipmentStatus newStatus = EquipmentStatus.from(statusValue);
 
-    EquipmentStatus current = eq.getStatus();
+        Equipment equipment = equipmentRepo.findById(equipmentId)
+                .orElseThrow(() -> new RuntimeException("설비 없음"));
 
-    if (!isValidTransition(current, nextStatus)) {
-        throw new IllegalStateException(
-                "Invalid transition: " + current + " → " + nextStatus
+        EquipmentStatus before = equipment.getStatus();
+        if (before == newStatus) return;
+
+        equipment.setStatus(newStatus);
+
+        String message = buildStatusChangeMessage(before, newStatus);
+
+        eventLogRepo.save(
+                EquipmentEventLog.builder()
+                        .equipment(equipment)
+                        .eventType(EquipmentEventType.STATUS_CHANGE)
+                        .beforeValue(before.name())
+                        .afterValue(newStatus.name())
+                        .message(message)
+                        .createdAt(LocalDateTime.now())
+                        .build()
         );
     }
 
-    eq.setStatus(nextStatus);
-    eq.setUpdatedAt(LocalDateTime.now());
-
-    if (nextStatus == EquipmentStatus.DOWN) {
-        eq.setErrorCode("E-DOWN");
+    /* =====================================================
+       설비 이벤트 로그 조회
+       ===================================================== */
+    public List<EquipmentEventLogResDto> getEquipmentLogs(Long equipmentId) {
+        return eventLogRepo
+                .findByEquipmentIdOrderByCreatedAtDesc(equipmentId)
+                .stream()
+                .map(EquipmentEventLogResDto::from)
+                .collect(Collectors.toList());
     }
-
-    if (nextStatus == EquipmentStatus.RUN) {
-        eq.setErrorCode(null);
-    }
-}
-
-    private boolean isValidTransition(EquipmentStatus current, EquipmentStatus next) {
-        return switch (current) {
-            case RUN -> next == EquipmentStatus.DOWN;
-            case IDLE, DOWN -> next == EquipmentStatus.RUN;
-        };
-    }
-
 }
