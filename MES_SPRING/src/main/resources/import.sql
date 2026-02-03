@@ -17,12 +17,13 @@ INSERT INTO worker (id, name, join_date, shift, status, dept, certifications) VA
 (6, '한지민', '2026-02-02', 'Swing', 'OFF',     'TBD',   'Basic Safety');
 
 -- Warehouse 등록 (창고)
-INSERT INTO Warehouse (code, name, type, address, capacity, occupancy, status) VALUES
-('WH-ALL-001', '전체 창고', 'All', '천안시 동남구 본사 물류센터', 10000, 0, 'AVAILABLE'),
-('WH-MAIN-001', '메인 창고', 'Main', '천안시 동남구 본사 물류센터', 8000, 0, 'AVAILABLE'),
-('WH-SUB-001', '서브 창고', 'Sub', '천안시 동남구 본사 물류센터', 5000, 0, 'AVAILABLE'),
-('WH-COLD-001', '냉동 창고', 'ColdStorage', '천안시 동남구 본사 물류센터', 3000, 0, 'AVAILABLE'),
-('WH-CLEAN-001', '클린룸 창고', 'CleanRoom', '천안시 동남구 본사 물류센터', 2000, 0, 'AVAILABLE');
+INSERT INTO warehouse
+(code, name, type, address, status, capacity, occupancy)
+VALUES
+('WH-ALL-001','All Material Warehouse','Main','ALL-ZONE','AVAILABLE',5000,2350),
+('WH-MAIN-001','Main Process Warehouse','Main','FAB-MAIN','AVAILABLE',2000,540),
+('WH-SUB-001','Sub Material Warehouse','Sub','FAB-SUB','AVAILABLE',1500,750);
+
 
 -- 권한 및 역할 (RBAC)
 INSERT INTO permissions (code, name, group_name) VALUES ('USER_READ', '사용자 조회', '시스템 관리');
@@ -79,42 +80,7 @@ VALUES
 ('INBOUND', (SELECT id FROM material WHERE code='MAT-LEADFRAME'), 400, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
 ('INBOUND', (SELECT id FROM material WHERE code='MAT-ENCAPSULANT'), 250, 'kg', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
 ('INBOUND', (SELECT id FROM material WHERE code='MAT-WAFER'), 100, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW());
--- warehouse 등록 (MaterialTransaction이랑 연동된 데이터임)
-INSERT INTO warehouse
-(code, name, type, address, status, capacity, occupancy)
-VALUES
--- 통합 자재 창고
-(
-  'WH-ALL-001',
-  'All Material Warehouse',
-  'Main',
-  'ALL-ZONE',
-  'AVAILABLE',
-  5000,
-  2350
-),
 
--- 메인 공정 자재 창고
-(
-  'WH-MAIN-001',
-  'Main Process Warehouse',
-  'Main',
-  'FAB-MAIN',
-  'AVAILABLE',
-  2000,
-  540
-),
-
--- 서브 / 보조 자재 창고
-(
-  'WH-SUB-001',
-  'Sub Material Warehouse',
-  'Sub',
-  'FAB-SUB',
-  'AVAILABLE',
-  1500,
-  750
-);
 
 -- BOM 등록
 -- BOM Header (제품별 BOM 정의)
