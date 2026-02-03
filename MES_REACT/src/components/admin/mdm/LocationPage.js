@@ -16,106 +16,54 @@ import {
   FaMicrochip,
 } from "react-icons/fa";
 
-// --- [Mock Data] 초기 데이터 ---
-const MOCK_LOCATIONS = [
-  {
-    id: "WH-RAW-A",
-    name: "Raw Wafer Storage A",
-    type: "RAW",
-    condition: "Dry Box (23°C)",
-    capacity: 1000,
-    current: 450,
-    status: "ACTIVE",
-  },
-  {
-    id: "WH-CHEM-C",
-    name: "Chemical Cold Storage",
-    type: "RAW",
-    condition: "Cold (4°C)",
-    capacity: 200,
-    current: 180,
-    status: "ACTIVE",
-  },
-  {
-    id: "WH-FAB-WIP",
-    name: "Fab Line Stocker #1",
-    type: "WIP",
-    condition: "Clean Room",
-    capacity: 500,
-    current: 495,
-    status: "FULL",
-  },
-  {
-    id: "WH-EDS-BUF",
-    name: "EDS Input Buffer",
-    type: "WIP",
-    condition: "N2 Purge",
-    capacity: 300,
-    current: 50,
-    status: "ACTIVE",
-  },
-  {
-    id: "WH-FG-DDR5",
-    name: "DDR5 Module Warehouse",
-    type: "FG",
-    condition: "Normal",
-    capacity: 5000,
-    current: 1200,
-    status: "ACTIVE",
-  },
-];
-
+/* =====================
+   기본값
+===================== */
 const defaultWarehouse = {
-  code: "code",
-  name: "name",
+  code: "",
+  name: "",
   type: "Main",
-  address: "address",
+  address: "",
   capacity: 1,
-  mainParam: "mainParam",
+  param: "",
 };
 
-// --- [Optimized] Sub-Components with React.memo ---
-
-// 1. Control Bar Component
+/* =====================
+   Control Bar
+===================== */
 const ControlBarSection = React.memo(
-  ({ filterType, onFilterChange, searchTerm, onSearchChange }) => {
-    return (
-      <ControlBar>
-        <FilterGroup>
-          {["ALL", "Main", "Sub", "ColdStorage", "CleanRoom"].map((type) => (
-            <FilterBtn
-              key={type}
-              $active={filterType === type}
-              onClick={() => onFilterChange(type)}
-            >
-              {type === "ALL"
-                ? "All"
-                : type === "Main"
-                  ? "Main"
-                  : type === "Sub"
-                    ? "Sub"
-                    : type === "ColdStorage"
-                      ? "ColdStorage"
-                      : "CleanRoom"}
-            </FilterBtn>
-          ))}
-        </FilterGroup>
-        <SearchBox>
-          <FaSearch color="#999" />
-          <input
-            placeholder="Search Location..."
-            value={searchTerm}
-            onChange={onSearchChange}
-          />
-        </SearchBox>
-      </ControlBar>
-    );
-  },
+  ({ filterType, onFilterChange, searchTerm, onSearchChange }) => (
+    <ControlBar>
+      <FilterGroup>
+        {["ALL", "Main", "Sub", "ColdStorage", "CleanRoom"].map((type) => (
+          <FilterBtn
+            key={type}
+            $active={filterType === type}
+            onClick={() => onFilterChange(type)}
+          >
+            {type}
+          </FilterBtn>
+        ))}
+      </FilterGroup>
+      <SearchBox>
+        <FaSearch color="#999" />
+        <input
+          placeholder="Search Location..."
+          value={searchTerm}
+          onChange={onSearchChange}
+        />
+      </SearchBox>
+    </ControlBar>
+  ),
 );
 
-// 2. 개별 위치 카드
+/* =====================
+   Location Card
+===================== */
 const LocationCardItem = React.memo(({ loc, onDelete, onEdit }) => {
-  const percent = Math.round((loc.occupancy / loc.capacity) * 100);
+  const occupancy = loc.occupancy ?? 0;
+  const capacity = loc.capacity ?? 1;
+  const percent = Math.round((occupancy / capacity) * 100);
   const isFull = percent >= 95;
 
   return (
@@ -131,9 +79,9 @@ const LocationCardItem = React.memo(({ loc, onDelete, onEdit }) => {
       <CardBody>
         <LocName>{loc.name}</LocName>
         <ConditionInfo>
-          {loc.type.includes("Cold") ? (
+          {loc.type?.includes("Cold") ? (
             <FaThermometerHalf color="#3498db" />
-          ) : loc.type.includes("Dry") ? (
+          ) : loc.type?.includes("Dry") ? (
             <FaBox color="#e67e22" />
           ) : (
             <FaWarehouse color="#999" />
@@ -145,7 +93,7 @@ const LocationCardItem = React.memo(({ loc, onDelete, onEdit }) => {
           <CapLabel>
             <span>Occupancy</span>
             <span className={isFull ? "full" : ""}>
-              {percent}% ({loc.occupancy}/{loc.capacity})
+              {percent}% ({occupancy}/{capacity})
             </span>
           </CapLabel>
           <ProgressBar>
@@ -172,285 +120,169 @@ const LocationCardItem = React.memo(({ loc, onDelete, onEdit }) => {
   );
 });
 
-const CrudModal = React.memo(
-  ({ isEdit, formData, onChange, onAdd, onEdit, onClose }) => {
-    return (
-      <ModalOverlay onClick={onClose}>
-        <ModalBox onClick={(e) => e.stopPropagation()}>
-          <ModalHeader>
-            <ModalTitle>
-              <FaTools />
-              {isEdit ? "Edit Warehouse" : "Add Warehouse"}
-            </ModalTitle>
-            <CloseBtn onClick={onClose}>
-              <FaTimes />
-            </CloseBtn>
-          </ModalHeader>
+/* =====================
+   CRUD Modal
+===================== */
+const CrudModal = ({ isEdit, formData, onChange, onSubmit, onClose }) => (
+  <ModalOverlay onClick={onClose}>
+    <ModalBox onClick={(e) => e.stopPropagation()}>
+      <ModalHeader>
+        <ModalTitle>
+          <FaTools /> {isEdit ? "Edit Warehouse" : "Add Warehouse"}
+        </ModalTitle>
+        <CloseBtn onClick={onClose}>
+          <FaTimes />
+        </CloseBtn>
+      </ModalHeader>
 
-          <ModalBody>
-            <SectionTitle>
-              <FaMicrochip /> Warehouse Form
-            </SectionTitle>
-            <FormGrid>
-              <FormItem>
-                <FormLabel>Code</FormLabel>
-                <FormInput
-                  name="code"
-                  value={formData.code}
-                  placeholder="Warehouse code"
-                  onChange={onChange}
-                />
-              </FormItem>
+      <ModalBody>
+        <SectionTitle>
+          <FaMicrochip /> Warehouse Form
+        </SectionTitle>
+        <FormGrid>
+          {["code", "name", "address"].map((key) => (
+            <FormItem key={key}>
+              <FormLabel>{key.toUpperCase()}</FormLabel>
+              <FormInput name={key} value={formData[key]} onChange={onChange} />
+            </FormItem>
+          ))}
 
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormInput
-                  name="name"
-                  value={formData.name}
-                  placeholder="Warehouse name"
-                  onChange={onChange}
-                />
-              </FormItem>
+          <FormItem>
+            <FormLabel>Type</FormLabel>
+            <FormSelect name="type" value={formData.type} onChange={onChange}>
+              <option value="Main">Main</option>
+              <option value="Sub">Sub</option>
+              <option value="ColdStorage">ColdStorage</option>
+              <option value="CleanRoom">CleanRoom</option>
+            </FormSelect>
+          </FormItem>
 
-              <FormItem>
-                <FormLabel>Type</FormLabel>
-                <FormSelect
-                  name="type"
-                  value={formData.type}
-                  onChange={onChange}
-                >
-                  <option value="Main">Main</option>
-                  <option value="Sub">Sub</option>
-                  <option value="ColdStorage">ColdStorage</option>
-                  <option value="CleanRoom">CleanRoom</option>
-                </FormSelect>
-              </FormItem>
+          <FormItem>
+            <FormLabel>Capacity</FormLabel>
+            <FormInput
+              type="number"
+              name="capacity"
+              value={formData.capacity}
+              onChange={onChange}
+            />
+          </FormItem>
+        </FormGrid>
+      </ModalBody>
 
-              <FormItem>
-                <FormLabel>Address</FormLabel>
-                <FormInput
-                  name="address"
-                  value={formData.address}
-                  onChange={onChange}
-                ></FormInput>
-              </FormItem>
-
-              <FormItem>
-                <FormLabel>Capacity</FormLabel>
-                <FormInput
-                  type="number"
-                  name="capacity"
-                  value={formData.capacity}
-                  onChange={onChange}
-                />
-              </FormItem>
-
-              <FormItem>
-                <FormLabel>Occupancy</FormLabel>
-                <FormInput
-                  type="number"
-                  name="occupancy"
-                  value={formData.occupancy}
-                  disabled
-                />
-              </FormItem>
-
-              <FormItem style={{ gridColumn: "1 / -1" }}>
-                <FormLabel>Main Param</FormLabel>
-                <FormInput
-                  name="param"
-                  value={formData.param}
-                  placeholder="ex) Pressure=3.2Torr"
-                  onChange={onChange}
-                />
-              </FormItem>
-            </FormGrid>
-          </ModalBody>
-
-          <ModalFooter>
-            <ModalBtn
-              className="close"
-              onClick={() => {
-                if (!isEdit) {
-                  onAdd(formData); // 추가 시 formData만 전달
-                } else {
-                  onEdit(formData.id, formData); // 수정 시 id와 formData 전달
-                }
-                onClose();
-              }}
-            >
-              {!isEdit ? "Add" : "Save"}
-            </ModalBtn>
-          </ModalFooter>
-        </ModalBox>
-      </ModalOverlay>
-    );
-  },
+      <ModalFooter>
+        <ModalBtn className="close" onClick={onSubmit}>
+          {isEdit ? "Save" : "Add"}
+        </ModalBtn>
+      </ModalFooter>
+    </ModalBox>
+  </ModalOverlay>
 );
 
-// --- Main Component ---
-
+/* =====================
+   Main Page
+===================== */
 const LocationPage = () => {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("ALL");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [formData, setFormData] = useState(defaultWarehouse);
 
-  const [reqFetch, setReqFetch] = useState(false);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
-  const [editingWarehouse, setEditingWarehouse] = useState(null);
-
-  // 1. 데이터 조회 (READ) - useCallback
   const fetchData = useCallback(async () => {
     setLoading(true);
-    try {
-      // API call logic...
-      const res = await axiosInstance.get("/api/mes/master/warehouse/list");
-      setLocations(res.data);
-
-      // setTimeout(() => {
-      //   setLocations(MOCK_LOCATIONS);
-      //   setLoading(false);
-      // }, 500);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setReqFetch(false);
-      setLoading(false);
-    }
+    const res = await axiosInstance.get("/api/mes/master/warehouse/list");
+    setLocations(res.data);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchData();
-  }, [fetchData, reqFetch]);
+  }, [fetchData]);
 
-  // 2. Handlers - useCallback
-  const handleDelete = useCallback(async (id) => {
-    if (!window.confirm("이 위치 정보를 삭제하시겠습니까?")) return;
-    try {
-      await axiosInstance.delete(`/api/mes/master/warehouse/${id}`);
-      setReqFetch(true);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
-
-  const handleEdit = useCallback(async (id, formData) => {
-    try {
-      await axiosInstance.put(`/api/mes/master/warehouse/${id}`, formData);
-      setReqFetch(true);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
-
-  const handleAdd = useCallback(async (formData) => {
-    try {
-      await axiosInstance.post(`/api/mes/master/warehouse`, formData);
-      setReqFetch(true);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
-
-  const handleFilterChange = useCallback((type) => {
-    setFilterType(type);
-  }, []);
-
-  const handleSearchChange = useCallback((e) => {
-    setSearchTerm(e.target.value);
-  }, []);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setSelectedWarehouse((prev) => ({
-      ...prev,
-      [name]: name === "capacity" ? Math.max(1, Number(value)) : value,
-    }));
+  const safePayload = (data) => {
+    const { occupancy, status, ...rest } = data;
+    return rest;
   };
 
-  const handleEditClick = useCallback((location) => {
-    console.log(location);
-    setEditingWarehouse(true);
-    setIsModalOpen(true);
-    setSelectedWarehouse(location);
-  }, []);
+  const handleSubmit = async () => {
+    const payload = safePayload(formData);
 
-  const handleAddClick = useCallback(() => {
-    setEditingWarehouse(false);
-    setIsModalOpen(true);
-    setSelectedWarehouse({ ...defaultWarehouse });
-  }, []);
+    if (editing) {
+      await axiosInstance.put(
+        `/api/mes/master/warehouse/${formData.id}`,
+        payload,
+      );
+    } else {
+      await axiosInstance.post("/api/mes/master/warehouse", payload);
+    }
 
-  const closeCrudModal = useCallback(() => {
-    setIsModalOpen(false);
-    setSelectedWarehouse(null);
-  }, []);
+    setModalOpen(false);
+    fetchData();
+  };
 
-  // 4. Filtering Logic
   const filteredList = useMemo(() => {
-    return locations.filter((loc) => {
-      const matchType = filterType === "ALL" || loc.type === filterType;
-      const matchSearch =
-        loc.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        loc.name.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchType && matchSearch;
-    });
+    return locations.filter(
+      (w) =>
+        (filterType === "ALL" || w.type === filterType) &&
+        (w.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          w.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    );
   }, [locations, filterType, searchTerm]);
 
   return (
     <Container>
-      {/* Header Area */}
       <Header>
-        <TitleArea>
-          <PageTitle>
-            <FaWarehouse /> Warehouse Location Master
-            {loading && (
-              <FaSync
-                className="spin"
-                style={{ fontSize: 14, marginLeft: 10 }}
-              />
-            )}
-          </PageTitle>
-          <SubTitle>Manage Storage Zones & Capacity</SubTitle>
-        </TitleArea>
-        <ActionGroup>
-          <AddButton onClick={handleAddClick}>
-            <FaPlus /> Add Location
-          </AddButton>
-        </ActionGroup>
+        <PageTitle>
+          <FaWarehouse /> Warehouse Location Master
+          {loading && <FaSync className="spin" />}
+        </PageTitle>
+        <AddButton
+          onClick={() => {
+            setFormData(defaultWarehouse);
+            setEditing(false);
+            setModalOpen(true);
+          }}
+        >
+          <FaPlus /> Add Location
+        </AddButton>
       </Header>
 
-      {/* Search & Filter Bar */}
       <ControlBarSection
         filterType={filterType}
-        onFilterChange={handleFilterChange}
+        onFilterChange={setFilterType}
         searchTerm={searchTerm}
-        onSearchChange={handleSearchChange}
+        onSearchChange={(e) => setSearchTerm(e.target.value)}
       />
 
-      {/* Grid Content */}
       <GridContainer>
         {filteredList.map((loc) => (
           <LocationCardItem
             key={loc.id}
             loc={loc}
-            onDelete={handleDelete}
-            onEdit={handleEditClick}
+            onDelete={async (id) => {
+              await axiosInstance.delete(`/api/mes/master/warehouse/${id}`);
+              fetchData();
+            }}
+            onEdit={(loc) => {
+              setFormData(loc);
+              setEditing(true);
+              setModalOpen(true);
+            }}
           />
         ))}
       </GridContainer>
-      {}
-      {isModalOpen && (
+
+      {modalOpen && (
         <CrudModal
-          isEdit={!!editingWarehouse}
-          formData={selectedWarehouse}
-          onChange={handleChange}
-          onAdd={handleAdd}
-          onEdit={handleEdit}
-          onClose={closeCrudModal}
+          isEdit={editing}
+          formData={formData}
+          onChange={(e) =>
+            setFormData({ ...formData, [e.target.name]: e.target.value })
+          }
+          onSubmit={handleSubmit}
+          onClose={() => setModalOpen(false)}
         />
       )}
     </Container>

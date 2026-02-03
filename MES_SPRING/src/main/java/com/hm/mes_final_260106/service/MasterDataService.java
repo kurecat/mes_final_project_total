@@ -418,5 +418,29 @@ public class MasterDataService {
         warehouseRepo.delete(warehouse);
     }
 
+    // 재고 반영
+    public void applyWarehouseStock(String warehouseCode, int diffQty) {
+
+        Warehouse warehouse = warehouseRepo.findByCode(warehouseCode)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("창고를 찾을 수 없습니다. code=" + warehouseCode));
+
+        int newOccupancy = warehouse.getOccupancy() + diffQty;
+
+        if (newOccupancy < 0) {
+            throw new IllegalStateException("창고 재고가 0보다 작아질 수 없습니다.");
+        }
+
+        warehouse.setOccupancy(newOccupancy);
+
+        // 상태 자동 계산
+        if (warehouse.getOccupancy() >= warehouse.getCapacity()) {
+            warehouse.setStatus(WarehouseStatus.FULL);
+        } else {
+            warehouse.setStatus(WarehouseStatus.AVAILABLE);
+        }
+
+        warehouseRepo.save(warehouse);
+    }
     /// 111111
 }
