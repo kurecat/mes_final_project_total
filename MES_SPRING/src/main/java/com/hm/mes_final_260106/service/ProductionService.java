@@ -508,11 +508,15 @@ public class ProductionService {
     // =========================
     @Transactional(readOnly = true)
     public List<EventLogResDto> getEventLogs() {
-        return logRepo.findByMessageIsNotNullOrderByStartTimeDesc()
+        return logRepo
+                .findByMessageIsNotNullOrderByStartTimeDesc()
                 .stream()
-                .map(EventLogResDto::fromEntity)
+                .map(EventLogResDto::from)
                 .toList();
     }
+
+
+
 
     // 이벤트 로그 메시지 수정
     @Transactional
