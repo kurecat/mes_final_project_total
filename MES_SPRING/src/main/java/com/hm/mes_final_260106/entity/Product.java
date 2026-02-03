@@ -1,4 +1,5 @@
 package com.hm.mes_final_260106.entity;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -31,6 +32,7 @@ public class Product {
     @Column(length = 100)
     private String category;
 
+    @JsonIgnore
     @Builder.Default
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Bom> boms = new ArrayList<>();

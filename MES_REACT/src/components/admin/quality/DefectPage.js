@@ -434,6 +434,7 @@ const Container = styled.div`
   flex-direction: column;
   box-sizing: border-box;
   overflow-y: auto;
+  /* margin-bottom: 100px; */
 `;
 
 const Header = styled.div`
@@ -631,6 +632,7 @@ const ListSection = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  margin-bottom: 50px;
 `;
 
 const ListHeader = styled.div`

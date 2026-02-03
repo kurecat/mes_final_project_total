@@ -4,6 +4,7 @@ package com.hm.mes_final_260106.entity;
 // 작업지시, 설비, 작업자, 투입된 자재(LOT)
 // 5M1E의 집약체 ( Man, Machine, Material, Method, Measurement, Environment )
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.hm.mes_final_260106.constant.ProductionStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,6 +18,7 @@ public class ProductionLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "work_order_id", nullable = false)
     private WorkOrder workOrder;
@@ -25,6 +27,7 @@ public class ProductionLog {
     @JoinColumn(name = "worker_id")
     private Worker worker;
 
+    @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "equipment_id")
     private Equipment equipment;
