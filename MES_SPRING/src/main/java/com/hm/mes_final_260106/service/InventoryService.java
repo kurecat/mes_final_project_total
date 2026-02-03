@@ -22,6 +22,8 @@ public class InventoryService {
 
     private final MaterialRepository materialRepository;
     private final MaterialTransactionRepository txRepository;
+    private final MasterDataService masterDataService;
+
 
     // =============================
     // 재고 목록 조회 (현재 상태)
@@ -102,6 +104,13 @@ public class InventoryService {
 
         txRepository.save(tx);
         materialRepository.save(material);
+
+        if (req.getTargetLocation() != null) {
+            masterDataService.applyWarehouseStock(
+                    req.getTargetLocation(),
+                    req.getQty()
+            );
+        }
     }
 
     // =============================
@@ -149,6 +158,13 @@ public class InventoryService {
 
         txRepository.save(tx);
         materialRepository.save(material);
+
+        if (outLocation != null) {
+            masterDataService.applyWarehouseStock(
+                    outLocation,
+                    -req.getQty()
+            );
+        }
     }
 
 
