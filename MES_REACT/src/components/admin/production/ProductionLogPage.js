@@ -182,16 +182,15 @@ const LogsPage = () => {
   const fetchLogs = async () => {
     try {
       const res = await api.get("/api/mes/event-log");
-      const mapped = res.data.map((item, idx) => ({
-        id: item.id || item.eventLogId || item.productionLogId || idx + 1,
-        timestamp: new Date(
-          item.timestamp || item.startTime || item.createdAt || item.resultDate,
-        ).toLocaleString(),
-        level: item.level || "INFO",
-        category: item.category || "PRODUCTION",
+      const mapped = res.data.map((item) => ({
+        id: item.id, // ← 이것만 허용
+        timestamp: new Date(item.timestamp).toLocaleString(),
+        level: item.level,
+        category: item.category,
         message: item.message ?? "",
         raw: item,
       }));
+
       setLogs(mapped);
     } catch (err) {
       console.error(err);

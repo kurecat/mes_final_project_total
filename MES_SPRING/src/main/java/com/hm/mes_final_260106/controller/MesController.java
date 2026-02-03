@@ -283,12 +283,6 @@ public class MesController {
     public ResponseEntity<List<Product>> getProductList() {
         return ResponseEntity.ok(productionService.getAllProducts());
     }
-
-
-
-  // 1111
-
-
 }
 
 
