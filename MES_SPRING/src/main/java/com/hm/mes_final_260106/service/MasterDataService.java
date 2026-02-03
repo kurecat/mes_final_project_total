@@ -152,8 +152,8 @@ public class MasterDataService {
     }
 
     // ======= //
-// Product //
-// ======= //
+    // Product //
+    // ======= //
 
     // CREATE
     public void createProduct(ProductCreateReqDto dto) {
@@ -174,6 +174,7 @@ public class MasterDataService {
         Bom bom = new Bom();
         bom.setProduct(product);
         bom.setRevision(0); // 최초 리비전
+        bom.setStatus(BomStatus.OBSOLETE);
         bomRepo.save(bom);
     }
 
@@ -210,8 +211,13 @@ public class MasterDataService {
         Product product = productRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("제품을 찾을 수 없습니다: " + id));
 
+        // 연결된 BOM 먼저 제거 (orphanRemoval 활성화)
+        product.getBoms().clear();
+
+        // Product 삭제
         productRepo.delete(product);
     }
+
 
     // 공통 변환 함수
     private ProductResDto toResDto(Product product) {
@@ -352,8 +358,8 @@ public class MasterDataService {
     }
 
     // ========= //
-// Warehouse //
-// ========= //
+    // Warehouse //
+    // ========= //
 
     // READ (전체 조회)
     public List<WarehouseResDto> getAllWarehouses() {
