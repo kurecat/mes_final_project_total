@@ -13,6 +13,8 @@ import {
   FaBoxOpen,
 } from "react-icons/fa";
 
+import axiosInstance from "../../../api/axios";
+
 // --- Helpers ---
 const getStatusColor = (status) => {
   switch (status) {
@@ -216,56 +218,50 @@ const LotTrackingPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    // Mock Data Load (For Demo)
-    setStats({
-      runningLots: 12,
-      holdLots: 2,
-      waitLots: 5,
-      avgTat: "4.5 Days",
-    });
-    const mockLots = [
-      {
-        id: "LOT-2026-A001",
-        product: "DDR5-16Gb",
-        status: "RUNNING",
-        currentStep: "Photo-02",
-        progress: 45,
-        priority: "High",
-        waferQty: 25,
-        equipmentId: "PH-EQ-02",
-        startTime: "2026-01-26 08:30",
-        eta: "2026-01-29 14:00",
-        route: [
-          { step: "Clean", status: "DONE" },
-          { step: "Deposition", status: "DONE" },
-          { step: "Photo", status: "RUNNING" },
-          { step: "Etch", status: "WAIT" },
-          { step: "EDS", status: "WAIT" },
-        ],
-      },
-      {
-        id: "LOT-2026-B005",
-        product: "NAND-1TB",
-        status: "HOLD",
-        currentStep: "Etch-01",
-        progress: 60,
-        priority: "Normal",
-        waferQty: 24,
-        equipmentId: "ET-EQ-01",
-        startTime: "2026-01-25 10:00",
-        eta: "Unknown",
-        holdReason: "Recipe Mismatch Error",
-        route: [
-          { step: "Clean", status: "DONE" },
-          { step: "Deposition", status: "DONE" },
-          { step: "Photo", status: "DONE" },
-          { step: "Etch", status: "HOLD" },
-          { step: "EDS", status: "WAIT" },
-        ],
-      },
-    ];
-    setLots(mockLots);
-    if (mockLots.length > 0) setSelectedLot(mockLots[0]);
+    const fetchLots = async () => {
+      try {
+        // 1. 백엔드 API 호출 (Lot 목록)
+        const response = await axiosInstance.get("/api/mes/lot/list");
+        const rawData = response.data || [];
+
+        // 2. 데이터 가공 (LotResDto -> 화면 포맷)
+        const formattedLots = rawData.map((lot) => ({
+          id: lot.id, // DB PK (나중에 클릭 시 사용)
+          lotCode: lot.lotCode, // 화면 표시용 번호 (LOT-2024...)
+          product: lot.materialName, // 자재명
+          status: lot.status, // 상태 (IN_USE 등)
+          currentStep: lot.location || "Unknown", // 위치
+          progress: lot.currentQty > 0 ? 100 : 0, // (임시) 잔량 있으면 100%
+          waferQty: lot.currentQty, // 수량
+          startTime: "-", // 리스트엔 없음
+          eta: "-",
+          route: [], // 상세 이력은 클릭해야 가져옴 (Lazy Loading)
+        }));
+
+        setLots(formattedLots);
+
+        // 첫 번째 항목 자동 선택 (선택 시 이력 조회 트리거)
+        if (formattedLots.length > 0) {
+          // 주의: 여기서 바로 handleLotClick을 부르거나,
+          // setSelectedLot만 하고 별도로 로딩해야 함.
+          // 간단하게 첫번째는 정보만 보여줍니다.
+          setSelectedLot(formattedLots[0]);
+        }
+
+        // 통계 갱신 (실제 데이터 기반)
+        setStats({
+          runningLots: formattedLots.filter((l) => l.status === "IN_USE")
+            .length,
+          holdLots: formattedLots.filter((l) => l.status === "HOLD").length,
+          waitLots: formattedLots.filter((l) => l.status === "WAIT").length,
+          avgTat: "3.5 Days", // 이건 아직 계산 로직이 없으므로 고정값
+        });
+      } catch (error) {
+        console.error("Lot 목록 조회 실패:", error);
+      }
+    };
+
+    fetchLots();
   }, []);
 
   const handleSearchChange = useCallback((e) => {

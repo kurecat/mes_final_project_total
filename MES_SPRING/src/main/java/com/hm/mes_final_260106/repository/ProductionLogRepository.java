@@ -22,6 +22,12 @@ public interface ProductionLogRepository extends JpaRepository<ProductionLog, Lo
 
     // 이벤트 로그만 조회
     List<ProductionLog> findByMessageIsNotNullOrderByStartTimeDesc();
+
+    // [추가] 불량 수량이 0보다 큰 기록만 최신순으로 가져오기 (DefectPage용)
+    List<ProductionLog> findByDefectQtyGreaterThanOrderByEndTimeDesc(int qty);
+    // [추가] 특정 작업지시의 로그를 시작시간 순서대로 가져오기 (타임라인용)
+    List<ProductionLog> findByWorkOrderIdOrderByStartTimeAsc(Long workOrderId);
+
     @Query("""
     SELECT
         HOUR(pl.endTime) AS hour,

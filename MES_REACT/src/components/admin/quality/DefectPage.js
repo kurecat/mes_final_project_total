@@ -1,4 +1,3 @@
-// src/pages/quality/DefectPage.js
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import {
@@ -21,6 +20,9 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+
+// ★ API 연결을 위해 axios import 추가
+import axiosInstance from "../../../api/axios";
 
 // --- Wafer Map Logic (Client Side Generation) ---
 const generateWaferMap = () => {
@@ -73,7 +75,7 @@ const DefectStats = React.memo(({ stats }) => {
           <FaExclamationTriangle />
         </IconBox>
         <StatInfo>
-          <Label>Worst Step</Label>
+          <Label>Worst Defect</Label>
           <Value style={{ fontSize: 20 }}>{stats.worstStep}</Value>
         </StatInfo>
       </StatCard>
@@ -93,7 +95,7 @@ const DefectStats = React.memo(({ stats }) => {
           <FaMicroscope />
         </IconBox>
         <StatInfo>
-          <Label>Prime Yield</Label>
+          <Label>Avg Yield</Label>
           <Value>
             {stats.primeYield} <Unit>%</Unit>
           </Value>
@@ -288,45 +290,89 @@ const DefectPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
+  // ★ API 호출 및 데이터 가공 로직
   useEffect(() => {
-    // Mock Data Load
-    setStats({
-      totalDefects: 124,
-      worstStep: "Etch-Gate",
-      repairedCount: 45,
-      primeYield: 92.5,
-    });
-    setParetoData([
-      { name: "Particle", count: 45, cum: 36 },
-      { name: "Scratch", count: 30, cum: 60 },
-      { name: "Pattern", count: 20, cum: 76 },
-      { name: "Overlay", count: 15, cum: 88 },
-      { name: "Bridge", count: 14, cum: 100 },
-    ]);
-    setDefectLogs([
-      {
-        id: "DEF-001",
-        time: "10:23:41",
-        lotId: "LOT-A01",
-        waferId: "WF-05",
-        coord: "(12, 45)",
-        type: "Particle",
-        process: "Etch",
-        status: "NEW",
-        image: true,
-      },
-      {
-        id: "DEF-002",
-        time: "11:05:12",
-        lotId: "LOT-A02",
-        waferId: "WF-12",
-        coord: "(08, 22)",
-        type: "Scratch",
-        process: "CMP",
-        status: "REPAIRED",
-        image: false,
-      },
-    ]);
+    const fetchDefects = async () => {
+      try {
+        // 1. 백엔드에서 불량 내역 조회
+        const response = await axiosInstance.get("/api/mes/quality/defect");
+        const rawData = response.data || [];
+
+        // 2. 리스트용 데이터 매핑
+        const formattedLogs = rawData.map((item) => ({
+          id: `DEF-${item.id}`,
+          time: item.endTime
+            ? new Date(item.endTime).toLocaleTimeString()
+            : "-",
+          lotId: item.workOrder?.workOrderNumber || "Unknown Lot",
+          waferId: "WF-0" + (item.id % 9), // 임시 웨이퍼 ID
+          coord: `(${Math.floor(Math.random() * 20)}, ${Math.floor(Math.random() * 20)})`, // 좌표 임시
+          type: item.message || "Unknown", // 불량 원인(Message)을 Type으로 사용
+          process: item.processStep || "Process",
+          status: "NEW", // 기본 상태
+          image: false,
+          defectQty: item.defectQty || 0,
+          resultQty: item.resultQty || 0,
+        }));
+        setDefectLogs(formattedLogs);
+
+        // 3. 차트용 데이터 가공 (Pareto Analysis)
+        // 불량 유형(type)별 카운트 집계
+        const countMap = {};
+        rawData.forEach((item) => {
+          const type = item.message || "Unknown";
+          countMap[type] = (countMap[type] || 0) + 1;
+        });
+
+        // 내림차순 정렬 및 배열 변환
+        const sortedCounts = Object.entries(countMap)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count);
+
+        // 누적 비율(Cumulative %) 계산
+        const totalEvents = rawData.length;
+        let runningSum = 0;
+        const paretoData = sortedCounts.map((item) => {
+          runningSum += item.count;
+          return {
+            name: item.name,
+            count: item.count,
+            cum:
+              totalEvents === 0
+                ? 0
+                : Math.round((runningSum / totalEvents) * 100),
+          };
+        });
+        setParetoData(paretoData);
+
+        // 4. 통계(Stats) 계산
+        const totalDefectQty = rawData.reduce(
+          (acc, cur) => acc + (cur.defectQty || 0),
+          0,
+        );
+        const totalResultQty = rawData.reduce(
+          (acc, cur) => acc + (cur.resultQty || 0),
+          0,
+        );
+        const totalProduction = totalResultQty + totalDefectQty;
+
+        const yieldRate =
+          totalProduction === 0
+            ? 0
+            : ((totalResultQty / totalProduction) * 100).toFixed(1);
+
+        setStats({
+          totalDefects: totalDefectQty || totalEvents,
+          worstStep: sortedCounts.length > 0 ? sortedCounts[0].name : "-", // 가장 빈번한 불량
+          repairedCount: 0, // 수리 로직은 아직 없음
+          primeYield: yieldRate,
+        });
+      } catch (error) {
+        console.error("불량 내역 조회 실패:", error);
+      }
+    };
+
+    fetchDefects();
   }, []);
 
   const handleStatusChange = useCallback((e) => {
@@ -349,7 +395,6 @@ const DefectPage = () => {
 
   return (
     <Container>
-      {/* 1. Header (추가됨) */}
       <Header>
         <TitleArea>
           <PageTitle>
@@ -359,16 +404,13 @@ const DefectPage = () => {
         </TitleArea>
       </Header>
 
-      {/* 2. Stats Section */}
       <DefectStats stats={stats} />
 
-      {/* 3. Visualization Section */}
       <VizSection>
         <DefectChart data={paretoData} />
         <WaferMap />
       </VizSection>
 
-      {/* 4. List Section */}
       <DefectList
         logs={filteredLogs}
         statusFilter={statusFilter}
@@ -382,7 +424,7 @@ const DefectPage = () => {
 
 export default DefectPage;
 
-// --- Styled Components ---
+// --- Styled Components (기존과 동일하게 유지) ---
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -394,7 +436,6 @@ const Container = styled.div`
   overflow-y: auto;
 `;
 
-// ★ Header Styles Added
 const Header = styled.div`
   display: flex;
   justify-content: space-between;

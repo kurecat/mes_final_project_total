@@ -5,6 +5,8 @@ package com.hm.mes_final_260106.controller;
 // 협업 중인 다른 개발자의 작업에 영향을 주지 않기 위함입니다. (백엔드 담당: 시큐리티, JWT, 멤버, 어드민 기능)
 
 import com.hm.mes_final_260106.dto.*;
+import com.hm.mes_final_260106.dto.lot.LotHistoryResDto;
+import com.hm.mes_final_260106.dto.lot.LotResDto;
 import com.hm.mes_final_260106.entity.Equipment;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.Product;
@@ -282,6 +284,22 @@ public class MesController {
     @GetMapping("/item")
     public ResponseEntity<List<Product>> getProductList() {
         return ResponseEntity.ok(productionService.getAllProducts());
+    }
+
+    // ==========================================
+    // [복구 완료] Lot 추적 관련 API (이 부분이 빠져 있었음)
+    // ==========================================
+
+    // 1. Lot 전체 목록 조회 (LotTrackingPage 리스트용)
+    @GetMapping("/lot/list")
+    public ResponseEntity<List<LotResDto>> getLotList() {
+        return ResponseEntity.ok(productionService.getAllLotList());
+    }
+
+    // 2. 특정 Lot의 상세 이력 조회 (타임라인용)
+    @GetMapping("/production/work-order/{id}/history")
+    public ResponseEntity<List<LotHistoryResDto>> getLotHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(productionService.getLotHistory(id));
     }
 }
 

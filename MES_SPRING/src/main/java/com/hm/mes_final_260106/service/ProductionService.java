@@ -1,6 +1,8 @@
 package com.hm.mes_final_260106.service;
 
 import com.hm.mes_final_260106.dto.*;
+import com.hm.mes_final_260106.dto.lot.LotHistoryResDto;
+import com.hm.mes_final_260106.dto.lot.LotResDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.mapper.Mapper;
@@ -633,4 +635,39 @@ public class ProductionService {
         if (processName == null || "ALL".equals(processName)) return standardRepo.findAll();
         return standardRepo.findByProcessName(processName);
     }
+    // 1. [Lot 추적] 전체 목록 조회
+    @Transactional(readOnly = true)
+    public List<LotResDto> getAllLotList() {
+        return lotRepo.findAll().stream()
+                .map(LotResDto::from)
+                .collect(Collectors.toList());
+    }
+
+    // 2. [Lot 추적] 상세 이력 조회
+    @Transactional(readOnly = true)
+    public List<LotHistoryResDto> getLotHistory(Long lotId) {
+        List<LotMapping> mappings = lotMappingRepo.findByLotId(lotId);
+
+        return mappings.stream()
+                .map(mapping -> {
+                    ProductionLog log = mapping.getProductionLog();
+                    String status = (log.getEndTime() != null) ? "DONE" : "RUNNING";
+                    return LotHistoryResDto.builder()
+                            .stepName(log.getProcessStep())
+                            .status(status)
+                            .time(log.getStartTime())
+                            .worker(log.getWorker() != null ? log.getWorker().getName() : "-")
+                            .result("Used for: " + log.getWorkOrder().getProduct().getName())
+                            .build();
+                })
+                .sorted(Comparator.comparing(LotHistoryResDto::getTime))
+                .collect(Collectors.toList());
+    }
+
+    // 3. [불량 관리] 불량 내역 조회
+    @Transactional(readOnly = true)
+    public List<ProductionLog> getDefectLogs() {
+        return logRepo.findByDefectQtyGreaterThanOrderByEndTimeDesc(0);
+    }
+
 }
