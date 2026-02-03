@@ -272,12 +272,27 @@ const LotTrackingPage = () => {
     setSelectedLot(lot);
   }, []);
 
+  // Search Filter Logic (Safe version)
   const filteredLots = useMemo(() => {
-    return lots.filter(
-      (lot) =>
-        lot.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lot.product.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
+    return lots.filter((lot) => {
+      const term = searchTerm.toLowerCase();
+
+      // 1. Search by Lot Code (String) - e.g., "LOT-2026-A001"
+      // Use optional chaining (?.) or logical OR (||) to prevent errors if data is missing
+      const codeMatch = lot.lotCode
+        ? lot.lotCode.toLowerCase().includes(term)
+        : false;
+
+      // 2. Search by Product Name (String)
+      const productMatch = lot.product
+        ? lot.product.toLowerCase().includes(term)
+        : false;
+
+      // 3. (Optional) Search by Numeric ID - Convert to String first
+      const idMatch = String(lot.id).includes(term);
+
+      return codeMatch || productMatch || idMatch;
+    });
   }, [lots, searchTerm]);
 
   return (
