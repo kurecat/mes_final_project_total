@@ -81,7 +81,7 @@ public class EquipmentController {
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> changeStatus(
             @PathVariable Long id,
-            @RequestParam EquipmentStatus status
+            @RequestParam String status
     ) {
         equipmentService.changeStatus(id, status);
         return ResponseEntity.ok().build();

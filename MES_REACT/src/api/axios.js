@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // 1. [중요] 최상단에서 인스턴스 생성
-const BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.0.77:8111";
+const BASE_URL = process.env.REACT_APP_API_URL || "http://192.168.0.117:8111";
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
