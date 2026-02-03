@@ -9,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -29,12 +30,13 @@ public class EquipmentController {
     public EquipmentDetailResDto detail(@PathVariable String equipmentCode) {
         return equipmentService.getEquipmentDetail(equipmentCode);
     }
-    // 설비 상세 모달 로그 기록
-    @GetMapping("/{equipmentId}/logs")
-    public ResponseEntity<List<EquipmentEventLogResDto>> getLogs(@PathVariable Long equipmentId) {
-        List<EquipmentEventLogResDto> logs = equipmentService.getEquipmentLogs(equipmentId);
-        return ResponseEntity.ok(logs);
-    }
+
+    // ❗ 중복 매핑 방지: 아래 logs API와 충돌 → 주석 처리
+//    @GetMapping("/{equipmentId}/logs")
+//    public ResponseEntity<List<EquipmentEventLogResDto>> getLogs(@PathVariable Long equipmentId) {
+//        List<EquipmentEventLogResDto> logs = equipmentService.getEquipmentLogs(equipmentId);
+//        return ResponseEntity.ok(logs);
+//    }
 
     // 장비 모니터링
     @GetMapping("/monitor")
@@ -42,19 +44,17 @@ public class EquipmentController {
         return ResponseEntity.ok(equipmentService.getMonitoringList());
     }
 
-
-    // 장비 모니터링 세부사항 (Modal)
-    @GetMapping("/equipment/{equipmentCode}/detail")
-    public ResponseEntity<EquipmentDetailResDto> getEquipmentDetail(
-            @PathVariable String equipmentCode
-    ) {
-        return ResponseEntity.ok(equipmentService.getEquipmentDetail(equipmentCode));
-    }
+    // ❗ 중복 의미(detail) → URL 충돌 방지 위해 주석 처리
+//    @GetMapping("/equipment/{equipmentCode}/detail")
+//    public ResponseEntity<EquipmentDetailResDto> getEquipmentDetail(
+//            @PathVariable String equipmentCode
+//    ) {
+//        return ResponseEntity.ok(equipmentService.getEquipmentDetail(equipmentCode));
+//    }
 
     // 장비 생성 및 저장
     @PostMapping("")
     public ResponseEntity<EquipmentResDto> createEquipment(@RequestBody EquipmentCreateReqDto dto) {
-        // 서비스에서 생성 후 저장된 엔티티를 DTO로 변환하여 반환하도록 수정
         EquipmentResDto savedEquipment = equipmentService.createEquipment(dto);
         return ResponseEntity.ok(savedEquipment);
     }
@@ -72,12 +72,11 @@ public class EquipmentController {
             @PathVariable Long id,
             @RequestBody EquipmentReqDto dto
     ) {
-        // 수정 성공 후 수정된 데이터를 반환하여 프론트 상태를 동기화합니다.
         EquipmentResDto res = equipmentService.updateEquipment(id, dto);
         return ResponseEntity.ok(res);
     }
 
-    // 장비 상태변
+    // 장비 상태변경
     @PatchMapping("/{id}/status")
     public ResponseEntity<Void> changeStatus(
             @PathVariable Long id,
@@ -87,7 +86,36 @@ public class EquipmentController {
         return ResponseEntity.ok().build();
     }
 
+    /* =====================================================
+       설비 이벤트 로그 전체 조회 (설비 로그 페이지)
+       ===================================================== */
+    @GetMapping("/logs")
+    public List<EquipmentEventLogResDto> getAllEquipmentEventLogs() {
+        return equipmentService.getAllEquipmentEventLogs();
+    }
 
+    /* =====================================================
+       설비별 이벤트 로그 조회 (Machine 상세 / 필터)
+       ===================================================== */
+    @GetMapping("/{equipmentId}/logs")
+    public List<EquipmentEventLogResDto> getEquipmentEventLogs(
+            @PathVariable Long equipmentId
+    ) {
+        return equipmentService.getEquipmentLogs(equipmentId);
+    }
 
-
+    /* =====================================================
+       설비 이벤트 로그 메시지 수정
+       ===================================================== */
+    @PatchMapping("/logs/{logId}")
+    public ResponseEntity<Void> updateEquipmentEventLogMessage(
+            @PathVariable Long logId,
+            @RequestBody Map<String, String> body
+    ) {
+        equipmentService.updateEquipmentEventLogMessage(
+                logId,
+                body.get("message")
+        );
+        return ResponseEntity.ok().build();
+    }
 }

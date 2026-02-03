@@ -9,10 +9,16 @@ import java.util.List;
 public interface EquipmentEventLogRepository
         extends JpaRepository<EquipmentEventLog, Long> {
 
+    // 전체 로그 (최신순)
+    List<EquipmentEventLog> findAllByOrderByCreatedAtDesc();
+
     List<EquipmentEventLog>
     findByEquipmentIdOrderByCreatedAtDesc(Long equipmentId);
 
     void deleteByEquipmentId(Long id);
+
+
+
 
 
 }

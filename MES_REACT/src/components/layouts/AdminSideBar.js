@@ -69,6 +69,7 @@ const AdminSideBar = () => {
         { title: "설비 가동 현황", path: "/admin/resource/machine" },
         { title: "자재 입/출고", path: "/admin/resource/material" },
         { title: "재고 현황", path: "/admin/resource/inventory" },
+        { title: "설비 로그", path: "/admin/resource/equipmentlog" },
       ],
     },
     {
