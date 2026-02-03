@@ -31,29 +31,64 @@ INSERT INTO material (code, name, category, current_stock, safety_stock) VALUES
   본사 워크센터(천안시 동남구 물류센터)에 집중된 창고 데이터 예시
   - 창고 유형: All, Main, Sub, ColdStorage, CleanRoom
 */
-INSERT INTO Warehouse (code, name, type, address, capacity, occupancy, status)
-VALUES
-('WH-ALL-001', '전체 창고', 'All', '천안시 동남구 본사 물류센터', 10000, 0, 'AVAILABLE'),
-('WH-MAIN-001', '메인 창고', 'Main', '천안시 동남구 본사 물류센터', 8000, 0, 'AVAILABLE'),
-('WH-SUB-001', '서브 창고', 'Sub', '천안시 동남구 본사 물류센터', 5000, 0, 'AVAILABLE'),
-('WH-COLD-001', '냉동 창고', 'ColdStorage', '천안시 동남구 본사 물류센터', 3000, 0, 'AVAILABLE'),
-('WH-CLEAN-001', '클린룸 창고', 'CleanRoom', '천안시 동남구 본사 물류센터', 2000, 0, 'AVAILABLE');
+--INSERT INTO Warehouse (code, name, type, address, capacity, occupancy, status)
+--VALUES
+--('WH-ALL-001', '전체 창고', 'All', '천안시 동남구 본사 물류센터', 10000, 0, 'AVAILABLE'),
+--('WH-MAIN-001', '메인 창고', 'Main', '천안시 동남구 본사 물류센터', 8000, 0, 'AVAILABLE'),
+--('WH-SUB-001', '서브 창고', 'Sub', '천안시 동남구 본사 물류센터', 5000, 0, 'AVAILABLE'),
+--('WH-COLD-001', '냉동 창고', 'ColdStorage', '천안시 동남구 본사 물류센터', 3000, 0, 'AVAILABLE'),
+--('WH-CLEAN-001', '클린룸 창고', 'CleanRoom', '천안시 동남구 본사 물류센터', 2000, 0, 'AVAILABLE');
 
 
 -- MaterialTransaction 등록 (초기 입고 기록)
 INSERT INTO material_transaction
 (tx_type, material_id, qty, unit, target_location, target_equipment, worker_name, created_at)
 VALUES
-('INBOUND', (SELECT id FROM material WHERE code='MAT-SUBSTRATE'), 50, 'ea', 'WH-A-01', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-SOLDERBALL'), 2000, 'ea', 'WH-A-01', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-UNDERFILL'), 300, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-MOLD'), 30, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-HEATSINK'), 10, 'ea', 'WH-B-05', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-WIRE'), 500, 'm', 'WH-B-05', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-LEADFRAME'), 400, 'ea', 'WH-A-02', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-ENCAPSULANT'), 250, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-WAFER'), 100, 'ea', 'WH-A-01', NULL, 'SYSTEM', NOW());
+('INBOUND', (SELECT id FROM material WHERE code='MAT-SUBSTRATE'), 50, 'ea', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-SOLDERBALL'), 2000, 'ea', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-UNDERFILL'), 300, 'kg', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-MOLD'), 30, 'kg', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-HEATSINK'), 10, 'ea', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-WIRE'), 500, 'm', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-LEADFRAME'), 400, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-ENCAPSULANT'), 250, 'kg', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-WAFER'), 100, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW());
+-- warehouse 등록 (MaterialTransaction이랑 연동된 데이터임)
+INSERT INTO warehouse
+(code, name, type, address, status, capacity, occupancy)
+VALUES
+-- 통합 자재 창고
+(
+  'WH-ALL-001',
+  'All Material Warehouse',
+  'Main',
+  'ALL-ZONE',
+  'AVAILABLE',
+  5000,
+  2350
+),
 
+-- 메인 공정 자재 창고
+(
+  'WH-MAIN-001',
+  'Main Process Warehouse',
+  'Main',
+  'FAB-MAIN',
+  'AVAILABLE',
+  2000,
+  540
+),
+
+-- 서브 / 보조 자재 창고
+(
+  'WH-SUB-001',
+  'Sub Material Warehouse',
+  'Sub',
+  'FAB-SUB',
+  'AVAILABLE',
+  1500,
+  750
+);
 
 -- BOM 등록
 -- BOM Header (제품별 BOM 정의)
