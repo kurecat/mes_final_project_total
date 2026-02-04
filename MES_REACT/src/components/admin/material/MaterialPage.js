@@ -235,40 +235,53 @@ const MaterialPage = () => {
     async (e) => {
       e.preventDefault();
 
-      /* 🔥 FULL 창고 프론트 차단 */
-      if (activeTab === "IN" && inputs.location) {
-        const wh = warehouses.find((w) => w.code === inputs.location);
-        if (wh && wh.status === "FULL") {
-          alert(
-            `❌ FULL 창고입니다\n${wh.code} (${wh.occupancy}/${wh.capacity})`,
-          );
+      try {
+        /* 🔥 FULL 창고 프론트 차단 */
+        if (activeTab === "IN" && inputs.location) {
+          const wh = warehouses.find((w) => w.code === inputs.location);
+          if (wh && wh.status === "FULL") {
+            alert(
+              `❌ FULL 창고입니다\n${wh.code} (${wh.occupancy}/${wh.capacity})`,
+            );
+            return;
+          }
+        }
+
+        const qty = Number(inputs.qty);
+        if (!inputs.barcode || qty <= 0) {
+          alert("입력값 확인");
           return;
         }
+
+        if (activeTab === "IN") {
+          await axiosInstance.post("/api/mes/material-tx/inbound", {
+            materialBarcode: inputs.barcode,
+            qty,
+            unit: "ea",
+            targetLocation: inputs.location || null,
+            workerName: "Admin",
+          });
+        } else {
+          await axiosInstance.post("/api/mes/material-tx/outbound", {
+            materialBarcode: inputs.barcode,
+            qty,
+            unit: "ea",
+            targetEquipment: inputs.location || null,
+            workerName: "Admin",
+          });
+        }
+
+        setInputs({ barcode: "", qty: "", location: "" });
+        fetchData();
+      } catch (err) {
+        // ✅ 여기서 재고 부족 메시지 처리
+        const msg =
+          err.response?.data?.message ||
+          err.response?.data ||
+          "재고 수량이 부족합니다.";
+
+        alert(`❌ ${msg}`);
       }
-
-      const qty = Number(inputs.qty);
-      if (!inputs.barcode || qty <= 0) return alert("입력값 확인");
-
-      if (activeTab === "IN") {
-        await axiosInstance.post("/api/mes/material-tx/inbound", {
-          materialBarcode: inputs.barcode,
-          qty,
-          unit: "ea",
-          targetLocation: inputs.location || null,
-          workerName: "Admin",
-        });
-      } else {
-        await axiosInstance.post("/api/mes/material-tx/outbound", {
-          materialBarcode: inputs.barcode,
-          qty,
-          unit: "ea",
-          targetEquipment: inputs.location || null,
-          workerName: "Admin",
-        });
-      }
-
-      setInputs({ barcode: "", qty: "", location: "" });
-      fetchData();
     },
     [activeTab, inputs, warehouses, fetchData],
   );
