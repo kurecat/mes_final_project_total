@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.dto.bom;
 
+import com.hm.mes_final_260106.constant.BomStatus;
 import com.hm.mes_final_260106.constant.ItemType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,6 +16,6 @@ public class BomResDto {
     private String productCode;
     private String productName;
     private int revision;
-    private ItemType type;
+    private BomStatus status;
     private LocalDateTime lastUpdate;
 }

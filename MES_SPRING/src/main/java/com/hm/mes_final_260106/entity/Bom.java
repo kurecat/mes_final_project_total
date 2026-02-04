@@ -12,6 +12,7 @@ import com.hm.mes_final_260106.constant.BomStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,4 +42,11 @@ public class Bom {
     @Builder.Default
     @OneToMany(mappedBy = "bom", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<BomItem> items = new ArrayList<>();
+
+    private LocalDateTime lastUpdate;
+
+    @PrePersist
+    public void prePersist() {
+        lastUpdate = LocalDateTime.now();
+    }
 }

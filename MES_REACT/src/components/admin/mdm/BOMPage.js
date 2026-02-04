@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+
 import styled from "styled-components";
 import axiosInstance from "../../../api/axios.js";
 import {
@@ -405,7 +407,7 @@ const SidebarItem = React.memo(({ bom, isActive, onClick }) => {
       </ItemTop>
       <ItemBottom>
         <span>{bom.productCode}</span>
-        <span>{bom.revision}</span>
+        <span>revision : {bom.revision}</span>
       </ItemBottom>
     </BomItem>
   );
@@ -443,14 +445,24 @@ const SidebarPanel = React.memo(
           </SearchBox>
         </SidebarHeader>
         <BomList>
-          {filteredBoms.map((bom) => (
-            <SidebarItem
-              key={bom.id}
-              bom={bom}
-              isActive={selectedBomId === bom.id}
-              onClick={onSelect}
-            />
-          ))}
+          <AnimatePresence>
+            {filteredBoms.map((bom) => (
+              <motion.div
+                key={bom.id}
+                layout // 👈 위치 변화도 애니메이션 처리
+                initial={{ opacity: 1, y: 0 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.1 }}
+              >
+                <SidebarItem
+                  bom={bom}
+                  isActive={selectedBomId === bom.id}
+                  onClick={onSelect}
+                />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </BomList>
       </Sidebar>
     );
@@ -519,9 +531,12 @@ const DetailView = React.memo(({ bom, bomItems, onClickRevisionChange }) => {
           </BomMeta>
         </HeaderLeft>
         <HeaderRight>
-          <ActionButton onClick={onClickRevisionChange}>
-            <FaEdit /> Revision
-          </ActionButton>
+          {bom.status === "ACTIVE" && (
+            <ActionButton onClick={onClickRevisionChange}>
+              <FaEdit />
+              Revision
+            </ActionButton>
+          )}
           <ActionButton $primary>
             <FaFileExport /> Export Excel
           </ActionButton>
@@ -715,6 +730,7 @@ const BomPage = () => {
       const res = await axiosInstance.get("/api/mes/master/bom/list");
       setBomList(res.data);
       setSelectedBom(res.data[0]);
+
       return res;
     } catch (err) {
       console.error(err);
@@ -781,9 +797,7 @@ const BomPage = () => {
     const fetchMaterials = async () => {
       try {
         if (isModalOpen) {
-          const res = await axiosInstance.get(
-            "http://localhost:8111/api/mes/master/material/list",
-          );
+          const res = await axiosInstance.get("/api/mes/master/material/list");
           setMaterials(res.data);
         }
       } catch (err) {
@@ -823,12 +837,9 @@ const BomPage = () => {
     async (bom, bomItems) => {
       try {
         if (isModalOpen) {
-          await axiosInstance.put(
-            `http://localhost:8111/api/mes/master/bom/${bom.id}`,
-            {
-              bomItems,
-            },
-          );
+          await axiosInstance.put(`/api/mes/master/bom/${bom.id}`, {
+            bomItems,
+          });
           setSelectedProductCode(bom.productCode);
           setReqFetch(true);
         }
@@ -841,12 +852,18 @@ const BomPage = () => {
 
   // [Optimization] Filtering with useMemo
   const filteredBoms = useMemo(() => {
-    return bomList.filter(
-      (bom) =>
-        bom.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bom.productCode.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-  }, [bomList, searchTerm]);
+    return bomList
+      .filter(
+        (bom) =>
+          bom.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          bom.productCode.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+      .filter(
+        (bom) =>
+          bom.productCode === selectedBom.productCode ||
+          bom.status === "ACTIVE",
+      );
+  }, [bomList, searchTerm, selectedBom]);
 
   return (
     <Container>
