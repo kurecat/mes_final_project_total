@@ -155,11 +155,8 @@ public class MesController {
     // Machine : 설비 작업 할당 (C# Polling)
     // =========================
     @GetMapping("/machine/poll")
-    public ResponseEntity<WorkOrderResDto> pollWork(@RequestParam String machineId) {
-        WorkOrder work = productionService.assignWorkToMachine(machineId);
-        return (work != null)
-                ? ResponseEntity.ok(WorkOrderResDto.fromEntity(work))
-                : ResponseEntity.noContent().build();
+    public ResponseEntity<WorkOrderResDto> pollWork(@RequestParam String equipmentCode) {
+        return ResponseEntity.ok(productionService.assignWorkToMachine(equipmentCode));
     }
 
     // =========================

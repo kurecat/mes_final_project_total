@@ -19,6 +19,8 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
 
     Optional<WorkOrder> findFirstByStatusOrderByIdAsc(String status);
 
+    Optional<WorkOrder> findFirstByStatusAndAssignedMachineIdIsNullOrderByIdAsc(String status);
+
     Optional<WorkOrder> findByStatusAndAssignedMachineId(String status, String assignedMachineId);
 
     // ▼ [선택 수정] 만약 이 메서드 결과로도 화면에 품목명(Product)을 띄운다면 여기도 FETCH를 추가해야 합니다.
