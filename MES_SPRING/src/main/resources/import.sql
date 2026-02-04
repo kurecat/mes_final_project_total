@@ -20,9 +20,9 @@ INSERT INTO worker (id, name, join_date, shift, status, dept, certifications) VA
 INSERT INTO warehouse
 (code, name, type, address, status, capacity, occupancy)
 VALUES
-('WH-ALL-001','All Material Warehouse','Main','ALL-ZONE','AVAILABLE',5000,2350),
-('WH-MAIN-001','Main Process Warehouse','Main','FAB-MAIN','AVAILABLE',2000,540),
-('WH-SUB-001','Sub Material Warehouse','Sub','FAB-SUB','AVAILABLE',1500,750);
+('WH-ALL-001','All Material Warehouse','Main','ALL-ZONE','AVAILABLE',30000,2350),
+('WH-MAIN-001','Main Process Warehouse','Main','FAB-MAIN','AVAILABLE',20000,540),
+('WH-SUB-001','Sub Material Warehouse','Sub','FAB-SUB','AVAILABLE',15000,750);
 
 
 -- 권한 및 역할 (RBAC)
