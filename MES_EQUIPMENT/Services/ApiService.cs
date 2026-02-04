@@ -28,19 +28,21 @@ public class ApiService
         {
             var loginDto = new LoginReqDto { Email = email, Password = password };
             var response = await _httpClient.PostAsJsonAsync("auth/login", loginDto);
-            GlobalResponseDto<TokenDto>? tokenRes = await response.Content.ReadFromJsonAsync<GlobalResponseDto<TokenDto>?>();
 
-            if (tokenRes != null && tokenRes.success == true)
+            if (response.IsSuccessStatusCode)
             {
-                _currentTokens = tokenRes.data;
+                _currentTokens = (await response.Content.ReadFromJsonAsync<GlobalResponseDto<TokenDto>>())?.Data;
                 if (_currentTokens != null)
                 {
                     SetAuthHeader(_currentTokens.AccessToken);
+
                     UserSession.MemberId = JwtHelper.GetMemberId(_currentTokens.AccessToken);
+
                     var res = await _httpClient.GetAsync("/api/mes/worker");
                     HttpContent content = res.Content;
                     WorkerResDto? dto = await content.ReadFromJsonAsync<WorkerResDto>();
                     UserSession.WorkerCode = dto?.Code;
+
                     Console.WriteLine("[Auth] 로그인 성공 및 토큰 저장 완료");
                     return true;
                 }
@@ -59,7 +61,11 @@ public class ApiService
     {
         try
         {
-            if (_currentTokens == null || string.IsNullOrEmpty(_currentTokens.RefreshToken)) return false;
+            if (_currentTokens == null || string.IsNullOrEmpty(_currentTokens.RefreshToken))
+            {
+                Console.WriteLine("[Refresh Error] 재발급 토큰이 없습니다");
+                return false;
+            }
 
             // 로그에 찍힌 에러(HttpMediaTypeNotSupportedException)를 해결하기 위해 
             // 다시 JSON 방식으로 보냅니다.
@@ -67,7 +73,8 @@ public class ApiService
 
             if (response.IsSuccessStatusCode)
             {
-                _currentTokens = await response.Content.ReadFromJsonAsync<TokenDto>();
+                _currentTokens = (await response.Content.ReadFromJsonAsync<GlobalResponseDto<TokenDto>>())?.Data;
+
                 if (_currentTokens != null)
                 {
                     SetAuthHeader(_currentTokens.AccessToken);
@@ -114,14 +121,20 @@ public class ApiService
     {
         try
         {
-            var url = $"api/mes/machine/poll?machineId={AppConfig.EquipmentCode}";
+            var url = $"api/mes/machine/poll?equipmentCode={AppConfig.EquipmentCode}";
 
             // SendWithRetryAsync를 거쳐서 호출
             var response = await SendWithRetryAsync(() => _httpClient.GetAsync(url));
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
-                return await response.Content.ReadFromJsonAsync<WorkOrderDto>();
+                var contentString = await response.Content.ReadAsStringAsync();
+
+                if (!string.IsNullOrWhiteSpace(contentString))
+
+                    return await response.Content.ReadFromJsonAsync<WorkOrderDto>();
+
+                else return null;
             }
         }
         catch (Exception ex)

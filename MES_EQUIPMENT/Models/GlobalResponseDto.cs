@@ -1,6 +1,6 @@
 public class GlobalResponseDto<T>
 {
-    public bool success { get; set; } = false;
-    public string message { get; set; } = string.Empty;
-    public T? data { get; set; }
+    public bool Success { get; set; }   // Java의 boolean → C# bool
+    public string Message { get; set; } // 문자열 메시지
+    public T Data { get; set; }         // 제네릭 타입 데이터
 }

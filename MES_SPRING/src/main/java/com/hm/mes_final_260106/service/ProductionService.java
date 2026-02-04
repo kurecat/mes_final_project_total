@@ -335,24 +335,23 @@ public class ProductionService {
     // 6) 설비 작업 할당 (C# 폴링)
     // =========================
     @Transactional
-    public WorkOrder assignWorkToMachine(String machineId) {
-        WorkOrder current = orderRepo.findByStatusAndAssignedMachineId("IN_PROGRESS", machineId).orElse(null);
+    public WorkOrderResDto assignWorkToMachine(String equipmentCode) {
+        WorkOrder current = orderRepo.findByStatusAndAssignedMachineId("IN_PROGRESS", equipmentCode).orElse(null);
         if (current != null) {
             log.info("작업지시 보유 중 : {}", current);
-            return current;
+            return WorkOrderResDto.fromEntity(current);
         }
 
-        WorkOrder waiting = orderRepo.findFirstByStatusOrderByIdAsc("RELEASED").orElse(null);
+        WorkOrder waiting = orderRepo.findFirstByStatusAndAssignedMachineIdIsNullOrderByIdAsc("IN_PROGRESS").orElse(null);
         if (waiting == null) {
             log.info("대기중인 작업 없음");
             return null;
         }
 
-        waiting.setStatus("IN_PROGRESS");
-        waiting.setAssignedMachineId(machineId);
+        waiting.setAssignedMachineId(equipmentCode);
         waiting = orderRepo.save(waiting);
         log.info("작업지시 할당 : {}", waiting);
-        return waiting;
+        return WorkOrderResDto.fromEntity(waiting);
     }
 
     // =========================
