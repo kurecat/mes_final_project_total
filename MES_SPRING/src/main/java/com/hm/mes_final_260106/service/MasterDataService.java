@@ -234,8 +234,8 @@ public class MasterDataService {
     // BOM //
     // === //
 
-    public List<BomResDto> getAllBom() {
-        List<Bom> boms = bomRepo.findLatestBomForAllProductsOrderByProductId();
+    public List<BomResDto> getAll() {
+        List<Bom> boms = bomRepo.findAllByOrderByProductIdAscRevisionDesc();
 
         return boms.stream()
                 .map(bom -> new BomResDto(
@@ -243,8 +243,8 @@ public class MasterDataService {
                         bom.getProduct().getCode(),
                         bom.getProduct().getName(),
                         bom.getRevision(),
-                        null,
-                        null
+                        bom.getStatus(),
+                        bom.getLastUpdate()
                 ))
                 .toList();
     }
@@ -268,12 +268,17 @@ public class MasterDataService {
     public void updateBom(Long id, BomUpdateReqDto dto) {
         Bom oldBom = bomRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("BOM을 찾을 수 없습니다: " + id));
+
+        if (oldBom.getStatus().equals(BomStatus.OBSOLETE)) {
+            throw new EntityNotFoundException("BOM이 최신 리비전이 아닙니다.");
+        }
+
         oldBom.setStatus(BomStatus.OBSOLETE);
 
         Bom newBom = new Bom();
         newBom.setRevision(oldBom.getRevision() + 1);
         newBom.setProduct(oldBom.getProduct());
-        newBom.setStatus(BomStatus.OBSOLETE);
+        newBom.setStatus(BomStatus.ACTIVE);
 
         Bom savedBom = bomRepo.save(newBom);
 

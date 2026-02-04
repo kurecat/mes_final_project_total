@@ -101,8 +101,8 @@ public class MasterDataController {
     // === //
 
     @GetMapping("/bom/list")
-    public ResponseEntity<List<BomResDto>> getBoms() {
-        return ResponseEntity.ok(masterService.getAllBom());
+    public ResponseEntity<List<BomResDto>> getAll() {
+        return ResponseEntity.ok(masterService.getAll());
     }
 
     @GetMapping("/bom-item/{bomId}")

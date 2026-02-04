@@ -329,15 +329,22 @@ public class ProductionService {
     @Transactional
     public WorkOrder assignWorkToMachine(String machineId) {
         WorkOrder current = orderRepo.findByStatusAndAssignedMachineId("IN_PROGRESS", machineId).orElse(null);
-        if (current != null) return current;
+        if (current != null) {
+            log.info("작업지시 보유 중 : {}", current);
+            return current;
+        }
 
         WorkOrder waiting = orderRepo.findFirstByStatusOrderByIdAsc("RELEASED").orElse(null);
-        if (waiting == null) return null;
+        if (waiting == null) {
+            log.info("대기중인 작업 없음");
+            return null;
+        }
 
         waiting.setStatus("IN_PROGRESS");
         waiting.setAssignedMachineId(machineId);
-
-        return orderRepo.save(waiting);
+        waiting = orderRepo.save(waiting);
+        log.info("작업지시 할당 : {}", waiting);
+        return waiting;
     }
 
     // =========================

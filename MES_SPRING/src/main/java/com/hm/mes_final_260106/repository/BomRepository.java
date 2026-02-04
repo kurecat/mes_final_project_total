@@ -10,16 +10,5 @@ import java.util.Optional;
 
 @Repository
 public interface BomRepository extends JpaRepository<Bom, Long> {
-    @Query("""
-        SELECT b
-        FROM Bom b
-        WHERE b.revision = (
-            SELECT MAX(b2.revision)
-            FROM Bom b2
-            WHERE b2.product.id = b.product.id
-        )
-        ORDER BY b.product.id ASC
-    """)
-    List<Bom> findLatestBomForAllProductsOrderByProductId();
-
+   List<Bom> findAllByOrderByProductIdAscRevisionDesc();
 }
