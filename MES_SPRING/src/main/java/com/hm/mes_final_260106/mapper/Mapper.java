@@ -59,5 +59,5 @@ public class Mapper {
         return finalInspectionMapper.toEntity(dto);
     }
 
-    public ProductionLog toEntity(ProductionReportDto dto) {return productionLogMapper.toEntity(dto);}
+    public ProductionLog toEntity(ProductionLogDto dto) {return productionLogMapper.toEntity(dto);}
 }
