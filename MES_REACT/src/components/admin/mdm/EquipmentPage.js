@@ -186,6 +186,13 @@ const EquipmentPage = () => {
         (eq.code ?? "").toLowerCase().includes(searchTerm.toLowerCase()),
     );
   }, [equipments, searchTerm]);
+  // 창고 선택
+  const LOCATION_OPTIONS = [
+    { value: "WH-ALL-001", label: "WH-ALL-001 (통합 창고)" },
+    { value: "WH-MAIN-001", label: "WH-MAIN-001 (메인 창고)" },
+    { value: "WH-SUB-001", label: "WH-SUB-001 (보조 창고)" },
+    // { value: "WH-SUB-001", label: "WH-SUB-001 (보조 창고)" }, 추가로 생성할 떄 추가
+  ];
 
   return (
     <Container>
@@ -283,13 +290,21 @@ const EquipmentPage = () => {
               </FormGroup>
               <FormRow>
                 <FormGroup>
-                  <Label>Location (창고)</Label>
-                  <Input
+                  <Label>Location</Label>
+                  <Select
                     name="location"
                     value={formData.location}
                     onChange={handleInputChange}
-                  />
+                  >
+                    <option value="">-- Select Location --</option>
+                    {LOCATION_OPTIONS.map((loc) => (
+                      <option key={loc.value} value={loc.value}>
+                        {loc.label}
+                      </option>
+                    ))}
+                  </Select>
                 </FormGroup>
+
                 <FormGroup>
                   <Label>Status</Label>
                   <Select

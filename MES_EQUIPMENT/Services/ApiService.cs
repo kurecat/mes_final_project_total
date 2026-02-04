@@ -11,7 +11,7 @@ public class ApiService
     private readonly HttpClient _httpClient;
     private TokenDto? _currentTokens;
 
-private const string MANUAL_TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIzIiwiYXV0aCI6IlJPTEVfQURNSU4sRkFDVE9SX1BBU1NXT1JEIiwiZXhwIjoyMzc0ODEzOTU2fQ.1RHPI-aTnRb7d1fDBlic9lHbTkyYQ3eCv6PntBgrdDNmfkLeRqh-0w_S2hnmh80GRiwnULRdCHhPfdtQVG68eQ";
+    private const string MANUAL_TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIzIiwiYXV0aCI6IlJPTEVfQURNSU4sRkFDVE9SX1BBU1NXT1JEIiwiZXhwIjoyMzc0ODEzOTU2fQ.1RHPI-aTnRb7d1fDBlic9lHbTkyYQ3eCv6PntBgrdDNmfkLeRqh-0w_S2hnmh80GRiwnULRdCHhPfdtQVG68eQ";
 
     public ApiService()
     {
@@ -37,6 +37,10 @@ private const string MANUAL_TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIzIiwiYXV0aC
                 {
                     SetAuthHeader(_currentTokens.AccessToken);
                     UserSession.MemberId = JwtHelper.GetMemberId(_currentTokens.AccessToken);
+                    var res = await _httpClient.GetAsync("/api/mes/worker");
+                    HttpContent content = res.Content;
+                    WorkerResDto? dto = await content.ReadFromJsonAsync<WorkerResDto>();
+                    UserSession.WorkerCode = dto?.Code;
                     Console.WriteLine("[Auth] 로그인 성공 및 토큰 저장 완료");
                     return true;
                 }
@@ -128,7 +132,7 @@ private const string MANUAL_TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiIzIiwiYXV0aC
     }
 
     // 5. 생산 실적 보고
-    public async Task<string> ReportProductionAsync(ProductionReportDto report)
+    public async Task<string> ReportProductionAsync(ProductionLogDto report)
     {
         try
         {

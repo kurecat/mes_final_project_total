@@ -36,17 +36,8 @@ public class MachineSimulator
     private readonly ApiService _apiService;  // Backend Server 통신을 위해 주입 받음
     private readonly TcpClientService _tcpService;  // 장비와 연결하기 위해 주입 받음
     private WorkOrderDto? _currentWorkOrder = null;
-    private DicingDto? _dicingDto;
-    private DicingInspectionDto? _dicingInspectionDto;
-    private DieBondingDto? _dieBondingDto;
-    private DieBondingInspectionDto? _dieBondingInspectionDto;
-    private WireBondingDto? _wireBondingDto;
-    private WireBondingInspectionDto? _wireBondingInspectionDto;
-    private MoldingDto? _moldingDto;
-    private MoldingInspectionDto? _moldingInspectionDto;
-    private List<ItemDto> _itemDtos = new List<ItemDto>();
-    private List<FinalInspectionDto> _finalInspectionDtos = new List<FinalInspectionDto>();
-    private List<string> _inputLots = new List<string>();
+    private ProductionLogDto _productionLogDto = new ProductionLogDto();
+
 
     public MachineSimulator(ApiService apiService, TcpClientService tcpService)
     {
@@ -157,43 +148,43 @@ public class MachineSimulator
                         switch (dtoType)
                         {
                             case DtoType.Dicing:
-                                _dicingDto = DicingDto.FromBytes(payload);
-                                Console.WriteLine($"Dicing: {_dicingDto?.SpindleSpeed}, {_dicingDto?.FeedRate}");
+                                _productionLogDto.DicingDto = DicingDto.FromBytes(payload);
+                                Console.WriteLine($"Dicing: {_productionLogDto.DicingDto?.SpindleSpeed}, {_productionLogDto.DicingDto?.FeedRate}");
                                 break;
 
                             case DtoType.DicingInspection:
-                                _dicingInspectionDto = DicingInspectionDto.FromBytes(payload);
-                                Console.WriteLine($"DicingInspection: {_dicingInspectionDto?.OverallPassRatio}");
+                                _productionLogDto.DicingInspectionDto = DicingInspectionDto.FromBytes(payload);
+                                Console.WriteLine($"DicingInspection: {_productionLogDto.DicingInspectionDto?.OverallPassRatio}");
                                 break;
 
                             case DtoType.DieBonding:
-                                _dieBondingDto = DieBondingDto.FromBytes(payload);
-                                Console.WriteLine($"DieBonding: {_dieBondingDto?.PickUpForce}, {_dieBondingDto?.CuringTemp}");
+                                _productionLogDto.DieBondingDto = DieBondingDto.FromBytes(payload);
+                                Console.WriteLine($"DieBonding: {_productionLogDto.DieBondingDto?.PickUpForce}, {_productionLogDto.DieBondingDto?.CuringTemp}");
                                 break;
 
                             case DtoType.DieBondingInspection:
-                                _dieBondingInspectionDto = DieBondingInspectionDto.FromBytes(payload);
-                                Console.WriteLine($"DieBondingInspection: {_dieBondingInspectionDto?.OverallPassRatio}");
+                                _productionLogDto.DieBondingInspectionDto = DieBondingInspectionDto.FromBytes(payload);
+                                Console.WriteLine($"DieBondingInspection: {_productionLogDto.DieBondingInspectionDto?.OverallPassRatio}");
                                 break;
 
                             case DtoType.WireBonding:
-                                _wireBondingDto = WireBondingDto.FromBytes(payload);
-                                Console.WriteLine($"WireBonding: {_wireBondingDto?.BondingTemp}, {_wireBondingDto?.LoopHeight}");
+                                _productionLogDto.WireBondingDto = WireBondingDto.FromBytes(payload);
+                                Console.WriteLine($"WireBonding: {_productionLogDto.WireBondingDto?.BondingTemp}, {_productionLogDto.WireBondingDto?.LoopHeight}");
                                 break;
 
                             case DtoType.WireBondingInspection:
-                                _wireBondingInspectionDto = WireBondingInspectionDto.FromBytes(payload);
-                                Console.WriteLine($"WireBondingInspection: {_wireBondingInspectionDto?.OverallPassRatio}");
+                                _productionLogDto.WireBondingInspectionDto = WireBondingInspectionDto.FromBytes(payload);
+                                Console.WriteLine($"WireBondingInspection: {_productionLogDto.WireBondingInspectionDto?.OverallPassRatio}");
                                 break;
 
                             case DtoType.Molding:
-                                _moldingDto = MoldingDto.FromBytes(payload);
-                                Console.WriteLine($"Molding: {_moldingDto?.MoldTemp}, {_moldingDto?.CureTime}");
+                                _productionLogDto.MoldingDto = MoldingDto.FromBytes(payload);
+                                Console.WriteLine($"Molding: {_productionLogDto.MoldingDto?.MoldTemp}, {_productionLogDto.MoldingDto?.CureTime}");
                                 break;
 
                             case DtoType.MoldingInspection:
-                                _moldingInspectionDto = MoldingInspectionDto.FromBytes(payload);
-                                Console.WriteLine($"MoldingInspection: {_moldingInspectionDto?.OverallPassRatio}");
+                                _productionLogDto.MoldingInspectionDto = MoldingInspectionDto.FromBytes(payload);
+                                Console.WriteLine($"MoldingInspection: {_productionLogDto.MoldingInspectionDto?.OverallPassRatio}");
                                 break;
 
                             default:
@@ -223,16 +214,16 @@ public class MachineSimulator
                             switch (dtoType)
                             {
                                 case DtoType.Item:
-                                    _itemDtos?.Add(ItemDto.FromBytes(payload));
-                                    Console.WriteLine($"Item: {_itemDtos?.Count}");
+                                    _productionLogDto.ItemDtos?.Add(ItemDto.FromBytes(payload));
+                                    Console.WriteLine($"Item: {_productionLogDto.ItemDtos?.Count}");
                                     break;
                                 case DtoType.FinalInspection:
-                                    _finalInspectionDtos?.Add(FinalInspectionDto.FromBytes(payload));
-                                    Console.WriteLine($"FinalInspection: {_finalInspectionDtos?.Count}");
+                                    _productionLogDto.FinalInspectionDtos?.Add(FinalInspectionDto.FromBytes(payload));
+                                    Console.WriteLine($"FinalInspection: {_productionLogDto.FinalInspectionDtos?.Count}");
                                     break;
                                 case DtoType.InputLot:
-                                    _inputLots?.Add(System.Text.Encoding.UTF8.GetString(payload, 0, size));
-                                    Console.WriteLine($"InputLotSummary: {_inputLots?.Count}");
+                                    _productionLogDto.InputLots?.Add(System.Text.Encoding.UTF8.GetString(payload, 0, size));
+                                    Console.WriteLine($"InputLotSummary: {_productionLogDto.InputLots?.Count}");
                                     break;
                             }
                         }
@@ -283,33 +274,33 @@ public class MachineSimulator
             return;
         }
 
-        var report = new ProductionReportDto
-        {
-            WorkOrderId = _currentWorkOrder.Id,
-            MemberId = UserSession.MemberId ?? 0,
-            EquipmentCode = AppConfig.EquipmentCode,
+        // var report = new ProductionLogDto
+        // {
+        //     WorkOrderNumber = _currentWorkOrder.WorkOrderNumber,
+        //     WorkerCode = UserSession.WorkerCode ?? 0,
+        //     EquipmentCode = AppConfig.EquipmentCode,
 
-            DicingDto = _dicingDto,
-            DicingInspectionDto = _dicingInspectionDto,
-            DieBondingDto = _dieBondingDto,
-            DieBondingInspectionDto = _dieBondingInspectionDto,
-            WireBondingDto = _wireBondingDto,
-            WireBondingInspectionDto = _wireBondingInspectionDto,
-            MoldingDto = _moldingDto,
-            MoldingInspectionDto = _moldingInspectionDto,
-            ItemDtos = _itemDtos.ToArray(),
-            FinalInspectionDtos = _finalInspectionDtos.ToArray(),
-            InputLots = _inputLots.ToArray()
-        };
+        //     DicingDto = _productionLogDto.DicingDto,
+        //     DicingInspectionDto = _productionLogDto.DicingInspectionDto,
+        //     DieBondingDto = _productionLogDto.DieBondingDto,
+        //     DieBondingInspectionDto = _productionLogDto.DieBondingInspectionDto,
+        //     WireBondingDto = _productionLogDto.WireBondingDto,
+        //     WireBondingInspectionDto = _productionLogDto.WireBondingInspectionDto,
+        //     MoldingDto = _productionLogDto.MoldingDto,
+        //     MoldingInspectionDto = _productionLogDto.MoldingInspectionDto,
+        //     ItemDtos = _productionLogDto.ItemDtos.ToArray(),
+        //     FinalInspectionDtos = _productionLogDto.FinalInspectionDtos.ToArray(),
+        //     InputLots = _productionLogDto.InputLots.ToArray()
+        // };
 
-        string status = await _apiService.ReportProductionAsync(report);
-        Console.WriteLine($"[생산 보고] 작업지시번호 : {report.WorkOrderId}");
+        string status = await _apiService.ReportProductionAsync(_productionLogDto);
+        Console.WriteLine($"[생산 보고] 작업지시번호 : {_productionLogDto.WorkOrderNumber}");
 
         _currentWorkOrder = null;
 
-        _itemDtos.Clear();
-        _finalInspectionDtos.Clear();
-        _inputLots.Clear();
+        _productionLogDto.ItemDtos.Clear();
+        _productionLogDto.FinalInspectionDtos.Clear();
+        _productionLogDto.InputLots.Clear();
     }
 
     private async Task SendWorkOrderToDevice(WorkOrderDto order)

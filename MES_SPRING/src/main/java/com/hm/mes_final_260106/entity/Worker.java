@@ -17,6 +17,12 @@ public class Worker {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id")
+    private Member member;
+
+    private String code;
+
     // ⭐ 작업자 실명 (로그인과 무관)
     @Column(nullable = false, length = 50)
     private String name;

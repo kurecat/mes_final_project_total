@@ -1,8 +1,6 @@
 package com.hm.mes_final_260106.mapper;
 
-import com.hm.mes_final_260106.dto.DicingInspectionDto;
-import com.hm.mes_final_260106.dto.ProductionReportDto;
-import com.hm.mes_final_260106.entity.DicingInspection;
+import com.hm.mes_final_260106.dto.ProductionLogDto;
 import com.hm.mes_final_260106.entity.ProductionLog;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -15,7 +13,7 @@ public interface ProductionLogMapper {
     @Mapping(target = "workOrder", ignore = true)
     @Mapping(target = "worker", ignore = true)
     @Mapping(target = "equipment", ignore = true)
-    ProductionLog toEntity(ProductionReportDto dto);
+    ProductionLog toEntity(ProductionLogDto dto);
 }
 
 

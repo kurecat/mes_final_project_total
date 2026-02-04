@@ -3,6 +3,7 @@ package com.hm.mes_final_260106.service;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.dto.lot.LotHistoryResDto;
 import com.hm.mes_final_260106.dto.lot.LotResDto;
+import com.hm.mes_final_260106.dto.worker.WorkerResDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.mapper.Mapper;
@@ -23,7 +24,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ProductionService {
 
-    private final ProductionLogRepository logRepo;
+    private final ProductionLogRepository productionLogRepo;
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
@@ -95,8 +96,41 @@ public class ProductionService {
             throw new RuntimeException("완료된 작업은 Release 할 수 없습니다.");
         }
 
-        if ("WAITING".equals(order.getStatus())) {
+        // ✅ WAITING -> RELEASED 전환 시점에만 plan_qty 누적 (중복 Release 방지)
+        boolean releasedNow = "WAITING".equals(order.getStatus());
+        if (releasedNow) {
             order.setStatus("RELEASED");
+
+            // 🔥 Release 시점에 production_result.plan_qty 증가
+            LocalDate today = LocalDate.now();
+            int hour = LocalDateTime.now().getHour();
+            String line = (order.getTargetLine() == null || order.getTargetLine().isBlank())
+                    ? "Fab-Line-A"
+                    : order.getTargetLine();
+
+            ProductionResult pr = productionResultRepo
+                    .findByResultDateAndResultHourAndLineAndProduct(today, hour, line, order.getProduct())
+                    .orElseGet(() -> {
+                        ProductionResult created = new ProductionResult();
+                        created.setResultDate(today);
+                        created.setResultHour(hour);
+                        created.setLine(line);
+                        created.setProduct(order.getProduct());
+                        created.setPlanQty(0);
+                        created.setGoodQty(0);
+                        created.setDefectQty(0);
+                        created.setCreatedAt(LocalDateTime.now());
+                        return created;
+                    });
+
+            int basePlan = (pr.getPlanQty() == null) ? 0 : pr.getPlanQty();
+            pr.setPlanQty(basePlan + order.getTargetQty());
+
+            // (안전) null 방지
+            if (pr.getGoodQty() == null) pr.setGoodQty(0);
+            if (pr.getDefectQty() == null) pr.setDefectQty(0);
+
+            productionResultRepo.save(pr);
         }
 
         // ▼ [추가] LazyInitializationException 방지: Product 정보 강제 로드
@@ -113,28 +147,33 @@ public class ProductionService {
     @Transactional
     public WorkOrder startWorkOrder(Long orderId, String machineId) {
         WorkOrder order = orderRepo.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+                .orElseThrow(() ->
+                        new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId)
+                );
 
-        // 이미 IN_PROGRESS 상태라면 에러 없이 바로 리턴 (중복 클릭 방지)
-        if ("IN_PROGRESS".equals(order.getStatus())) {
-            // Lazy Init 방지용 초기화 후 리턴
-            if (order.getProduct() != null) order.getProduct().getName();
+        String status = order.getStatus();
+
+        // 🔒 이미 작업중이면 조용히 리턴 (중복 클릭 방지)
+        if ("IN_PROGRESS".equals(status)) {
+            if (order.getProduct() != null) {
+                order.getProduct().getName();
+            }
             return order;
         }
 
-        if (!"RELEASED".equals(order.getStatus())) {
-            throw new RuntimeException("RELEASED 상태에서만 Start 할 수 있습니다. 현재 상태: " + order.getStatus());
+        // ❌ Release 안 된 경우 → 시작 차단 + 메시지
+        if (!"RELEASED".equals(status)) {
+            throw new RuntimeException("Release가 적용이 되지 않았습니다.");
         }
 
+        // ▶ 정상 Start
         order.setStatus("IN_PROGRESS");
         order.setAssignedMachineId(machineId);
 
-        // 시작 시간 기록 (없을 경우)
         if (order.getStartDate() == null) {
             order.setStartDate(LocalDateTime.now());
         }
 
-        // ▼ [추가] LazyInitializationException 방지
         if (order.getProduct() != null) {
             order.getProduct().getName();
         }
@@ -169,17 +208,19 @@ public class ProductionService {
     @Transactional
     public void createEventLog(ProductionLogEventReqDto dto) {
         String level = "INFO";
-        String message = "";
+        // 기본 메시지 설정 (프론트에서 온 게 없으면 기본값 사용)
+        String message = (dto.getMessage() != null) ? dto.getMessage() : "";
 
         if ("START".equals(dto.getActionType())) {
             level = "INFO";
-            message = "작업을 시작했습니다";
+            if(message.isEmpty()) message = "작업을 시작했습니다";
         } else if ("PAUSE".equals(dto.getActionType())) {
             level = "WARN";
-            message = "작업중단사유를 작성해주세요";
+            // 프론트에서 보낸 pauseReason이 여기 dto.getMessage()로 들어옵니다.
+            if(message.isEmpty()) message = "작업 중단";
         } else if ("FINISH".equals(dto.getActionType())) {
             level = "INFO";
-            message = "작업이 완료되었습니다";
+            if(message.isEmpty()) message = "작업이 완료되었습니다";
         }
 
         WorkOrder workOrder = orderRepo.findById(dto.getWorkOrderId())
@@ -189,14 +230,14 @@ public class ProductionService {
                 .workOrder(workOrder)
                 .level(level)
                 .category("PRODUCTION")
-                .message(message)
+                .message(message) // ⭐ 이 부분이 DB의 message 컬럼으로 들어갑니다.
                 .startTime(LocalDateTime.now())
                 .resultDate(LocalDate.now())
                 .resultQty(0)
                 .status(com.hm.mes_final_260106.constant.ProductionStatus.RUN)
                 .build();
 
-        logRepo.save(log);
+        productionLogRepo.save(log);
     }
 
     // =========================
@@ -251,10 +292,12 @@ public class ProductionService {
             if (order.getProduct() != null) order.getProduct().getName();
             return order;
         }
-
+        if ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) {
+            throw new RuntimeException("Release가 되지 않은 작업지시입니다.");
+        }
         // (기존) allowed 검증...
         boolean allowed =
-                ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) ||
+                //("WAITING".equals(current) && "IN_PROGRESS".equals(next)) ||
                         ("WAITING".equals(current) && "RELEASED".equals(next)) ||
                         ("RELEASED".equals(current) && "IN_PROGRESS".equals(next)) ||
                         ("IN_PROGRESS".equals(current) && "PAUSED".equals(next)) ||
@@ -309,29 +352,26 @@ public class ProductionService {
     // 7) 생산 실적 보고
     // =========================
     @Transactional
-    public void reportProduction(ProductionReportDto dto) {
-        log.info("reportProduction 실행 : {}", dto.getWorkOrderId());
-        Long orderId = dto.getWorkOrderId();
+    public void reportProduction(ProductionLogDto dto) {
+        log.info("reportProduction 실행 : {}", dto.getWorkOrderNumber());
 
-        WorkOrder workOrder = orderRepo.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+        WorkOrder workOrder = orderRepo.findByWorkOrderNumber(dto.getWorkOrderNumber())
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. 번호 : " + dto.getWorkOrderNumber()));
 
         Product product = workOrder.getProduct();
         Equipment equipment = equipmentRepo.findByCode(dto.getEquipmentCode())
                 .orElseThrow(() -> new RuntimeException("설비를 찾을 수 없습니다"));
 
         Worker worker = null;
-        if (dto.getWorkerId() != null) {
-            worker = workerRepo.findById(dto.getWorkerId())
-                    .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + dto.getWorkerId()));
+        if (dto.getWorkerCode() != null) {
+            worker = workerRepo.findByCode(dto.getWorkerCode())
+                    .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + dto.getWorkerCode()));
         }
 
         ProductionLog productionLog = mapper.toEntity(dto);
         productionLog.setWorkOrder(workOrder);
         productionLog.setEquipment(equipment);
-        if (worker != null) {
-            productionLog.setWorker(worker);
-        }
+        productionLog.setWorker(worker);
 
         Dicing dicing = mapper.toEntity(dto.getDicingDto());
         dicing.setProductionLog(productionLog);
@@ -383,7 +423,7 @@ public class ProductionService {
             lotMappings.add(lotMapping);
         }
 
-        logRepo.save(productionLog);
+        productionLogRepo.save(productionLog);
         dicingRepo.save(dicing);
         dicingInspectionRepo.save(dicingInspection);
         dieBondingRepo.save(dieBonding);
@@ -498,12 +538,12 @@ public class ProductionService {
                 .category("PRODUCTION")
                 .message(dto.getMessage())
                 .build();
-        logRepo.save(log);
+        productionLogRepo.save(log);
     }
 
     @Transactional(readOnly = true)
     public List<EventLogResDto> getEventLogs() {
-        return logRepo
+        return productionLogRepo
                 .findByMessageIsNotNullOrderByStartTimeDesc()
                 .stream()
                 .map(EventLogResDto::from)
@@ -512,7 +552,7 @@ public class ProductionService {
 
     @Transactional
     public void updateMessage(Long id, String message) {
-        ProductionLog log = logRepo.findById(id)
+        ProductionLog log = productionLogRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Log not found"));
         log.setMessage(message);
     }
@@ -536,7 +576,7 @@ public class ProductionService {
                 .status(com.hm.mes_final_260106.constant.ProductionStatus.RUN)
                 .build();
 
-        logRepo.save(log);
+        productionLogRepo.save(log);
     }
 
 
@@ -667,7 +707,7 @@ public class ProductionService {
     // 3. [불량 관리] 불량 내역 조회
     @Transactional(readOnly = true)
     public List<ProductionLog> getDefectLogs() {
-        return logRepo.findByDefectQtyGreaterThanOrderByEndTimeDesc(0);
+        return productionLogRepo.findByDefectQtyGreaterThanOrderByEndTimeDesc(0);
     }
 
 }

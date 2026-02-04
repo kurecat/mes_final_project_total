@@ -3,26 +3,32 @@
 -- ==========================================
 
 -- Member 등록
-INSERT INTO member (name, email, password, authority, status) VALUES
-('이용현', 'dfgr56@naver.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
-('이용현', 'dfgr567@naver.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_ADMIN', 'ACTIVE');
+INSERT INTO member (id, name, email, password, authority, status) VALUES
+(1, '이용현', 'dfgr567@naver.com',  '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_ADMIN', 'ACTIVE'),
+(2, '이용현', 'dfgr56@naver.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
+(3, '김철수', 'kimcs@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
+(4, '이영희', 'leeyh@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
+(5, '박민수', 'parkms@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
+(6, '정지훈', 'jungjh@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
+(7, '최은지', 'choiej@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
+(8, '한지민', 'hanjm@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE');
 
--- Worker 등록 (작업자)
-INSERT INTO worker (id, name, join_date, shift, status, dept, certifications) VALUES
-(1, '김철수', '2024-03-15', 'Day',   'WORKING', 'PHOTO', 'Basic Safety, ESD'),
-(2, '이영희', '2023-11-01', 'Day',   'WORKING', 'ETCH',  'Chemical Safety'),
-(3, '박민수', '2022-06-20', 'Night', 'BREAK',   'CMP',   'Equipment Safety'),
-(4, '정지훈', '2021-09-10', 'Swing', 'OFF',     'PHOTO', 'Basic Safety'),
-(5, '최은지', '2020-04-05', 'Night', 'BREAK',   'ETCH',  'Hazard Material'),
-(6, '한지민', '2026-02-02', 'Swing', 'OFF',     'TBD',   'Basic Safety');
+INSERT INTO worker (id, member_id, code, name, join_date, shift, status, dept, certifications) VALUES
+(1, 2, 'W001', '이용현', '2026-02-04', 'Day',   'WORKING', 'PACK', 'Basic Safety'),
+(2, 3, 'W002', '김철수', '2024-03-15', 'Day',   'WORKING', 'PACK', 'Basic Safety, ESD'),
+(3, 4, 'W003', '이영희', '2023-11-01', 'Day',   'WORKING', 'PACK', 'Chemical Safety'),
+(4, 5, 'W004', '박민수', '2022-06-20', 'Night', 'BREAK',   'CMP',  'Equipment Safety'),
+(5, 6, 'W005', '정지훈', '2021-09-10', 'Swing', 'OFF',     'PACK', 'Basic Safety'),
+(6, 7, 'W006', '최은지', '2020-04-05', 'Night', 'BREAK',   'PACK', 'Hazard Material'),
+(7, 8, 'W007', '한지민', '2026-02-02', 'Swing', 'OFF',     'TBD',  'Basic Safety');
 
 -- Warehouse 등록 (창고)
 INSERT INTO warehouse
 (code, name, type, address, status, capacity, occupancy)
 VALUES
-('WH-ALL-001','All Material Warehouse','Main','ALL-ZONE','AVAILABLE',5000,2350),
-('WH-MAIN-001','Main Process Warehouse','Main','FAB-MAIN','AVAILABLE',2000,540),
-('WH-SUB-001','Sub Material Warehouse','Sub','FAB-SUB','AVAILABLE',1500,750);
+('WH-ALL-001','All Material Warehouse','Main','ALL-ZONE','AVAILABLE',30000,2350),
+('WH-MAIN-001','Main Process Warehouse','Main','FAB-MAIN','AVAILABLE',20000,540),
+('WH-SUB-001','Sub Material Warehouse','Sub','FAB-SUB','AVAILABLE',15000,750);
 
 
 -- 권한 및 역할 (RBAC)
