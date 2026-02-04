@@ -25,20 +25,20 @@ public class JwtHelper
 
         using var doc = JsonDocument.Parse(json);
 
-        // memberId 꺼내기 (sub에 넣었을 경우)
+        // workerId 꺼내기 (sub에 넣었을 경우)
         if (doc.RootElement.TryGetProperty("sub", out var sub))
         {
-            if (long.TryParse(sub.GetString(), out long memberId))
-                return memberId;
+            if (long.TryParse(sub.GetString(), out long workerId))
+                return workerId;
         }
 
-        // memberId라는 커스텀 클레임에 넣었을 경우
-        if (doc.RootElement.TryGetProperty("memberId", out var memberIdProp))
+        // workerId라는 커스텀 클레임에 넣었을 경우
+        if (doc.RootElement.TryGetProperty("workerId", out var workerIdProp))
         {
-            if (long.TryParse(memberIdProp.ToString(), out long memberId))
-                return memberId;
+            if (long.TryParse(workerIdProp.ToString(), out long workerId))
+                return workerId;
         }
 
-        throw new Exception("memberId를 찾을 수 없습니다.");
+        throw new Exception("workerId를 찾을 수 없습니다.");
     }
 }

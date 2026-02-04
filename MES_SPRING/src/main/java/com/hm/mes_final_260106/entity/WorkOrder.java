@@ -46,14 +46,4 @@ public class WorkOrder {
         startDate = LocalDateTime.now();
     }
 
-    // ⭐ camelCase getter 별칭 (서비스/DTO에서 편하게 쓰기용)
-    public String getWorkOrderNumber() {
-        return this.workOrderNumber;
-    }
-
-    // ⭐ camelCase setter 별칭 (혹시 앞으로 setWorkorderNumber 쓸 수도 있어서 같이 추가)
-    public void setWorkOrderNumber(String workOrderNumber) {
-        this.workOrderNumber = workOrderNumber;
-    }
-
 }

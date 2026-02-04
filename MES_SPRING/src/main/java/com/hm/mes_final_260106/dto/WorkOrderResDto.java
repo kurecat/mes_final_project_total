@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Data @Builder
 public class WorkOrderResDto {
     private Long id;
-    private String workorder_number;   // work_order_number
+    private String workOrderNumber;   // work_order_number
     private String productId;
     private int targetQty;
     private int currentQty;
@@ -26,7 +26,7 @@ public class WorkOrderResDto {
     public static WorkOrderResDto fromEntity(WorkOrder workOrder) {
         return WorkOrderResDto.builder()
                 .id(workOrder.getId())
-                .workorder_number(workOrder.getWorkOrderNumber())
+                .workOrderNumber(workOrder.getWorkOrderNumber())
                 .productId(workOrder.getProduct().getCode())
                 .targetQty(workOrder.getTargetQty())
                 .currentQty(workOrder.getCurrentQty())
@@ -38,4 +38,3 @@ public class WorkOrderResDto {
                 .build();
     }
 }
-///1111111111

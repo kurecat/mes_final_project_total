@@ -3,6 +3,7 @@ package com.hm.mes_final_260106.service;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.dto.lot.LotHistoryResDto;
 import com.hm.mes_final_260106.dto.lot.LotResDto;
+import com.hm.mes_final_260106.dto.worker.WorkerResDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.mapper.Mapper;
@@ -23,7 +24,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ProductionService {
 
-    private final ProductionLogRepository logRepo;
+    private final ProductionLogRepository productionLogRepo;
     private final MaterialRepository matRepo;
     private final WorkOrderRepository orderRepo;
     private final BomRepository bomRepo;
@@ -234,7 +235,7 @@ public class ProductionService {
                 .status(com.hm.mes_final_260106.constant.ProductionStatus.RUN)
                 .build();
 
-        logRepo.save(log);
+        productionLogRepo.save(log);
     }
 
     // =========================
@@ -349,29 +350,26 @@ public class ProductionService {
     // 7) 생산 실적 보고
     // =========================
     @Transactional
-    public void reportProduction(ProductionReportDto dto) {
-        log.info("reportProduction 실행 : {}", dto.getWorkOrderId());
-        Long orderId = dto.getWorkOrderId();
+    public void reportProduction(ProductionLogDto dto) {
+        log.info("reportProduction 실행 : {}", dto.getWorkOrderNumber());
 
-        WorkOrder workOrder = orderRepo.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+        WorkOrder workOrder = orderRepo.findByWorkOrderNumber(dto.getWorkOrderNumber())
+                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. 번호 : " + dto.getWorkOrderNumber()));
 
         Product product = workOrder.getProduct();
         Equipment equipment = equipmentRepo.findByCode(dto.getEquipmentCode())
                 .orElseThrow(() -> new RuntimeException("설비를 찾을 수 없습니다"));
 
         Worker worker = null;
-        if (dto.getWorkerId() != null) {
-            worker = workerRepo.findById(dto.getWorkerId())
-                    .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + dto.getWorkerId()));
+        if (dto.getWorkerCode() != null) {
+            worker = workerRepo.findByCode(dto.getWorkerCode())
+                    .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + dto.getWorkerCode()));
         }
 
         ProductionLog productionLog = mapper.toEntity(dto);
         productionLog.setWorkOrder(workOrder);
         productionLog.setEquipment(equipment);
-        if (worker != null) {
-            productionLog.setWorker(worker);
-        }
+        productionLog.setWorker(worker);
 
         Dicing dicing = mapper.toEntity(dto.getDicingDto());
         dicing.setProductionLog(productionLog);
@@ -423,7 +421,7 @@ public class ProductionService {
             lotMappings.add(lotMapping);
         }
 
-        logRepo.save(productionLog);
+        productionLogRepo.save(productionLog);
         dicingRepo.save(dicing);
         dicingInspectionRepo.save(dicingInspection);
         dieBondingRepo.save(dieBonding);
@@ -538,12 +536,12 @@ public class ProductionService {
                 .category("PRODUCTION")
                 .message(dto.getMessage())
                 .build();
-        logRepo.save(log);
+        productionLogRepo.save(log);
     }
 
     @Transactional(readOnly = true)
     public List<EventLogResDto> getEventLogs() {
-        return logRepo
+        return productionLogRepo
                 .findByMessageIsNotNullOrderByStartTimeDesc()
                 .stream()
                 .map(EventLogResDto::from)
@@ -552,7 +550,7 @@ public class ProductionService {
 
     @Transactional
     public void updateMessage(Long id, String message) {
-        ProductionLog log = logRepo.findById(id)
+        ProductionLog log = productionLogRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Log not found"));
         log.setMessage(message);
     }
@@ -576,7 +574,7 @@ public class ProductionService {
                 .status(com.hm.mes_final_260106.constant.ProductionStatus.RUN)
                 .build();
 
-        logRepo.save(log);
+        productionLogRepo.save(log);
     }
 
 
@@ -707,7 +705,7 @@ public class ProductionService {
     // 3. [불량 관리] 불량 내역 조회
     @Transactional(readOnly = true)
     public List<ProductionLog> getDefectLogs() {
-        return logRepo.findByDefectQtyGreaterThanOrderByEndTimeDesc(0);
+        return productionLogRepo.findByDefectQtyGreaterThanOrderByEndTimeDesc(0);
     }
 
 }

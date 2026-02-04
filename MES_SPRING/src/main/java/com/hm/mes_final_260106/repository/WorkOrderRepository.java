@@ -1,6 +1,7 @@
 package com.hm.mes_final_260106.repository;
 
 import com.hm.mes_final_260106.entity.WorkOrder;
+import org.hibernate.jdbc.Work;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,4 +30,6 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
         ORDER BY wo.id DESC
     """)
     List<WorkOrder> findByLineForPerformance(@Param("line") String line);
+
+    Optional<WorkOrder> findByWorkOrderNumber(String workOrderNumber);
 }

@@ -7,6 +7,7 @@ package com.hm.mes_final_260106.controller;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.dto.lot.LotHistoryResDto;
 import com.hm.mes_final_260106.dto.lot.LotResDto;
+import com.hm.mes_final_260106.dto.worker.WorkerResDto;
 import com.hm.mes_final_260106.entity.Equipment;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.Product;
@@ -173,7 +174,7 @@ public class MesController {
     // Machine : 생산 결과 보고
     // =========================
     @PostMapping("/machine/report")
-    public ResponseEntity<String> reportProduction(@RequestBody ProductionReportDto dto) {
+    public ResponseEntity<String> reportProduction(@RequestBody ProductionLogDto dto) {
         productionService.reportProduction(dto);
         return ResponseEntity.ok("ACK");
     }
