@@ -23,12 +23,13 @@ INSERT INTO worker (id, member_id, code, name, join_date, shift, status, dept, c
 (7, 8, 'W007', '한지민', '2026-02-02', 'Swing', 'OFF',     'TBD',  'Basic Safety');
 
 -- Warehouse 등록 (창고)
-INSERT INTO Warehouse (code, name, type, address, capacity, occupancy, status) VALUES
-('WH-ALL-001', '전체 창고', 'All', '천안시 동남구 본사 물류센터', 10000, 0, 'AVAILABLE'),
-('WH-MAIN-001', '메인 창고', 'Main', '천안시 동남구 본사 물류센터', 8000, 0, 'AVAILABLE'),
-('WH-SUB-001', '서브 창고', 'Sub', '천안시 동남구 본사 물류센터', 5000, 0, 'AVAILABLE'),
-('WH-COLD-001', '냉동 창고', 'ColdStorage', '천안시 동남구 본사 물류센터', 3000, 0, 'AVAILABLE'),
-('WH-CLEAN-001', '클린룸 창고', 'CleanRoom', '천안시 동남구 본사 물류센터', 2000, 0, 'AVAILABLE');
+INSERT INTO warehouse
+(code, name, type, address, status, capacity, occupancy)
+VALUES
+('WH-ALL-001','All Material Warehouse','Main','ALL-ZONE','AVAILABLE',30000,2350),
+('WH-MAIN-001','Main Process Warehouse','Main','FAB-MAIN','AVAILABLE',20000,540),
+('WH-SUB-001','Sub Material Warehouse','Sub','FAB-SUB','AVAILABLE',15000,750);
+
 
 -- 권한 및 역할 (RBAC)
 INSERT INTO permissions (code, name, group_name) VALUES ('USER_READ', '사용자 조회', '시스템 관리');
@@ -72,23 +73,23 @@ INSERT INTO equipment (id, code, name, type, location, status, install_date) VAL
 (1, 'LINE-01-M01', '종합 패키징 설비', 'Total', '창고2', 'RUN','2026-02-11');
 
 
--- ==========================================
--- 3. 연관 데이터 (BOM, Transaction, Lot)
--- ==========================================
+-- MaterialTransaction 등록 (초기 입고 기록)
+INSERT INTO material_transaction
+(tx_type, material_id, qty, unit, target_location, target_equipment, worker_name, created_at)
+VALUES
+('INBOUND', (SELECT id FROM material WHERE code='MAT-SUBSTRATE'), 50, 'ea', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-SOLDERBALL'), 2000, 'ea', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-UNDERFILL'), 300, 'kg', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-MOLD'), 30, 'kg', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-HEATSINK'), 10, 'ea', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-WIRE'), 500, 'm', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-LEADFRAME'), 400, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-ENCAPSULANT'), 250, 'kg', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-WAFER'), 100, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW());
 
--- MaterialTransaction 등록
-INSERT INTO material_transaction (tx_type, material_id, qty, unit, target_location, target_equipment, worker_name, created_at) VALUES
-('INBOUND', (SELECT id FROM material WHERE code='MAT-SUBSTRATE'), 50, 'ea', 'WH-A-01', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-SOLDERBALL'), 2000, 'ea', 'WH-A-01', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-UNDERFILL'), 300, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-MOLD'), 30, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-HEATSINK'), 10, 'ea', 'WH-B-05', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-WIRE'), 500, 'm', 'WH-B-05', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-LEADFRAME'), 400, 'ea', 'WH-A-02', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-ENCAPSULANT'), 250, 'kg', 'WH-C-12', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-WAFER'), 100, 'ea', 'WH-A-01', NULL, 'SYSTEM', NOW());
 
--- BOM Header
+-- BOM 등록
+-- BOM Header (제품별 BOM 정의)
 INSERT INTO bom (product_id, revision, status) VALUES
 (1, 1, 'ACTIVE'), (2, 1, 'ACTIVE'), (3, 1, 'ACTIVE'), (4, 1, 'ACTIVE'),
 (5, 1, 'ACTIVE'), (6, 1, 'ACTIVE'), (7, 1, 'ACTIVE'), (8, 1, 'ACTIVE');

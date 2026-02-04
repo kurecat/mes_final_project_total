@@ -96,8 +96,41 @@ public class ProductionService {
             throw new RuntimeException("완료된 작업은 Release 할 수 없습니다.");
         }
 
-        if ("WAITING".equals(order.getStatus())) {
+        // ✅ WAITING -> RELEASED 전환 시점에만 plan_qty 누적 (중복 Release 방지)
+        boolean releasedNow = "WAITING".equals(order.getStatus());
+        if (releasedNow) {
             order.setStatus("RELEASED");
+
+            // 🔥 Release 시점에 production_result.plan_qty 증가
+            LocalDate today = LocalDate.now();
+            int hour = LocalDateTime.now().getHour();
+            String line = (order.getTargetLine() == null || order.getTargetLine().isBlank())
+                    ? "Fab-Line-A"
+                    : order.getTargetLine();
+
+            ProductionResult pr = productionResultRepo
+                    .findByResultDateAndResultHourAndLineAndProduct(today, hour, line, order.getProduct())
+                    .orElseGet(() -> {
+                        ProductionResult created = new ProductionResult();
+                        created.setResultDate(today);
+                        created.setResultHour(hour);
+                        created.setLine(line);
+                        created.setProduct(order.getProduct());
+                        created.setPlanQty(0);
+                        created.setGoodQty(0);
+                        created.setDefectQty(0);
+                        created.setCreatedAt(LocalDateTime.now());
+                        return created;
+                    });
+
+            int basePlan = (pr.getPlanQty() == null) ? 0 : pr.getPlanQty();
+            pr.setPlanQty(basePlan + order.getTargetQty());
+
+            // (안전) null 방지
+            if (pr.getGoodQty() == null) pr.setGoodQty(0);
+            if (pr.getDefectQty() == null) pr.setDefectQty(0);
+
+            productionResultRepo.save(pr);
         }
 
         // ▼ [추가] LazyInitializationException 방지: Product 정보 강제 로드
@@ -107,6 +140,7 @@ public class ProductionService {
 
         return orderRepo.save(order);
     }
+
 
     // ============================
     // 작업지시 Start (RELEASED -> IN_PROGRESS)

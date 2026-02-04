@@ -27,7 +27,6 @@ const MOCK_INVENTORY = [
     safety: 500,
     unit: "ea",
     status: "NORMAL",
-    condition: "23°C / 45%",
   },
 ];
 
@@ -107,7 +106,7 @@ const InventoryRow = React.memo(({ item }) => {
         <TypeBadge $type={item.type}>{item.type}</TypeBadge>
       </td>
       <td>{item.loc}</td>
-      <td style={{ fontSize: 12 }}>{item.condition}</td>
+
       <td>
         <ProgressWrapper>
           <ProgressBar>
@@ -318,7 +317,7 @@ const InventoryPage = () => {
                 <th>Name</th>
                 <th>Type</th>
                 <th>Location</th>
-                <th>Condition</th>
+
                 <th>Stock</th>
                 <th>Qty</th>
                 <th>Status</th>
