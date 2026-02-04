@@ -290,9 +290,13 @@ const WorkOrderPage = () => {
         }
 
         fetchData();
-      } catch (err) {
-        console.error("상태 변경 실패:", err);
-        alert("상태 변경에 실패했습니다.");
+      } catch (e) {
+        const msg =
+          e.response?.data?.message ||
+          e.response?.data ||
+          "Release가 되지 않은 작업지시입니다.";
+
+        alert(msg);
       }
     },
     [fetchData],
