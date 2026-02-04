@@ -8,4 +8,5 @@ import lombok.Setter;
 public class ProductionLogEventReqDto {
     private Long workOrderId;
     private String actionType; // START / PAUSE / FINISH
+    private String message;
 }

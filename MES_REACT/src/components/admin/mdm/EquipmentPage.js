@@ -191,6 +191,7 @@ const EquipmentPage = () => {
     { value: "WH-ALL-001", label: "WH-ALL-001 (통합 창고)" },
     { value: "WH-MAIN-001", label: "WH-MAIN-001 (메인 창고)" },
     { value: "WH-SUB-001", label: "WH-SUB-001 (보조 창고)" },
+    // { value: "WH-SUB-001", label: "WH-SUB-001 (보조 창고)" }, 추가로 생성할 떄 추가
   ];
 
   return (

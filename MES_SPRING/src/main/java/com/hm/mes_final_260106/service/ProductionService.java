@@ -141,35 +141,39 @@ public class ProductionService {
         return orderRepo.save(order);
     }
 
-
     // ============================
     // 작업지시 Start (RELEASED -> IN_PROGRESS)
     // ============================
     @Transactional
     public WorkOrder startWorkOrder(Long orderId, String machineId) {
         WorkOrder order = orderRepo.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId));
+                .orElseThrow(() ->
+                        new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + orderId)
+                );
 
-        // 이미 IN_PROGRESS 상태라면 에러 없이 바로 리턴 (중복 클릭 방지)
-        if ("IN_PROGRESS".equals(order.getStatus())) {
-            // Lazy Init 방지용 초기화 후 리턴
-            if (order.getProduct() != null) order.getProduct().getName();
+        String status = order.getStatus();
+
+        // 🔒 이미 작업중이면 조용히 리턴 (중복 클릭 방지)
+        if ("IN_PROGRESS".equals(status)) {
+            if (order.getProduct() != null) {
+                order.getProduct().getName();
+            }
             return order;
         }
 
-        if (!"RELEASED".equals(order.getStatus())) {
-            throw new RuntimeException("RELEASED 상태에서만 Start 할 수 있습니다. 현재 상태: " + order.getStatus());
+        // ❌ Release 안 된 경우 → 시작 차단 + 메시지
+        if (!"RELEASED".equals(status)) {
+            throw new RuntimeException("Release가 적용이 되지 않았습니다.");
         }
 
+        // ▶ 정상 Start
         order.setStatus("IN_PROGRESS");
         order.setAssignedMachineId(machineId);
 
-        // 시작 시간 기록 (없을 경우)
         if (order.getStartDate() == null) {
             order.setStartDate(LocalDateTime.now());
         }
 
-        // ▼ [추가] LazyInitializationException 방지
         if (order.getProduct() != null) {
             order.getProduct().getName();
         }
@@ -204,17 +208,19 @@ public class ProductionService {
     @Transactional
     public void createEventLog(ProductionLogEventReqDto dto) {
         String level = "INFO";
-        String message = "";
+        // 기본 메시지 설정 (프론트에서 온 게 없으면 기본값 사용)
+        String message = (dto.getMessage() != null) ? dto.getMessage() : "";
 
         if ("START".equals(dto.getActionType())) {
             level = "INFO";
-            message = "작업을 시작했습니다";
+            if(message.isEmpty()) message = "작업을 시작했습니다";
         } else if ("PAUSE".equals(dto.getActionType())) {
             level = "WARN";
-            message = "작업중단사유를 작성해주세요";
+            // 프론트에서 보낸 pauseReason이 여기 dto.getMessage()로 들어옵니다.
+            if(message.isEmpty()) message = "작업 중단";
         } else if ("FINISH".equals(dto.getActionType())) {
             level = "INFO";
-            message = "작업이 완료되었습니다";
+            if(message.isEmpty()) message = "작업이 완료되었습니다";
         }
 
         WorkOrder workOrder = orderRepo.findById(dto.getWorkOrderId())
@@ -224,7 +230,7 @@ public class ProductionService {
                 .workOrder(workOrder)
                 .level(level)
                 .category("PRODUCTION")
-                .message(message)
+                .message(message) // ⭐ 이 부분이 DB의 message 컬럼으로 들어갑니다.
                 .startTime(LocalDateTime.now())
                 .resultDate(LocalDate.now())
                 .resultQty(0)
@@ -286,10 +292,12 @@ public class ProductionService {
             if (order.getProduct() != null) order.getProduct().getName();
             return order;
         }
-
+        if ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) {
+            throw new RuntimeException("Release가 되지 않은 작업지시입니다.");
+        }
         // (기존) allowed 검증...
         boolean allowed =
-                ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) ||
+                //("WAITING".equals(current) && "IN_PROGRESS".equals(next)) ||
                         ("WAITING".equals(current) && "RELEASED".equals(next)) ||
                         ("RELEASED".equals(current) && "IN_PROGRESS".equals(next)) ||
                         ("IN_PROGRESS".equals(current) && "PAUSED".equals(next)) ||
