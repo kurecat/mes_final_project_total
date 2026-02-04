@@ -33,6 +33,7 @@ public class WorkerResDto {
         return WorkerResDto.builder()
                 .workerId(w.getId())
                 .memberId(w.getId())
+                .code(w.getCode())
                 .name(w.getName())
                 .dept(w.getDept())
                 .shift(w.getShift())

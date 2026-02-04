@@ -39,10 +39,8 @@ public class ApiService
                     UserSession.MemberId = JwtHelper.GetMemberId(_currentTokens.AccessToken);
                     var res = await _httpClient.GetAsync("/api/mes/worker");
                     HttpContent content = res.Content;
-                    WorkerResDto dto = await content.ReadFromJsonAsync<WorkerResDto>();
-                    Console.WriteLine(dto.Code);
-
-                    UserSession.WorkerCode = dto.Code;
+                    WorkerResDto? dto = await content.ReadFromJsonAsync<WorkerResDto>();
+                    UserSession.WorkerCode = dto?.Code;
                     Console.WriteLine("[Auth] 로그인 성공 및 토큰 저장 완료");
                     return true;
                 }
