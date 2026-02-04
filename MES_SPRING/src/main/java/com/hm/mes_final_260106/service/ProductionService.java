@@ -208,17 +208,19 @@ public class ProductionService {
     @Transactional
     public void createEventLog(ProductionLogEventReqDto dto) {
         String level = "INFO";
-        String message = "";
+        // 기본 메시지 설정 (프론트에서 온 게 없으면 기본값 사용)
+        String message = (dto.getMessage() != null) ? dto.getMessage() : "";
 
         if ("START".equals(dto.getActionType())) {
             level = "INFO";
-            message = "작업을 시작했습니다";
+            if(message.isEmpty()) message = "작업을 시작했습니다";
         } else if ("PAUSE".equals(dto.getActionType())) {
             level = "WARN";
-            message = "작업중단사유를 작성해주세요";
+            // 프론트에서 보낸 pauseReason이 여기 dto.getMessage()로 들어옵니다.
+            if(message.isEmpty()) message = "작업 중단";
         } else if ("FINISH".equals(dto.getActionType())) {
             level = "INFO";
-            message = "작업이 완료되었습니다";
+            if(message.isEmpty()) message = "작업이 완료되었습니다";
         }
 
         WorkOrder workOrder = orderRepo.findById(dto.getWorkOrderId())
@@ -228,7 +230,7 @@ public class ProductionService {
                 .workOrder(workOrder)
                 .level(level)
                 .category("PRODUCTION")
-                .message(message)
+                .message(message) // ⭐ 이 부분이 DB의 message 컬럼으로 들어갑니다.
                 .startTime(LocalDateTime.now())
                 .resultDate(LocalDate.now())
                 .resultQty(0)
