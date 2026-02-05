@@ -1,8 +1,10 @@
 // src/main/java/com/hm/mes_final_260106/controller/EquipmentController.java
 package com.hm.mes_final_260106.controller;
 
-import com.hm.mes_final_260106.constant.EquipmentStatus;
 import com.hm.mes_final_260106.dto.*;
+import com.hm.mes_final_260106.dto.EquipmentCreateReqDto;
+import com.hm.mes_final_260106.dto.EquipmentResDto;
+import com.hm.mes_final_260106.dto.equipment.*;
 import com.hm.mes_final_260106.service.EquipmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +39,23 @@ public class EquipmentController {
 //        List<EquipmentEventLogResDto> logs = equipmentService.getEquipmentLogs(equipmentId);
 //        return ResponseEntity.ok(logs);
 //    }
+
+    // ===================== //
+    // 실시간 장비 데이터 저장용 //
+    // ===================== //
+
+    @PatchMapping("/{equipmentCode}/metric")
+    public ResponseEntity<Void> updateMetrics(@PathVariable String equipmentCode,
+                                              @RequestBody EquipmentMetricUpdateReqDto reqDto) {
+        equipmentService.equipmentData.put(
+                equipmentCode,
+                new EquipmentService.EquipmentMetrics(
+                        reqDto.getUph(),
+                        reqDto.getTemperature(),
+                        reqDto.getProgress())
+        );
+        return ResponseEntity.ok().build();
+    }
 
     // 장비 모니터링
     @GetMapping("/monitor")

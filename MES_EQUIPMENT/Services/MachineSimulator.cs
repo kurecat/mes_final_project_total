@@ -8,7 +8,7 @@ using System.Collections.Generic; // [수정] List 사용을 위해 추가
 
 public enum MsgType : byte
 {
-    Temperature = 0x31,
+    Value = 0x31,
     SingleData = 0x32,
     ArrayData = 0x33,
     ProductionEnd = 0x34
@@ -31,6 +31,7 @@ public enum DtoType : byte
     Item = 0x3A,
     FinalInspection = 0x3B,
     InputLot = 0x3C,
+    EquipmentMetric = 0x3D,
 }
 
 public class MachineSimulator
@@ -39,6 +40,7 @@ public class MachineSimulator
     private readonly TcpClientService _tcpService;  // 장비와 연결하기 위해 주입 받음
     private WorkOrderDto? _currentWorkOrder = null;
     private ProductionLogDto _productionLogDto = new ProductionLogDto();
+    private EquipmentMetricUpdateReqDto? _equipmentMetricUpdateReqDto = null;
 
 
     public MachineSimulator(ApiService apiService, TcpClientService tcpService)
@@ -131,10 +133,10 @@ public class MachineSimulator
                 byte[] payload = await _tcpService.ReadPacketAsync(2);
                 if (payload == null || payload.Length < 2) continue;
 
-                if (type == (byte)MsgType.Temperature)   // 온도
+                if (type == (byte)MsgType.Value)
                 {
                     short val = BitConverter.ToInt16(payload, 0);
-                    await HandleTemerature(val);
+                    // 값을 받아 실행할 부분
                 }
                 else if (type == (byte)MsgType.SingleData)    // 단일 DTO
                 {
@@ -187,6 +189,12 @@ public class MachineSimulator
                             case DtoType.MoldingInspection:
                                 _productionLogDto.MoldingInspectionDto = MoldingInspectionDto.FromBytes(payload);
                                 Console.WriteLine($"MoldingInspection: {_productionLogDto.MoldingInspectionDto?.OverallPassRatio}");
+                                break;
+
+                            case DtoType.EquipmentMetric:
+                                _equipmentMetricUpdateReqDto = EquipmentMetricUpdateReqDto.FromBytes(payload);
+                                await HandleEquipmentMetric();
+                                Console.WriteLine($"EquipmentMetric: {_equipmentMetricUpdateReqDto?.Temperature}");
                                 break;
 
                             default:
@@ -252,21 +260,17 @@ public class MachineSimulator
             }
         }
     }
-    private async Task HandleTemerature(short temp)
+    private async Task HandleEquipmentMetric()
     {
-        var status = new MachineStatusDto
-        {
-            EquipmentCode = AppConfig.EquipmentCode,
-            Temperature = temp
-        };
+        if (_equipmentMetricUpdateReqDto == null) return;
 
         // 비동기로 전송 (백그라운드 처리)
-        //_ = Task.Run(() => _apiService.ReportMachineStatusAsync(status));
+        _ = Task.Run(() => _apiService.ReportEquipmentMetricAsync(_equipmentMetricUpdateReqDto));
 
-        if (temp >= 80)
+        if (_equipmentMetricUpdateReqDto.Temperature >= 80)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"⚠️ [과열 경고] {temp}℃");
+            Console.WriteLine($"⚠️ [과열 경고] {_equipmentMetricUpdateReqDto.Temperature}℃");
             Console.ResetColor();
         }
     }

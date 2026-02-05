@@ -1,4 +1,4 @@
-package com.hm.mes_final_260106.dto;
+package com.hm.mes_final_260106.dto.equipment;
 
 import com.hm.mes_final_260106.constant.EquipmentStatus;
 import com.hm.mes_final_260106.entity.Equipment;
@@ -50,4 +50,3 @@ public class EquipmentMonitorResDto {
                 .build();
     }
 }
-///1111111111

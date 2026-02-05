@@ -3,19 +3,24 @@ package com.hm.mes_final_260106.service;
 import com.hm.mes_final_260106.constant.EquipmentEventType;
 import com.hm.mes_final_260106.constant.EquipmentStatus;
 import com.hm.mes_final_260106.dto.*;
+import com.hm.mes_final_260106.dto.equipment.EquipmentDetailResDto;
+import com.hm.mes_final_260106.dto.equipment.EquipmentEventLogResDto;
+import com.hm.mes_final_260106.dto.equipment.EquipmentMonitorResDto;
+import com.hm.mes_final_260106.dto.equipment.EquipmentReqDto;
 import com.hm.mes_final_260106.entity.Equipment;
 import com.hm.mes_final_260106.entity.EquipmentEventLog;
 import com.hm.mes_final_260106.entity.ProductionLog;
 import com.hm.mes_final_260106.repository.EquipmentEventLogRepository;
 import com.hm.mes_final_260106.repository.EquipmentRepository;
 import com.hm.mes_final_260106.repository.ProductionLogRepository;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +34,17 @@ public class EquipmentService {
 
     private final DateTimeFormatter fmt =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+    // 장비별 실시간 데이터 저장소
+    public static final ConcurrentHashMap<String, EquipmentMetrics> equipmentData = new ConcurrentHashMap<>();
+
+    // 내부 데이터 구조
+    @Getter @Setter @AllArgsConstructor @NoArgsConstructor
+    public static class EquipmentMetrics {
+        public int uph;        // 시간당 웨이퍼 처리수
+        public double temperature; // 온도
+        public int progress;      // 진행도 (0~100)
+    }
 
     /* =====================================================
        공통: 상태 변경 로그 메시지 생성 (핵심)
@@ -53,6 +69,13 @@ public class EquipmentService {
         return equipmentRepo.findAll()
                 .stream()
                 .map(EquipmentMonitorResDto::fromEntity)
+                .peek(dto -> {
+                    EquipmentMetrics equipmentMetrics = equipmentData.get(dto.getCode());
+                    if (equipmentMetrics == null) return;
+                    dto.setUph(equipmentMetrics.getUph());
+                    dto.setTemperature(equipmentMetrics.getTemperature());
+                    dto.setProgress(equipmentMetrics.getProgress());
+                })
                 .toList();
     }
 

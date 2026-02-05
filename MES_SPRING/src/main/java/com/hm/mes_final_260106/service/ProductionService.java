@@ -290,18 +290,20 @@ public class ProductionService {
         String next = status.trim().toUpperCase();
         String current = order.getStatus();
 
-        // (기존) 같은 상태면 return
+        // 1. (기존) 같은 상태면 return
         if (current.equals(next)) {
             if (order.getProduct() != null) order.getProduct().getName();
             return order;
         }
+
+        // 2. (기존) 비즈니스 제약 조건 검증
         if ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) {
             throw new RuntimeException("Release가 되지 않은 작업지시입니다.");
         }
-        // (기존) allowed 검증...
+
+        // 3. (기존) 상태 변경 허용 여부 검증
         boolean allowed =
-                //("WAITING".equals(current) && "IN_PROGRESS".equals(next)) ||
-                        ("WAITING".equals(current) && "RELEASED".equals(next)) ||
+                ("WAITING".equals(current) && "RELEASED".equals(next)) ||
                         ("RELEASED".equals(current) && "IN_PROGRESS".equals(next)) ||
                         ("IN_PROGRESS".equals(current) && "PAUSED".equals(next)) ||
                         ("PAUSED".equals(current) && "IN_PROGRESS".equals(next)) ||
@@ -312,12 +314,23 @@ public class ProductionService {
             throw new RuntimeException("허용되지 않는 상태 변경입니다. (" + current + " -> " + next + ")");
         }
 
-        // ✅ [추가] 상태 변경 전/후 로깅을 위해 current를 보존해둠 (이미 위에 있음)
-        order.setStatus(next);
+        // ✨ [신규 추가] 작업 시작/재개 시 재고 체크 로직
+        // IN_PROGRESS로 가려고 할 때 재고가 부족하면 CustomException을 던지고 상태를 PAUSED로 유지합니다.
+        if ("IN_PROGRESS".equals(next)) {
+            validateInventoryAndFillShortage(order);
+        }
 
-        // ✅ [추가] 여기서 로그 1건 저장 (추가 최소 핵심)
+        // 4. (기존) 상태 업데이트 및 로그 저장
+        order.setStatus(next);
         writeWorkOrderStatusChangeLog(order, current, next);
 
+        // ✨ [신규 추가] 정상적으로 상태가 변경될 때(특히 재고 문제가 해결되었을 때) 부족 정보 초기화
+        if (!"PAUSED".equals(next)) {
+            order.setShortageMaterialName(null);
+            order.setShortageQty(0);
+        }
+
+        // 5. (기존) 시간 기록 로직
         if ("IN_PROGRESS".equals(next) && order.getStartDate() == null) {
             order.setStartDate(LocalDateTime.now());
         }
@@ -326,11 +339,41 @@ public class ProductionService {
             order.setEndDate(LocalDateTime.now());
         }
 
+        // Lazy Loading 방지 (기존 유지)
         if (order.getProduct() != null) {
             order.getProduct().getName();
         }
 
         return orderRepo.save(order);
+    }
+
+    /**
+     * ✨ [신규 메서드] BOM 기반 재고 검증 및 부족 정보 엔티티 기록
+     */
+    private void validateInventoryAndFillShortage(WorkOrder order) {
+        // 해당 제품의 BOM 조회
+        Bom bom = bomRepo.findById(order.getProduct().getId())
+                .orElseThrow(() -> new RuntimeException("해당 제품의 BOM 설정이 없습니다."));
+
+        for (BomItem bomItem : bom.getItems()) {
+            Material mat = bomItem.getMaterial();
+            int required = bomItem.getRequiredQty(); // 작업당 필요 수량 (로직에 따라 targetQty와 곱하기 가능)
+            int currentStock = mat.getCurrentStock();
+
+            if (currentStock < required) {
+                int shortage = required - currentStock;
+
+                // 엔티티 필드에 부족 정보 저장 (프론트 5초 주기 폴링 시 감지됨)
+                order.setShortageMaterialName(mat.getName());
+                order.setShortageQty(shortage);
+                order.setStatus("PAUSED"); // 상태를 PAUSED로 강제 설정
+                orderRepo.save(order);
+
+                // 프론트엔드 catch 문에서 인식할 수 있도록 예외 발생
+                // CustomException이 없다면 RuntimeException에 특정 문구를 포함시키세요.
+                throw new CustomException("INVENTORY_SHORTAGE", mat.getName() + ":" + shortage);
+            }
+        }
     }
 
 
@@ -360,7 +403,7 @@ public class ProductionService {
     // =========================
     // 7) 생산 실적 보고
     // =========================
-    @Transactional
+    @Transactional(noRollbackFor = CustomException.class)
     public void reportProduction(ProductionLogDto dto) {
         log.info("reportProduction 실행 : {}", dto.getWorkOrderNumber());
 
@@ -455,7 +498,29 @@ public class ProductionService {
             int current = mat.getCurrentStock();
 
             if (current < required) {
-                throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:" + mat.getName());
+                int shortage = required - current;
+
+                // 1️⃣ [자동 상태 변경] WorkOrder를 PAUSED로 만들고 부족 정보 기입
+                workOrder.setStatus("PAUSED");
+                workOrder.setShortageMaterialName(mat.getName());
+                workOrder.setShortageQty(shortage);
+                orderRepo.saveAndFlush(workOrder);
+
+                // 2️⃣ [자동 로그 생성] "***재고가 부족합니다" 메시지로 로그 저장
+                ProductionLog autoLog = ProductionLog.builder()
+                        .workOrder(workOrder)
+                        .level("WARN")
+                        .category("PRODUCTION")
+                        .message("*** [" + mat.getName() + "] 재고가 부족합니다 (부족분: " + shortage + ")")
+                        .startTime(LocalDateTime.now())
+                        .resultDate(LocalDate.now())
+                        .resultQty(0)
+                        .status(ProductionStatus.PAUSED) // 설비 멈춤 상태
+                        .build();
+                productionLogRepo.save(autoLog);
+
+                // 3️⃣ [설비 알림] C# 설비에게 중단 신호 보냄
+                throw new CustomException("INVENTORY_SHORTAGE", mat.getName() + ":" + shortage);
             }
             mat.setCurrentStock(current - required);
             matRepo.save(mat);

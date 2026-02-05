@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-
 import styled from "styled-components";
 import axiosInstance from "../../../api/axios.js";
+import { fontBase64 } from "../../../fonts/NanumGothic.js";
+
+// ★ PDF 관련 라이브러리 import
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
 import {
   FaSearch,
   FaSitemap,
@@ -10,7 +15,7 @@ import {
   FaCubes,
   FaMinus,
   FaEdit,
-  FaFileExport,
+  FaFilePdf, // ★ 아이콘 변경 (Excel -> Pdf)
   FaFlask,
   FaMicrochip,
   FaSync,
@@ -18,10 +23,10 @@ import {
   FaTimes,
 } from "react-icons/fa";
 
-/* =========================================================================
-   Styled Components (Defined top-level to avoid ReferenceError in sub-components)
-   ========================================================================= */
+/* ... (Styled Components 들은 기존과 동일하므로 생략하지 않고 그대로 유지하거나, 
+      이전 코드에 덮어씌우기 편하도록 전체 구조를 유지합니다.) ... */
 
+// ... [상단 Styled Components 코드는 기존과 동일] ...
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -397,7 +402,6 @@ const MaterialSelect = styled.select`
    Optimized Sub-Components
    ========================================================================= */
 
-// 1. Sidebar Item Component (Memoized)
 const SidebarItem = React.memo(({ bom, isActive, onClick }) => {
   return (
     <BomItem $active={isActive} onClick={() => onClick(bom)}>
@@ -413,7 +417,6 @@ const SidebarItem = React.memo(({ bom, isActive, onClick }) => {
   );
 });
 
-// 2. Sidebar Panel Component (Memoized)
 const SidebarPanel = React.memo(
   ({
     loading,
@@ -449,7 +452,7 @@ const SidebarPanel = React.memo(
             {filteredBoms.map((bom) => (
               <motion.div
                 key={bom.id}
-                layout // 👈 위치 변화도 애니메이션 처리
+                layout
                 initial={{ opacity: 1, y: 0 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 1, y: 0 }}
@@ -469,7 +472,6 @@ const SidebarPanel = React.memo(
   },
 );
 
-// 3. Detail View - Table Row (Memoized)
 const BomTableRow = React.memo(({ bomItem, isEdit, onChange, onDelete }) => {
   return (
     <tr>
@@ -480,7 +482,6 @@ const BomTableRow = React.memo(({ bomItem, isEdit, onChange, onDelete }) => {
       <td className="name">
         <Indent $level={1}>
           <LCorner />
-          {/* 자재 타입별 아이콘 분기 */}
           {bomItem.category === "CHEM" ? (
             <FaFlask color="#e74c3c" size={12} style={{ marginRight: 5 }} />
           ) : bomItem.category === "ASSY" ? (
@@ -492,7 +493,7 @@ const BomTableRow = React.memo(({ bomItem, isEdit, onChange, onDelete }) => {
         </Indent>
       </td>
       <td>
-        <TypeLabel $category={bomItem.category}>{bomItem.category}</TypeLabel>
+        <TypeLabel $type={bomItem.category}>{bomItem.category}</TypeLabel>
       </td>
 
       <td style={{ fontWeight: "600" }}>
@@ -515,72 +516,76 @@ const BomTableRow = React.memo(({ bomItem, isEdit, onChange, onDelete }) => {
 });
 
 // 4. Detail View Component (Memoized)
-const DetailView = React.memo(({ bom, bomItems, onClickRevisionChange }) => {
-  if (!bom) return <EmptyState>Select a Bom to view details</EmptyState>;
+// ★ onExportPdf prop 추가
+const DetailView = React.memo(
+  ({ bom, bomItems, onClickRevisionChange, onExportPdf }) => {
+    if (!bom) return <EmptyState>Select a Bom to view details</EmptyState>;
 
-  return (
-    <>
-      <DetailHeader>
-        <HeaderLeft>
-          <BomName>
-            {bom.productName} <RevBadge>{bom.revision}</RevBadge>
-          </BomName>
-          <BomMeta>
-            Code: <strong>{bom.productCode}</strong> | Type: {bom.type} | Last
-            Updated: {bom.lastUpdated}
-          </BomMeta>
-        </HeaderLeft>
-        <HeaderRight>
-          {bom.status === "ACTIVE" && (
-            <ActionButton onClick={onClickRevisionChange}>
-              <FaEdit />
-              Revision
+    return (
+      <>
+        <DetailHeader>
+          <HeaderLeft>
+            <BomName>
+              {bom.productName} <RevBadge>{bom.revision}</RevBadge>
+            </BomName>
+            <BomMeta>
+              Code: <strong>{bom.productCode}</strong> | Type: {bom.type} | Last
+              Updated: {bom.lastUpdated}
+            </BomMeta>
+          </HeaderLeft>
+          <HeaderRight>
+            {bom.status === "ACTIVE" && (
+              <ActionButton onClick={onClickRevisionChange}>
+                <FaEdit />
+                Edit
+              </ActionButton>
+            )}
+            {/* ★ 버튼 변경: Export PDF, 아이콘 변경, onClick 연결 */}
+            <ActionButton $primary onClick={onExportPdf}>
+              <FaFilePdf /> Export PDF
             </ActionButton>
-          )}
-          <ActionButton $primary>
-            <FaFileExport /> Export Excel
-          </ActionButton>
-        </HeaderRight>
-      </DetailHeader>
+          </HeaderRight>
+        </DetailHeader>
 
-      <TableContainer>
-        <BomTable>
-          <thead>
-            <tr>
-              <th width="5%">Lv.</th>
-              <th width="25%">Material Code</th>
-              <th width="25%">Material Name</th>
-              <th width="5%">Type</th>
-              <th width="5%">Qty</th>
-              <th width="5%">Unit</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Root Item */}
-            <RootRow>
-              <td>0</td>
-              <td>{bom.productCode}</td>
-              <td className="name">
-                <FaCubes style={{ marginRight: 8, color: "#1a4f8b" }} />
-                {bom.productName}
-              </td>
-              <td>
-                <TypeLabel $type="FG">FG</TypeLabel>
-              </td>
-              <td>1</td>
-              <td>ea</td>
-            </RootRow>
-            {/* Children Items */}
-            {bomItems &&
-              bomItems.map((child) => (
-                <BomTableRow key={child.id} bomItem={child} />
-              ))}
-          </tbody>
-        </BomTable>
-      </TableContainer>
-    </>
-  );
-});
+        <TableContainer>
+          <BomTable>
+            <thead>
+              <tr>
+                <th width="5%">Lv.</th>
+                <th width="25%">Material Code</th>
+                <th width="25%">Material Name</th>
+                <th width="5%">Type</th>
+                <th width="5%">Qty</th>
+                <th width="5%">Unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Root Item */}
+              <RootRow>
+                <td>0</td>
+                <td>{bom.productCode}</td>
+                <td className="name">
+                  <FaCubes style={{ marginRight: 8, color: "#1a4f8b" }} />
+                  {bom.productName}
+                </td>
+                <td>
+                  <TypeLabel $type="FG">FG</TypeLabel>
+                </td>
+                <td>1</td>
+                <td>ea</td>
+              </RootRow>
+              {/* Children Items */}
+              {bomItems &&
+                bomItems.map((child) => (
+                  <BomTableRow key={child.id} bomItem={child} />
+                ))}
+            </tbody>
+          </BomTable>
+        </TableContainer>
+      </>
+    );
+  },
+);
 
 const BomRevisionModal = React.memo(
   ({ bom, bomItems, materials, onClose, onAdd, onEdit, onDelete, onSave }) => {
@@ -654,12 +659,9 @@ const BomRevisionModal = React.memo(
                         <option value="">-- 자재 선택 --</option>
                         {materials &&
                           (() => {
-                            // 비교용 Set 생성 (O(n))
                             const bomCodes = new Set(
                               bomItems.map((item) => item.materialCode),
                             );
-
-                            // 필터링 시 O(1)로 체크 가능
                             return materials
                               .filter(
                                 (material) => !bomCodes.has(material.code),
@@ -682,7 +684,7 @@ const BomRevisionModal = React.memo(
             <ModalBtn
               className="close"
               onClick={() => {
-                onSave(bom, bomItems); // 수정 시 id와 formData 전달
+                onSave(bom, bomItems);
                 onClose();
               }}
             >
@@ -722,15 +724,12 @@ const BomPage = () => {
     setIsModalOpen(false);
   };
 
-  // [Optimization] fetchData with useCallback
   const fetchBomList = useCallback(async () => {
     setLoading(true);
     try {
-      // API call logic...
       const res = await axiosInstance.get("/api/mes/master/bom/list");
       setBomList(res.data);
       setSelectedBom(res.data[0]);
-
       return res;
     } catch (err) {
       console.error(err);
@@ -743,7 +742,6 @@ const BomPage = () => {
     setLoading(true);
     try {
       if (selectedBom) {
-        // API call logic...
         const bomId = selectedBom.id;
         const res = await axiosInstance.get(
           `/api/mes/master/bom-item/${bomId}`,
@@ -784,7 +782,6 @@ const BomPage = () => {
     fetchBomItems();
   }, [fetchBomItems]);
 
-  // [Optimization] Handlers with useCallback
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
   }, []);
@@ -850,7 +847,90 @@ const BomPage = () => {
     [isModalOpen],
   );
 
-  // [Optimization] Filtering with useMemo
+  // ★ PDF 생성 및 다운로드 함수
+  // 주의: 기본 jspdf는 한글 폰트를 지원하지 않아 한글이 깨질 수 있습니다.
+  // 한글 출력을 위해서는 별도의 폰트 파일(.ttf)을 base64로 변환하여 addFileToVFS로 추가해야 합니다.
+  // 아래 코드는 기능 구현을 위한 기본 구조이며, 한글 깨짐 방지를 위해 영문 예시 헤더를 사용하거나 폰트 설정이 필요합니다.
+  const handleExportPdf = useCallback(() => {
+    if (!selectedBom) return;
+
+    const doc = new jsPDF();
+
+    // ★ 2. 한글 폰트 등록 (반드시 텍스트 출력 전에 해야 함)
+    // (1) 가상 파일 시스템(VFS)에 폰트 파일 추가
+    doc.addFileToVFS("NanumGothic.ttf", fontBase64);
+    // (2) 폰트 추가 (파일명, 폰트명, 스타일)
+    doc.addFont("NanumGothic.ttf", "NanumGothic", "normal");
+    // (3) 문서 전체에 폰트 적용
+    doc.setFont("NanumGothic");
+
+    // 1. Title
+    doc.setFontSize(18);
+    doc.text("Bill of Materials (BOM)", 14, 20);
+
+    // 2. Info Section
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+
+    // 한글이 포함될 수 있는 변수들
+    doc.text(`Product Name: ${selectedBom.productName}`, 14, 30);
+    doc.text(`Product Code: ${selectedBom.productCode}`, 14, 36);
+    doc.text(`Revision: ${selectedBom.revision}`, 14, 42);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 48);
+
+    // 3. Table Data Preparation
+    const tableColumn = [
+      "Level",
+      "Material Code",
+      "Material Name",
+      "Type",
+      "Qty",
+      "Unit",
+    ];
+
+    const tableRows = [];
+
+    tableRows.push([
+      "0",
+      selectedBom.productCode,
+      selectedBom.productName,
+      "FG",
+      "1",
+      "ea",
+    ]);
+
+    bomItems.forEach((item) => {
+      const rowData = [
+        "1",
+        item.materialCode,
+        item.materialName,
+        item.category,
+        item.quantity,
+        item.unit,
+      ];
+      tableRows.push(rowData);
+    });
+
+    // 4. Generate Table
+    autoTable(doc, {
+      startY: 55,
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      headStyles: { fillColor: [26, 79, 139] },
+
+      // ★ 3. 테이블 내부에도 폰트 적용 필수!
+      styles: {
+        font: "NanumGothic", // 위에서 addFont한 이름과 동일해야 함
+        fontStyle: "normal",
+        fontSize: 9,
+      },
+    });
+
+    // 5. Save File
+    doc.save(`${selectedBom.productCode}_BOM_Rev${selectedBom.revision}.pdf`);
+  }, [selectedBom, bomItems]);
+
   const filteredBoms = useMemo(() => {
     return bomList
       .filter(
@@ -867,7 +947,6 @@ const BomPage = () => {
 
   return (
     <Container>
-      {/* 1. Sidebar Panel */}
       <SidebarPanel
         loading={loading}
         searchTerm={searchTerm}
@@ -877,12 +956,13 @@ const BomPage = () => {
         onSelect={handleSelectBom}
       />
 
-      {/* 2. Detail View */}
       <ContentArea>
         <DetailView
           bom={selectedBom}
           bomItems={bomItems}
           onClickRevisionChange={openModal}
+          // ★ DetailView에 함수 전달
+          onExportPdf={handleExportPdf}
         />
       </ContentArea>
       {isModalOpen && (

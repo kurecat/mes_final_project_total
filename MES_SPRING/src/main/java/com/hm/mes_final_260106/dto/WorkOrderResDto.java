@@ -19,6 +19,9 @@ public class WorkOrderResDto {
     private String targetLine;
     private String assignedMachineId;
 
+    private String shortageMaterialName;    // 부족한 자재명
+    private Integer shortageQty;
+
     private LocalDateTime startDate; // start_date
     private LocalDateTime endDate;   // end_date
 
@@ -30,6 +33,8 @@ public class WorkOrderResDto {
                 .productId(workOrder.getProduct().getCode())
                 .targetQty(workOrder.getTargetQty())
                 .currentQty(workOrder.getCurrentQty())
+                .shortageMaterialName(workOrder.getShortageMaterialName() != null ? workOrder.getShortageMaterialName() : "")
+                .shortageQty(workOrder.getShortageQty() != null ? workOrder.getShortageQty() : 0)
                 .status(workOrder.getStatus())
                 .targetLine(workOrder.getTargetLine())
                 .assignedMachineId(workOrder.getAssignedMachineId())
