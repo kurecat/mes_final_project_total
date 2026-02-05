@@ -58,18 +58,17 @@ const UserToolbar = React.memo(
   ),
 );
 
-// ★ 수정된 UserTableRow: 드롭다운 메뉴 기능 추가
 const UserTableRow = React.memo(
   ({ user, onToggleStatus, onEdit, onDelete }) => {
     const [showMenu, setShowMenu] = useState(false);
     const menuRef = useRef(null);
 
     const isActive = user.status === "ACTIVE";
+    // authority가 "ROLE_ADMIN"이면 "ADMIN"만 표시
     const userRole = user.authority
       ? user.authority.replace("ROLE_", "")
       : "OPERATOR";
 
-    // 메뉴 외부 클릭 시 닫기
     useEffect(() => {
       const handleClickOutside = (event) => {
         if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -118,7 +117,6 @@ const UserTableRow = React.memo(
           </div>
         </td>
         <td style={{ position: "relative" }}>
-          {/* Action 버튼 및 드롭다운 메뉴 */}
           <ActionBtn onClick={() => setShowMenu(!showMenu)}>
             <FaEllipsisH />
           </ActionBtn>
@@ -150,31 +148,31 @@ const UserTableRow = React.memo(
   },
 );
 
-// ★ 수정된 UserModal: 수정 모드 지원 (데이터 채우기)
+// ★ 권한 선택 기능이 추가된 Modal
 const UserModal = ({ isOpen, onClose, onSave, selectedUser }) => {
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     department: "",
-    role: "ROLE_OPERATOR",
+    role: "ROLE_OPERATOR", // 기본값
     phone: "",
   });
 
   useEffect(() => {
     if (isOpen) {
       if (selectedUser) {
-        // 수정 모드: 기존 데이터 바인딩
+        // [수정 모드]
         setForm({
           name: selectedUser.name || "",
           email: selectedUser.email || "",
-          password: "", // 비밀번호는 수정 시 비워두거나 별도 처리
+          password: "",
           department: selectedUser.department || "",
           role: selectedUser.authority || "ROLE_OPERATOR",
           phone: selectedUser.phone || "",
         });
       } else {
-        // 생성 모드: 초기화
+        // [생성 모드]
         setForm({
           name: "",
           email: "",
@@ -190,7 +188,6 @@ const UserModal = ({ isOpen, onClose, onSave, selectedUser }) => {
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    // 생성일 때는 비밀번호 필수, 수정일 때는 선택(변경 안 하면 그대로)
     if (!form.name || !form.email) {
       alert("이름과 이메일은 필수입니다.");
       return;
@@ -223,7 +220,7 @@ const UserModal = ({ isOpen, onClose, onSave, selectedUser }) => {
             <label>Email</label>
             <input
               value={form.email}
-              disabled={!!selectedUser} // 이메일(ID)은 수정 불가 처리
+              disabled={!!selectedUser}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
           </InputGroup>
@@ -244,6 +241,19 @@ const UserModal = ({ isOpen, onClose, onSave, selectedUser }) => {
               onChange={(e) => setForm({ ...form, department: e.target.value })}
             />
           </InputGroup>
+
+          {/* ★ Role Select Box */}
+          <InputGroup>
+            <label>Role</label>
+            <SelectInput
+              value={form.role}
+              onChange={(e) => setForm({ ...form, role: e.target.value })}
+            >
+              <option value="ROLE_OPERATOR">Operator (생산직)</option>
+              <option value="ROLE_ADMIN">Admin (관리자)</option>
+            </SelectInput>
+          </InputGroup>
+
           <InputGroup>
             <label>Phone (Contact)</label>
             <input
@@ -270,8 +280,6 @@ const UsersPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  // 선택된 사용자 (수정 시 사용)
   const [selectedUser, setSelectedUser] = useState(null);
 
   const loadUsers = useCallback(() => {
@@ -305,25 +313,21 @@ const UsersPage = () => {
     [loadUsers],
   );
 
-  // 모달 열기 (추가)
   const handleOpenAdd = () => {
     setSelectedUser(null);
     setIsModalOpen(true);
   };
 
-  // 모달 열기 (수정)
   const handleOpenEdit = useCallback((user) => {
     setSelectedUser(user);
     setIsModalOpen(true);
   }, []);
 
-  // 삭제 처리
   const handleDeleteUser = useCallback(
     (user) => {
       if (!window.confirm(`정말로 '${user.name}' 님을 삭제하시겠습니까?`))
         return;
 
-      // API 경로가 백엔드에 구현되어 있어야 합니다. 예: /auth/delete/{id}
       api
         .delete(`/auth/delete/${user.id || user.memberId}`)
         .then(() => {
@@ -335,11 +339,10 @@ const UsersPage = () => {
     [loadUsers],
   );
 
-  // 저장 (추가/수정 분기)
   const handleSaveUser = useCallback(
     (formData) => {
       if (selectedUser) {
-        // --- 수정 (Update) ---
+        // Update
         api
           .put(
             `/auth/update/${selectedUser.id || selectedUser.memberId}`,
@@ -352,7 +355,7 @@ const UsersPage = () => {
           })
           .catch((err) => alert("수정 실패: " + err.message));
       } else {
-        // --- 추가 (Create) ---
+        // Create
         api
           .post("/auth/signup", formData)
           .then(() => {
@@ -427,7 +430,6 @@ const UsersPage = () => {
 export default UsersPage;
 
 // --- [Styled Components] ---
-// (기존 스타일 유지하고 아래 ActionMenu, MenuItem 추가)
 
 const Container = styled.div`
   width: 100%;
@@ -526,6 +528,7 @@ const TableContainer = styled.div`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
+  white-space: nowrap;
   thead {
     position: sticky;
     top: 0;
@@ -627,7 +630,6 @@ const StatusText = styled.span`
   color: ${(props) => (props.$active ? "#2ecc71" : "#95a5a6")};
 `;
 
-// --- 드롭다운 메뉴 스타일 추가 ---
 const ActionMenu = styled.div`
   position: absolute;
   top: 100%;
@@ -675,7 +677,6 @@ const MenuItem = styled.button`
   }
 `;
 
-// Modal Styles
 const Overlay = styled.div`
   position: fixed;
   top: 0;
@@ -750,6 +751,22 @@ const InputGroup = styled.div`
     }
   }
 `;
+
+// ★ SelectInput 추가
+const SelectInput = styled.select`
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  outline: none;
+  background-color: white;
+  font-size: 14px;
+  color: #333;
+  width: 100%;
+  &:focus {
+    border-color: #3498db;
+  }
+`;
+
 const SubmitBtn = styled.button`
   background: #3498db;
   color: white;

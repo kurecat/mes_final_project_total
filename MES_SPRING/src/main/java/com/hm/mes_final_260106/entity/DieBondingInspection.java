@@ -15,9 +15,9 @@ public class DieBondingInspection {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "db_id", nullable = false)
-    private DieBonding dieBonding;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "production_log_id", nullable = false)
+    private ProductionLog productionLog;
 
     @Column(name = "sample_size")
     private Integer sampleSize;

@@ -1,7 +1,8 @@
-package com.hm.mes_final_260106.dto;
+package com.hm.mes_final_260106.dto.productionLog;
 // 생산 실적 보고 : 현장에서 생산한 1건의 생산 결과를 시스템에 보고하기 위한 입력 DTO
 // 설비 -> 서버
 
+import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.dto.Item.ItemResDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,7 +17,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProductionLogDto {
+public class ProductionLogCreateReqDto {
 
     // --- 기본 식별 코드 ---
     private String workOrderNumber;   // 작업 지시 번호

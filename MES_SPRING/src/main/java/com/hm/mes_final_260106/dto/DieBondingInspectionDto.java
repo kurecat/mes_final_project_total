@@ -8,7 +8,7 @@ import lombok.Setter;
 @Setter@Getter@NoArgsConstructor@AllArgsConstructor
 public class DieBondingInspectionDto {
     private Long id;            // PK
-    private Long dieBondingId;  // FK: DieBonding 공정 참조
+    private Long productionLogId;  // pk: ProductionLog 참조 (숫자만)
     private int sampleSize;     // 샘플링 수량
     private String inspectionCriteria;  // 검사 기준
     private double alignmentPassRatio;  // 정렬 합격률

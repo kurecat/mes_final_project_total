@@ -15,9 +15,9 @@ public class WireBondingInspection {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "wb_id", nullable = false)
-    private WireBonding wireBonding;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "production_log_id", nullable = false)
+    private ProductionLog productionLog;
 
     @Column(name = "sample_size")
     private Integer sampleSize;

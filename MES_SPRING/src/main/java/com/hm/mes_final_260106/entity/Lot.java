@@ -3,6 +3,8 @@ package com.hm.mes_final_260106.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 @Entity
 @Table(name = "lot",
         uniqueConstraints = {
@@ -30,5 +32,8 @@ public class Lot {
 
     @Column(length = 50)
     private String status;
+
+    @OneToMany(mappedBy = "lot", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<LotMapping> lotMappings;
 }
 

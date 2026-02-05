@@ -11,13 +11,21 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
-@Entity @Setter @Getter @NoArgsConstructor @AllArgsConstructor @Builder
+@Entity
+@Setter
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ProductionLog {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // --- 기본 연관관계 ---
     @JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "work_order_id", nullable = false)
@@ -32,44 +40,65 @@ public class ProductionLog {
     @JoinColumn(name = "equipment_id")
     private Equipment equipment;
 
-    @Column(name = "process_step", length = 30)
+    // --- 생산 결과 필드 ---
     private String processStep;
-
-    @Column(name = "lot_no", length = 50)
     private String lotNo;
-
-    @Column(name = "result_qty", nullable = false)
     private Integer resultQty;
-
-    @Column(name = "defect_qty")
     private Integer defectQty;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 20, nullable = false)
     private ProductionStatus status;
 
-    @Column(name = "result_date", nullable = false)
     private LocalDate resultDate;
-
-    @Column(name = "start_time")
     private LocalDateTime startTime;
-
-    @Column(name = "end_time")
     private LocalDateTime endTime;
-
-    @Column(length = 10)
-    private String level;   // INFO, WARN
-
-    @Column(length = 20)
-    private String category; // PRODUCTION
-
-    @Column(length = 255)
+    private String level;
+    private String category;
     private String message;
-
     private LocalDateTime logTime;
 
     @PrePersist
     public void prePersist() {
         this.logTime = LocalDateTime.now();
     }
+
+    // --- 연관관계 (각각 따로) ---
+
+    // Item 리스트
+    @OneToMany(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Item> items;
+
+    // FinalInspection 리스트
+    @OneToMany(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FinalInspection> finalInspections;
+
+    // LOT 매핑 리스트
+    @OneToMany(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<LotMapping> lotMappings;
+
+    // --- 공정별 엔티티 ---
+    @OneToOne(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Dicing dicing;
+
+    @OneToOne(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private DieBonding dieBonding;
+
+    @OneToOne(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private WireBonding wireBonding;
+
+    @OneToOne(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Molding molding;
+
+    // --- 공정별 검사 엔티티 ---
+    @OneToOne(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private DicingInspection dicingInspection;
+
+    @OneToOne(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private DieBondingInspection dieBondingInspection;
+
+    @OneToOne(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private WireBondingInspection wireBondingInspection;
+
+    @OneToOne(mappedBy = "productionLog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private MoldingInspection moldingInspection;
 }
