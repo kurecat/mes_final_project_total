@@ -26,18 +26,18 @@ const BarcodeHeader = React.memo(
         </TitleGroup>
 
         <ControlGroup>
-          <ScanBtn type="button" onClick={onScanClick}>
+          {/* <ScanBtn type="button" onClick={onScanClick}>
             <FaCamera /> Barcode Scan
-          </ScanBtn>
+          </ScanBtn> */}
 
-          <TestBox onSubmit={onManualSubmit}>
+          {/* <TestBox onSubmit={onManualSubmit}>
             <input
               placeholder="Click here & Scan or Type..."
               value={manualCode}
               onChange={onManualChange}
             />
             <button type="submit">Check</button>
-          </TestBox>
+          </TestBox> */}
         </ControlGroup>
       </Header>
     );
