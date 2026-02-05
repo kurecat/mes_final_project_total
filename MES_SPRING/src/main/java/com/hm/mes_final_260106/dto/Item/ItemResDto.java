@@ -1,7 +1,5 @@
-package com.hm.mes_final_260106.dto;
+package com.hm.mes_final_260106.dto.Item;
 
-import com.hm.mes_final_260106.entity.Product;
-import com.hm.mes_final_260106.entity.WorkOrder;
 import lombok.*;
 
 @Setter
@@ -10,10 +8,10 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 @ToString
-public class ItemDto {
+public class ItemResDto {
     private Long id;
     private String serialNumber;
-    private Product product;
+    private String productCode;
     private Long ProductionLogId;
     private String inspectionResult;
     private String location;
