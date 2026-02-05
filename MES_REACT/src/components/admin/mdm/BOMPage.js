@@ -537,7 +537,7 @@ const DetailView = React.memo(
             {bom.status === "ACTIVE" && (
               <ActionButton onClick={onClickRevisionChange}>
                 <FaEdit />
-                Revision
+                Edit
               </ActionButton>
             )}
             {/* ★ 버튼 변경: Export PDF, 아이콘 변경, onClick 연결 */}

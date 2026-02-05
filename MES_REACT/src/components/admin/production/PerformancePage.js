@@ -2,6 +2,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
 import axiosInstance from "../../../api/axios";
+
+// PDF 관련 라이브러리
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+// 폰트 파일
+import { fontBase64 } from "../../../fonts/NanumGothic";
+
 import {
   FaCalendarAlt,
   FaFileDownload,
@@ -431,8 +439,86 @@ const PerformancePage = () => {
   }, []);
 
   const handleExport = useCallback(() => {
-    alert("Exporting data...");
-  }, []);
+    // 데이터가 없으면 중단
+    if (!listData || listData.length === 0) {
+      alert("출력할 데이터가 없습니다.");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    // 1. 한글 폰트 등록 (필수)
+    doc.addFileToVFS("NanumGothic.ttf", fontBase64);
+    doc.addFont("NanumGothic.ttf", "NanumGothic", "normal");
+    doc.setFont("NanumGothic");
+
+    // 2. 타이틀 및 기본 정보 출력
+    doc.setFontSize(18);
+    doc.text("Work Order Performance Report", 14, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Date: ${date}`, 14, 28);
+    doc.text(
+      `Target Line: ${selectedLine === "ALL" ? "All Lines" : selectedLine}`,
+      14,
+      33,
+    );
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 38);
+
+    // 3. 테이블 컬럼 정의
+    const tableColumn = [
+      "Line",
+      "Product",
+      "Unit",
+      "Plan Qty",
+      "Actual Qty",
+      "Loss Qty",
+      "Status",
+    ];
+
+    // 4. 테이블 행 데이터 생성 (listData 매핑)
+    const tableRows = listData.map((row) => [
+      row.line,
+      row.product,
+      row.unit,
+      row.planQty.toLocaleString(), // 콤마 포맷 적용
+      row.actualQty.toLocaleString(),
+      row.lossQty.toLocaleString(),
+      row.status,
+    ]);
+
+    // 5. autoTable로 표 생성
+    autoTable(doc, {
+      startY: 45, // 타이틀 아래부터 시작
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      headStyles: {
+        fillColor: [26, 79, 139], // 헤더 배경색 (#1a4f8b)
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      styles: {
+        font: "NanumGothic", // ★ 테이블 내부 한글 폰트 적용
+        fontSize: 9,
+        cellPadding: 3,
+        valign: "middle",
+      },
+      columnStyles: {
+        0: { cellWidth: 25 }, // Line
+        1: { cellWidth: "auto" }, // Product (자동 너비)
+        2: { cellWidth: 15 }, // Unit
+        3: { halign: "right" }, // 숫자는 우측 정렬
+        4: { halign: "right" },
+        5: { halign: "right", textColor: [231, 76, 60] }, // Loss는 빨간색 처리 (선택사항)
+        6: { halign: "center" }, // Status
+      },
+    });
+
+    // 6. 파일 저장
+    doc.save(`Performance_Report_${date}.pdf`);
+  }, [listData, date, selectedLine]);
 
   const summaryData = useMemo(
     () => ({
