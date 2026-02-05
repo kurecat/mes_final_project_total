@@ -251,7 +251,14 @@ const InventoryPage = () => {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    fetchData(); // 첫 로드 시 실행
+
+    // 3초마다 자동으로 데이터를 새로 가져옴
+    const interval = setInterval(() => {
+      fetchData();
+    }, 5000);
+
+    return () => clearInterval(interval); // 페이지 나갈 때 메모리 해제
   }, [fetchData]);
 
   const filteredData = useMemo(() => {
