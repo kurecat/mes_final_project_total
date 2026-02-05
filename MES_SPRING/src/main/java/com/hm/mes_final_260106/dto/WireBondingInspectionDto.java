@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class WireBondingInspectionDto {
 
     private Long id;                    // PK
-    private Long wireBondingId;         // FK: WireBonding 공정 참조
+    private Long productionLogId;  // pk: ProductionLog 참조 (숫자만)
     private int sampleSize;             // 샘플링 수량
     private String inspectionCriteria;  // 검사 기준
 

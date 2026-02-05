@@ -12,8 +12,7 @@ public class ItemResDto {
     private Long id;
     private String serialNumber;
     private String productCode;
-    private Long ProductionLogId;
+    private Long productionLogId;
     private String inspectionResult;
     private String location;
 }
-///1111111111///1111111111

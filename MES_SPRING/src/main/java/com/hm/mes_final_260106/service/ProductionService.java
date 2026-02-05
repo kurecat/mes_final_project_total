@@ -5,6 +5,7 @@ import com.hm.mes_final_260106.constant.ProductionStatus;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.dto.lot.LotHistoryResDto;
 import com.hm.mes_final_260106.dto.lot.LotResDto;
+import com.hm.mes_final_260106.dto.productionLog.ProductionLogCreateReqDto;
 import com.hm.mes_final_260106.dto.worker.WorkerResDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
@@ -404,7 +405,7 @@ public class ProductionService {
     // 7) 생산 실적 보고
     // =========================
     @Transactional(noRollbackFor = CustomException.class)
-    public void reportProduction(ProductionLogDto dto) {
+    public void reportProduction(ProductionLogCreateReqDto dto) {
         log.info("reportProduction 실행 : {}", dto.getWorkOrderNumber());
 
         WorkOrder workOrder = orderRepo.findByWorkOrderNumber(dto.getWorkOrderNumber())
@@ -420,25 +421,26 @@ public class ProductionService {
                     .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + dto.getWorkerCode()));
         }
 
+        // 1. ProductionLog 기본 엔티티 생성 및 관계 세팅
         ProductionLog productionLog = productionLogMapper.toEntity(dto);
         productionLog.setWorkOrder(workOrder);
         productionLog.setEquipment(equipment);
         productionLog.setWorker(worker);
 
-
+        // 2. 공정 엔티티 및 검사 엔티티 매핑
         Dicing dicing = productionLogMapper.toEntity(dto.getDicingDto(), productionLog);
-        DicingInspection dicingInspection = productionLogMapper.toEntity(dto.getDicingInspectionDto(), dicing);
+        DicingInspection dicingInspection = productionLogMapper.toEntity(dto.getDicingInspectionDto(), productionLog);
 
         DieBonding dieBonding = productionLogMapper.toEntity(dto.getDieBondingDto(), productionLog);
-        DieBondingInspection dieBondingInspection = productionLogMapper.toEntity(dto.getDieBondingInspectionDto(), dieBonding);
+        DieBondingInspection dieBondingInspection = productionLogMapper.toEntity(dto.getDieBondingInspectionDto(), productionLog);
 
         WireBonding wireBonding = productionLogMapper.toEntity(dto.getWireBondingDto(), productionLog);
-        WireBondingInspection wireBondingInspection = productionLogMapper.toEntity(dto.getWireBondingInspectionDto(), wireBonding);
+        WireBondingInspection wireBondingInspection = productionLogMapper.toEntity(dto.getWireBondingInspectionDto(), productionLog);
 
         Molding molding = productionLogMapper.toEntity(dto.getMoldingDto(), productionLog);
-        MoldingInspection moldingInspection = productionLogMapper.toEntity(dto.getMoldingInspectionDto(), molding);
+        MoldingInspection moldingInspection = productionLogMapper.toEntity(dto.getMoldingInspectionDto(), productionLog);
 
-
+        // 3. Item + FinalInspection 리스트 처리
         List<Item> items = new ArrayList<>();
         List<FinalInspection> finalInspections = new ArrayList<>();
 
@@ -450,6 +452,7 @@ public class ProductionService {
             finalInspections.add(fi);
         }
 
+        // 4. Lot + LotMapping 리스트 처리
         List<Lot> lots = new ArrayList<>();
         List<LotMapping> lotMappings = new ArrayList<>();
 
@@ -459,26 +462,30 @@ public class ProductionService {
             lot.setStatus("소모됨");
             lots.add(lot);
 
-            LotMapping lotMapping = new LotMapping();
-            lotMapping.setProductionLog(productionLog);
-            lotMapping.setLot(lot);
+            LotMapping lotMapping = productionLogMapper.toEntity(productionLog, lot);
             lotMappings.add(lotMapping);
         }
 
+        // 5. 저장 (순서: ProductionLog → 공정 → 검사 → Item/FinalInspection → Lot/LotMapping)
         productionLogRepo.save(productionLog);
+
         dicingRepo.save(dicing);
         dicingInspectionRepo.save(dicingInspection);
+
         dieBondingRepo.save(dieBonding);
         dieBondingInspectionRepo.save(dieBondingInspection);
+
         wireBondingRepo.save(wireBonding);
         wireBondingInspectionRepo.save(wireBondingInspection);
+
         moldingRepo.save(molding);
         moldingInspectionRepo.save(moldingInspection);
+
         itemRepo.saveAll(items);
         finalInspectionLRepo.saveAll(finalInspections);
+
         lotRepo.saveAll(lots);
         lotMappingRepo.saveAll(lotMappings);
-
 
         // 자재 차감
         Bom bom = bomRepo.findById(product.getId())

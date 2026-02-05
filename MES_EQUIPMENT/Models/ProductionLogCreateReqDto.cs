@@ -35,7 +35,7 @@ public class ProductionLogDto
     public MoldingInspectionDto? MoldingInspectionDto { get; set; }
 
     // --- 기타 ---
-   public List<ItemDto> ItemDtos { get; set; } = new List<ItemDto>();
+    public List<ItemDto> ItemDtos { get; set; } = new List<ItemDto>();
     public List<FinalInspectionDto> FinalInspectionDtos { get; set; } = new List<FinalInspectionDto>();
     public List<string> InputLots { get; set; } = new List<string>();
 }
