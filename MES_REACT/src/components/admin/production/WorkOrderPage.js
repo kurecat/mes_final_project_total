@@ -48,53 +48,53 @@ const mapOrder = (order) => {
         ? Math.floor(((order.currentQty ?? 0) / order.targetQty) * 100)
         : 0,
     priority: "NORMAL",
-    issue: order.status === "PAUSED" ? "작업 중단됨" : "",
+    issue:
+      order.status === "PAUSED"
+        ? order.shortageMaterialName
+          ? `${order.shortageMaterialName} 자재 부족`
+          : "작업 중단됨"
+        : "",
+    shortageMaterialName: order.shortageMaterialName,
+    shortageQty: order.shortageQty,
   };
 };
 
 /* =========================
-   Header
+   Sub Components
 ========================= */
 const ControlHeader = React.memo(
-  ({ loading, lineFilter, onFilterChange, searchTerm, onSearchChange }) => {
-    return (
-      <Header>
-        <TitleArea>
-          <PageTitle>
-            <FaIndustry /> Work Order Execution
-            {loading && <FaSync className="spin" style={{ fontSize: 14 }} />}
-          </PageTitle>
-          <SubTitle>Production Line Monitoring & Control</SubTitle>
-        </TitleArea>
-
-        <ControlGroup>
-          <FilterBox>
-            <FaFilter color="#666" />
-            <select value={lineFilter} onChange={onFilterChange}>
-              <option value="ALL">All Processes</option>
-              <option value="LINE">Line A</option>
-              <option value="EDS">EDS</option>
-              <option value="MOD">Module</option>
-            </select>
-          </FilterBox>
-
-          <SearchBox>
-            <FaSearch color="#aaa" />
-            <input
-              placeholder="Search WO / Product..."
-              value={searchTerm}
-              onChange={onSearchChange}
-            />
-          </SearchBox>
-        </ControlGroup>
-      </Header>
-    );
-  },
+  ({ loading, lineFilter, onFilterChange, searchTerm, onSearchChange }) => (
+    <Header>
+      <TitleArea>
+        <PageTitle>
+          <FaIndustry /> Work Order Execution
+          {loading && <FaSync className="spin" style={{ fontSize: 14 }} />}
+        </PageTitle>
+        <SubTitle>Production Line Monitoring & Control</SubTitle>
+      </TitleArea>
+      <ControlGroup>
+        <FilterBox>
+          <FaFilter color="#666" />
+          <select value={lineFilter} onChange={onFilterChange}>
+            <option value="ALL">All Processes</option>
+            <option value="LINE">Line A</option>
+            <option value="EDS">EDS</option>
+            <option value="MOD">Module</option>
+          </select>
+        </FilterBox>
+        <SearchBox>
+          <FaSearch color="#aaa" />
+          <input
+            placeholder="Search WO / Product..."
+            value={searchTerm}
+            onChange={onSearchChange}
+          />
+        </SearchBox>
+      </ControlGroup>
+    </Header>
+  ),
 );
 
-/* =========================
-   Card
-========================= */
 const OrderCardItem = React.memo(
   ({ order, type, onStatusUpdate, onDelete }) => {
     if (type === "ready") {
@@ -103,16 +103,13 @@ const OrderCardItem = React.memo(
           <CardTop>
             <OrderId>{order.woNumber}</OrderId>
           </CardTop>
-
           <ProdName>{order.product}</ProdName>
           <LineInfo>
             <FaMicrochip /> {order.line}
           </LineInfo>
-
           <MetaInfo>
             Target: {order.planQty.toLocaleString()} {order.unit}
           </MetaInfo>
-
           <ActionFooter>
             <ActionButton
               $type="start"
@@ -120,11 +117,9 @@ const OrderCardItem = React.memo(
             >
               <FaPlay /> Start
             </ActionButton>
-
             <ActionButton $type="delete" onClick={() => onDelete(order.id)}>
               <FaTrash />
             </ActionButton>
-
             <PrintButton>
               <FaPrint />
             </PrintButton>
@@ -135,20 +130,16 @@ const OrderCardItem = React.memo(
 
     if (type === "running") {
       const isPaused = order.status === "PAUSED";
-
       return (
         <ActiveCard $isPaused={isPaused}>
           <CardTop>
             <OrderId>{order.woNumber}</OrderId>
             <StatusTag $status={order.status}>{order.status}</StatusTag>
           </CardTop>
-
           <ProdName>{order.product}</ProdName>
-
           <MetaInfo>
             <FaClock size={12} /> Started: {order.startTime}
           </MetaInfo>
-
           <ProgressWrapper>
             <ProgressLabel>
               <span>
@@ -161,13 +152,11 @@ const OrderCardItem = React.memo(
               <ProgressFill $percent={order.progress} $paused={isPaused} />
             </ProgressBar>
           </ProgressWrapper>
-
           {isPaused && (
             <IssueBox>
               <FaExclamationCircle /> {order.issue}
             </IssueBox>
           )}
-
           <ActionFooter>
             {order.status === "IN_PROGRESS" ? (
               <ActionButton
@@ -184,7 +173,6 @@ const OrderCardItem = React.memo(
                 <FaPlay /> Resume
               </ActionButton>
             )}
-
             <ActionButton
               $type="finish"
               onClick={() => onStatusUpdate(order.id, "COMPLETED")}
@@ -214,35 +202,30 @@ const OrderCardItem = React.memo(
   },
 );
 
-/* =========================
-   Column
-========================= */
 const KanbanColumn = React.memo(
-  ({ title, color, orders, type, onStatusUpdate, onDelete }) => {
-    return (
-      <Column>
-        <ColHeader $color={color}>
-          <ColTitle>{title}</ColTitle>
-          <CountBadge>{orders.length}</CountBadge>
-        </ColHeader>
-        <CardList>
-          {orders.map((raw) => (
-            <OrderCardItem
-              key={raw.id}
-              order={mapOrder(raw)}
-              type={type}
-              onStatusUpdate={onStatusUpdate}
-              onDelete={onDelete}
-            />
-          ))}
-        </CardList>
-      </Column>
-    );
-  },
+  ({ title, color, orders, type, onStatusUpdate, onDelete }) => (
+    <Column>
+      <ColHeader $color={color}>
+        <ColTitle>{title}</ColTitle>
+        <CountBadge>{orders.length}</CountBadge>
+      </ColHeader>
+      <CardList>
+        {orders.map((raw) => (
+          <OrderCardItem
+            key={raw.id}
+            order={mapOrder(raw)}
+            type={type}
+            onStatusUpdate={onStatusUpdate}
+            onDelete={onDelete}
+          />
+        ))}
+      </CardList>
+    </Column>
+  ),
 );
 
 /* =========================
-   Page
+   Main Page
 ========================= */
 const WorkOrderPage = () => {
   const [orders, setOrders] = useState([]);
@@ -250,39 +233,75 @@ const WorkOrderPage = () => {
   const [lineFilter, setLineFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 🔥 Pause Modal State
+  // 중단 사유 모달 State
   const [pauseModalOpen, setPauseModalOpen] = useState(false);
   const [pauseReason, setPauseReason] = useState("");
   const [pauseTargetId, setPauseTargetId] = useState(null);
 
-  const fetchData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setLoading(true); // 처음엔 로딩 바를 보여주지만, 자동 갱신 시에는 생략 가능
-    try {
-      const res = await axiosInstance.get(`/api/mes/order`);
-      setOrders(res.data);
-    } catch (error) {
-      console.error("데이터 갱신 실패:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // 자재 부족 알림 모달 State
+  const [inventoryModal, setInventoryModal] = useState({
+    isOpen: false,
+    materialName: "",
+    shortageQty: 0,
+    handledShortageId: null, // 사용자가 이미 닫기 버튼을 누른 작업 ID 저장
+  });
+
+  const fetchData = useCallback(
+    async (isSilent = false) => {
+      if (!isSilent) setLoading(true);
+      try {
+        const res = await axiosInstance.get(`/api/mes/order`);
+        const data = res.data;
+        setOrders(data);
+
+        // 자동 모달 체크 로직
+        // 조건: 상태가 PAUSED이고, 자재부족 정보가 있으며, 현재 사용자가 '닫기'를 누른 ID가 아닐 것
+        const shortageOrder = data.find(
+          (o) =>
+            o.status === "PAUSED" &&
+            o.shortageMaterialName &&
+            o.id !== inventoryModal.handledShortageId,
+        );
+
+        if (shortageOrder && !inventoryModal.isOpen) {
+          setInventoryModal((prev) => ({
+            ...prev,
+            isOpen: true,
+            materialName: shortageOrder.shortageMaterialName,
+            shortageQty: shortageOrder.shortageQty,
+            // 새로운 자재 부족 건이 발견되면 handledId는 초기화
+          }));
+        }
+      } catch (error) {
+        console.error("데이터 갱신 실패:", error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [inventoryModal.isOpen, inventoryModal.handledShortageId],
+  );
 
   useEffect(() => {
-    // 1. 처음 마운트 시 데이터 로드
     fetchData();
-
-    // 2. 5초마다 데이터 갱신 (5000ms = 5초)
-    const intervalId = setInterval(() => {
-      fetchData(true); // 자동 갱신은 사용자 모르게 'silent'하게 진행
-    }, 5000);
-
-    // 3. 언마운트 시 인터벌 제거 (메모리 누수 방지)
+    const intervalId = setInterval(() => fetchData(true), 5000);
     return () => clearInterval(intervalId);
   }, [fetchData]);
 
+  // 자재 부족 모달 닫기 함수
+  const closeInventoryModal = () => {
+    // 현재 부족 현상이 있는 작업의 ID를 handledShortageId에 등록하여 다음 폴링 때 안 뜨게 함
+    const targetOrder = orders.find(
+      (o) => o.status === "PAUSED" && o.shortageMaterialName,
+    );
+    setInventoryModal((prev) => ({
+      ...prev,
+      isOpen: false,
+      handledShortageId: targetOrder ? targetOrder.id : prev.handledShortageId,
+    }));
+  };
+
   const updateStatus = useCallback(
     async (id, nextStatus) => {
-      // 🔥 Pause는 모달
       if (nextStatus === "PAUSE_REQUEST") {
         setPauseTargetId(id);
         setPauseReason("");
@@ -304,40 +323,50 @@ const WorkOrderPage = () => {
           actionType,
         });
 
+        // 다시 시작하거나 다른 상태로 가면 '확인 완료된 ID' 목록에서 제거 (나중에 또 발생하면 떠야 하므로)
+        if (nextStatus === "IN_PROGRESS" || nextStatus === "COMPLETED") {
+          setInventoryModal((prev) => ({ ...prev, handledShortageId: null }));
+        }
+
         fetchData();
       } catch (e) {
-        // ✅ 여기서 백엔드 메시지 그대로 보여줌
-        const msg =
-          e.response?.data?.message ||
-          e.response?.data ||
-          "Release가 되지 않은 작업지시입니다.";
-
-        alert(msg);
+        const errorData = e.response?.data;
+        if (
+          errorData?.type === "INVENTORY_SHORTAGE" ||
+          errorData?.message?.includes("재고가 부족")
+        ) {
+          setInventoryModal({
+            isOpen: true,
+            materialName: errorData.materialName || "특정 자재",
+            shortageQty: errorData.shortageQty || 0,
+            handledShortageId: null,
+          });
+        } else {
+          alert(errorData?.message || "처리에 실패했습니다.");
+        }
       }
     },
-    [fetchData],
+    [fetchData, orders],
   );
 
   const savePauseReason = async () => {
-    if (!pauseReason.trim()) {
-      alert("중단 사유를 입력해주세요.");
-      return;
+    if (!pauseReason.trim()) return alert("중단 사유를 입력해주세요.");
+    try {
+      await axiosInstance.patch(`/api/mes/order/${pauseTargetId}/status`, {
+        status: "PAUSED",
+      });
+      await axiosInstance.post(`/api/mes/production-log/event`, {
+        workOrderId: pauseTargetId,
+        actionType: "PAUSE",
+        message: pauseReason,
+      });
+      setPauseModalOpen(false);
+      setPauseTargetId(null);
+      setPauseReason("");
+      fetchData();
+    } catch (e) {
+      alert("중단 처리에 실패했습니다.");
     }
-
-    await axiosInstance.patch(`/api/mes/order/${pauseTargetId}/status`, {
-      status: "PAUSED",
-    });
-
-    await axiosInstance.post(`/api/mes/production-log/event`, {
-      workOrderId: pauseTargetId,
-      actionType: "PAUSE",
-      message: pauseReason,
-    });
-
-    setPauseModalOpen(false);
-    setPauseTargetId(null);
-    setPauseReason("");
-    fetchData();
   };
 
   const handleDelete = async (id) => {
@@ -346,7 +375,7 @@ const WorkOrderPage = () => {
     fetchData();
   };
 
-  const { readyOrders, runningOrders, doneOrders } = useMemo(() => {
+  const filteredOrders = useMemo(() => {
     const filtered = orders.filter((o) => {
       const matchLine =
         lineFilter === "ALL" || (o.targetLine || "").includes(lineFilter);
@@ -357,7 +386,6 @@ const WorkOrderPage = () => {
           (o.product?.code || "").toLowerCase().includes(keyword))
       );
     });
-
     return {
       readyOrders: filtered.filter(
         (o) => o.status === "WAITING" || o.status === "RELEASED",
@@ -378,12 +406,11 @@ const WorkOrderPage = () => {
         searchTerm={searchTerm}
         onSearchChange={(e) => setSearchTerm(e.target.value)}
       />
-
       <BoardContainer>
         <KanbanColumn
           title="Ready"
           color="#f39c12"
-          orders={readyOrders}
+          orders={filteredOrders.readyOrders}
           type="ready"
           onStatusUpdate={updateStatus}
           onDelete={handleDelete}
@@ -391,7 +418,7 @@ const WorkOrderPage = () => {
         <KanbanColumn
           title="Running"
           color="#2ecc71"
-          orders={runningOrders}
+          orders={filteredOrders.runningOrders}
           type="running"
           onStatusUpdate={updateStatus}
           onDelete={handleDelete}
@@ -399,32 +426,71 @@ const WorkOrderPage = () => {
         <KanbanColumn
           title="Completed"
           color="#3498db"
-          orders={doneOrders}
+          orders={filteredOrders.doneOrders}
           type="done"
           onStatusUpdate={updateStatus}
           onDelete={handleDelete}
         />
       </BoardContainer>
 
-      {/* 🔥 Pause Modal */}
+      {/* 중단 사유 모달 */}
       {pauseModalOpen && (
         <ModalOverlay>
           <ModalBox>
             <h3>
               <FaPause /> 작업 중단 사유
             </h3>
-
             <textarea
               value={pauseReason}
               onChange={(e) => setPauseReason(e.target.value)}
               placeholder="중단 사유를 입력하세요"
             />
-
             <ModalActions>
               <ModalBtn $cancel onClick={() => setPauseModalOpen(false)}>
                 Cancel
               </ModalBtn>
               <ModalBtn onClick={savePauseReason}>Save</ModalBtn>
+            </ModalActions>
+          </ModalBox>
+        </ModalOverlay>
+      )}
+
+      {/* 자재 부족 알림 모달 */}
+      {inventoryModal.isOpen && (
+        <ModalOverlay>
+          <ModalBox style={{ borderTop: "5px solid #e74c3c" }}>
+            <h3
+              style={{
+                color: "#e74c3c",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <FaExclamationCircle /> 자재 부족 알림
+            </h3>
+            <div
+              style={{ padding: "10px 0", lineHeight: "1.6", fontSize: "14px" }}
+            >
+              현재 <strong>{inventoryModal.materialName}</strong>의 재고가
+              <br />
+              <strong style={{ color: "#e74c3c", fontSize: "18px" }}>
+                {inventoryModal.shortageQty}개
+              </strong>{" "}
+              부족합니다. <br />
+              재고를 보충해 주세요.
+            </div>
+            <ModalActions>
+              <ModalBtn
+                onClick={closeInventoryModal}
+                style={{
+                  background: "#34495e",
+                  width: "100%",
+                  marginTop: "10px",
+                }}
+              >
+                확인 및 닫기
+              </ModalBtn>
             </ModalActions>
           </ModalBox>
         </ModalOverlay>
@@ -436,7 +502,7 @@ const WorkOrderPage = () => {
 export default WorkOrderPage;
 
 /* =========================
-   Styles
+   Styles (기존 유지)
 ========================= */
 const Container = styled.div`
   width: 100%;
@@ -446,18 +512,15 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
 `;
-
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   margin-bottom: 20px;
 `;
-
 const TitleArea = styled.div`
   display: flex;
   flex-direction: column;
 `;
-
 const PageTitle = styled.h2`
   display: flex;
   align-items: center;
@@ -465,19 +528,24 @@ const PageTitle = styled.h2`
   .spin {
     animation: spin 1s linear infinite;
   }
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
 `;
-
 const SubTitle = styled.span`
   font-size: 13px;
   color: #888;
   margin-left: 32px;
 `;
-
 const ControlGroup = styled.div`
   display: flex;
   gap: 10px;
 `;
-
 const FilterBox = styled.div`
   display: flex;
   align-items: center;
@@ -485,8 +553,12 @@ const FilterBox = styled.div`
   padding: 0 10px;
   border-radius: 6px;
   border: 1px solid #ddd;
+  select {
+    border: none;
+    padding: 8px;
+    outline: none;
+  }
 `;
-
 const SearchBox = styled.div`
   display: flex;
   align-items: center;
@@ -500,39 +572,39 @@ const SearchBox = styled.div`
     margin-left: 8px;
   }
 `;
-
 const BoardContainer = styled.div`
   flex: 1;
   display: flex;
   gap: 20px;
+  overflow: hidden;
 `;
-
 const Column = styled.div`
   flex: 1;
   background: #e9ecef;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
+  max-height: 100%;
 `;
-
 const ColHeader = styled.div`
   padding: 15px;
   background: white;
   border-top: 4px solid ${(p) => p.$color};
+  border-radius: 8px 8px 0 0;
   display: flex;
   justify-content: space-between;
+  align-items: center;
 `;
-
 const ColTitle = styled.h3`
   margin: 0;
+  font-size: 16px;
 `;
-
 const CountBadge = styled.span`
   background: #eee;
   padding: 2px 8px;
   border-radius: 10px;
+  font-size: 12px;
 `;
-
 const CardList = styled.div`
   flex: 1;
   padding: 15px;
@@ -541,7 +613,6 @@ const CardList = styled.div`
   flex-direction: column;
   gap: 15px;
 `;
-
 const CardBase = styled.div`
   background: white;
   border-radius: 8px;
@@ -549,45 +620,43 @@ const CardBase = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
-
 const OrderCard = styled(CardBase)``;
-
 const ActiveCard = styled(CardBase)`
   border-left: 4px solid ${(p) => (p.$isPaused ? "#f39c12" : "#2ecc71")};
 `;
-
 const DoneCard = styled(CardBase)`
   opacity: 0.7;
 `;
-
 const CardTop = styled.div`
   display: flex;
   justify-content: space-between;
+  align-items: center;
 `;
-
 const OrderId = styled.span`
   font-size: 12px;
   font-weight: 700;
+  color: #555;
 `;
-
 const ProdName = styled.div`
   font-weight: 700;
+  font-size: 15px;
 `;
-
 const LineInfo = styled.div`
   font-size: 12px;
   display: flex;
+  align-items: center;
   gap: 5px;
+  color: #666;
 `;
-
 const MetaInfo = styled.div`
   font-size: 12px;
   color: #666;
   display: flex;
+  align-items: center;
   gap: 5px;
 `;
-
 const StatusTag = styled.span`
   font-size: 10px;
   padding: 2px 6px;
@@ -595,46 +664,43 @@ const StatusTag = styled.span`
   background: ${(p) => (p.$status === "PAUSED" ? "#f39c12" : "#2ecc71")};
   color: white;
 `;
-
 const ProgressWrapper = styled.div`
   margin: 10px 0;
 `;
-
 const ProgressLabel = styled.div`
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 11px;
+  margin-bottom: 4px;
 `;
-
 const ProgressBar = styled.div`
   width: 100%;
   height: 8px;
   background: #eee;
   border-radius: 4px;
+  overflow: hidden;
 `;
-
 const ProgressFill = styled.div`
   width: ${(p) => p.$percent}%;
   height: 100%;
   background: ${(p) => (p.$paused ? "#f39c12" : "#2ecc71")};
+  transition: width 0.3s ease;
 `;
-
 const IssueBox = styled.div`
   font-size: 12px;
   color: #c0392b;
   background: #fadbd8;
-  padding: 6px;
+  padding: 8px;
   border-radius: 4px;
   display: flex;
+  align-items: center;
   gap: 6px;
 `;
-
 const ActionFooter = styled.div`
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-top: 5px;
 `;
-
 const ActionButton = styled.button`
   flex: 1;
   padding: 8px;
@@ -642,6 +708,11 @@ const ActionButton = styled.button`
   border: none;
   cursor: pointer;
   color: white;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   background: ${(p) =>
     p.$type === "start" || p.$type === "resume"
       ? "#2ecc71"
@@ -650,45 +721,71 @@ const ActionButton = styled.button`
         : p.$type === "finish"
           ? "#3498db"
           : "#e74c3c"};
+  &:hover {
+    opacity: 0.9;
+  }
 `;
-
 const PrintButton = styled.button`
   background: white;
   border: 1px solid #ddd;
   padding: 8px;
   border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &:hover {
+    background: #f9f9f9;
+  }
 `;
-
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 1000;
 `;
-
 const ModalBox = styled.div`
-  width: 420px;
+  width: 380px;
   background: white;
-  padding: 20px;
-  border-radius: 10px;
+  padding: 25px;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 15px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  h3 {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+  }
+  textarea {
+    width: 100%;
+    height: 100px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    resize: none;
+  }
 `;
-
 const ModalActions = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 `;
-
 const ModalBtn = styled.button`
-  padding: 8px 14px;
+  padding: 10px 20px;
   border-radius: 6px;
   border: none;
   cursor: pointer;
   color: white;
+  font-weight: 600;
   background: ${(p) => (p.$cancel ? "#95a5a6" : "#f39c12")};
+  &:hover {
+    opacity: 0.9;
+  }
 `;
