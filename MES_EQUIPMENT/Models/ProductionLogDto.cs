@@ -14,7 +14,7 @@ public class ProductionLogDto
     public int? ResultQty { get; set; }            // 생산 수량
     public int? DefectQty { get; set; }            // 불량 수량
     public string? Status { get; set; }            // 생산 상태
-    public DateTime? ResultDate { get; set; }      // 생산일자
+    public DateOnly? ResultDate { get; set; }      // 생산일자
     public DateTime? StartTime { get; set; }       // 작업 시작 시간
     public DateTime? EndTime { get; set; }         // 작업 종료 시간
     public string? Level { get; set; }             // 로그 레벨
@@ -35,7 +35,7 @@ public class ProductionLogDto
     public MoldingInspectionDto? MoldingInspectionDto { get; set; }
 
     // --- 기타 ---
-    public List<ItemDto>? ItemDtos { get; set; }
-    public List<FinalInspectionDto>? FinalInspectionDtos { get; set; }
-    public List<string>? InputLots { get; set; }
+   public List<ItemDto> ItemDtos { get; set; } = new List<ItemDto>();
+    public List<FinalInspectionDto> FinalInspectionDtos { get; set; } = new List<FinalInspectionDto>();
+    public List<string> InputLots { get; set; } = new List<string>();
 }
