@@ -38,75 +38,33 @@ const getProgressColor = (percent) => {
 // --- Sub-Components ---
 
 // 1. Header Stats Component
-const LotTrackingHeader = React.memo(({ stats }) => {
-  return (
-    <HeaderStats>
-      <StatItem>
-        <StatIcon $color="#2ecc71">
-          <FaPlayCircle />
-        </StatIcon>
-        <div>
-          <StatValue>{stats.runningLots}</StatValue>
-          <StatLabel>Running Lots</StatLabel>
-        </div>
-      </StatItem>
-      <StatItem>
-        <StatIcon $color="#e74c3c">
-          <FaPauseCircle />
-        </StatIcon>
-        <div>
-          <StatValue>{stats.holdLots}</StatValue>
-          <StatLabel>Hold Lots</StatLabel>
-        </div>
-      </StatItem>
-      <StatItem>
-        <StatIcon $color="#f39c12">
-          <FaClock />
-        </StatIcon>
-        <div>
-          <StatValue>{stats.waitLots}</StatValue>
-          <StatLabel>Waiting</StatLabel>
-        </div>
-      </StatItem>
-      <StatItem>
-        <StatIcon $color="#34495e">
-          <FaIndustry />
-        </StatIcon>
-        <div>
-          <StatValue>{stats.avgTat}</StatValue>
-          <StatLabel>Avg. TAT</StatLabel>
-        </div>
-      </StatItem>
-    </HeaderStats>
-  );
-});
 
 // 2. Lot List Item Component
-const LotListItem = React.memo(({ lot, isActive, onClick }) => {
+const LotListItem = React.memo(({ item, isActive, onClick }) => {
   return (
-    <LotCard $active={isActive} onClick={() => onClick(lot)}>
+    <LotCard $active={isActive} onClick={() => onClick(item)}>
       <CardTop>
-        <LotId>{lot.id}</LotId>
-        <StatusBadge $status={lot.status}>{lot.status}</StatusBadge>
+        <LotId>{item.id}</LotId>
+        <StatusBadge $status={item.status}>{item.status}</StatusBadge>
       </CardTop>
-      <ProductName>{lot.product}</ProductName>
+      <ProductName>{item.product}</ProductName>
       <StepInfo>
-        Current: <b>{lot.currentStep}</b>
+        Current: <b>{item.currentStep}</b>
       </StepInfo>
       <ProgressBarContainer>
         <ProgressBar
-          $width={lot.progress}
-          $color={getProgressColor(lot.progress)}
+          $width={item.progress}
+          $color={getProgressColor(item.progress)}
         />
       </ProgressBarContainer>
-      <ProgressLabel>{lot.progress}% Complete</ProgressLabel>
+      <ProgressLabel>{item.progress}% Complete</ProgressLabel>
     </LotCard>
   );
 });
 
 // 3. List Panel Component
-const LotListPanel = React.memo(
-  ({ searchTerm, onSearchChange, filteredLots, selectedLotId, onLotClick }) => {
+const ItemListPanel = React.memo(
+  ({ searchTerm, onSearchChange, filteredItems, selectedItem, onLotClick }) => {
     return (
       <ListPanel>
         <SearchArea>
@@ -119,11 +77,11 @@ const LotListPanel = React.memo(
         </SearchArea>
 
         <LotList>
-          {filteredLots.map((lot) => (
+          {filteredItems.map((item) => (
             <LotListItem
-              key={lot.id}
-              lot={lot}
-              isActive={selectedLotId === lot.id}
+              key={item.id}
+              item={item}
+              isActive={selectedItem === item.id}
               onClick={onLotClick}
             />
           ))}
@@ -207,93 +165,78 @@ const DetailView = React.memo(({ selectedLot }) => {
 // --- Main Component ---
 
 const LotTrackingPage = () => {
-  const [stats, setStats] = useState({
-    runningLots: 0,
-    holdLots: 0,
-    waitLots: 0,
-    avgTat: "-",
-  });
-  const [lots, setLots] = useState([]);
-  const [selectedLot, setSelectedLot] = useState(null);
+  const [items, setItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    const fetchLots = async () => {
+    const fetchItems = async () => {
       try {
         // 1. 백엔드 API 호출 (Lot 목록)
-        const response = await axiosInstance.get("/api/mes/lot/list");
+        const response = await axiosInstance.get("/api/mes/item/list");
         const rawData = response.data || [];
 
         // 2. 데이터 가공 (LotResDto -> 화면 포맷)
-        const formattedLots = rawData.map((lot) => ({
-          id: lot.id, // DB PK (나중에 클릭 시 사용)
-          lotCode: lot.lotCode, // 화면 표시용 번호 (LOT-2024...)
-          product: lot.materialName, // 자재명
-          status: lot.status, // 상태 (IN_USE 등)
-          currentStep: lot.location || "Unknown", // 위치
-          progress: lot.currentQty > 0 ? 100 : 0, // (임시) 잔량 있으면 100%
-          waferQty: lot.currentQty, // 수량
+        const formattedItems = rawData.map((item) => ({
+          id: item.id, // DB PK (나중에 클릭 시 사용)
+          itemCode: item.itemCode, // 화면 표시용 번호 (LOT-2024...)
+          product: item.materialName, // 자재명
+          status: item.status, // 상태 (IN_USE 등)
+          currentStep: item.location || "Unknown", // 위치
+          progress: item.currentQty > 0 ? 100 : 0, // (임시) 잔량 있으면 100%
+          waferQty: item.currentQty, // 수량
           startTime: "-", // 리스트엔 없음
           eta: "-",
           route: [], // 상세 이력은 클릭해야 가져옴 (Lazy Loading)
         }));
 
-        setLots(formattedLots);
+        setItems(formattedItems);
 
         // 첫 번째 항목 자동 선택 (선택 시 이력 조회 트리거)
-        if (formattedLots.length > 0) {
-          // 주의: 여기서 바로 handleLotClick을 부르거나,
-          // setSelectedLot만 하고 별도로 로딩해야 함.
+        if (formattedItems.length > 0) {
+          // 주의: 여기서 바로 handleItemClick을 부르거나,
+          // setSelectedItem만 하고 별도로 로딩해야 함.
           // 간단하게 첫번째는 정보만 보여줍니다.
-          setSelectedLot(formattedLots[0]);
+          setSelectedItem(formattedItems[0]);
         }
-
-        // 통계 갱신 (실제 데이터 기반)
-        setStats({
-          runningLots: formattedLots.filter((l) => l.status === "IN_USE")
-            .length,
-          holdLots: formattedLots.filter((l) => l.status === "HOLD").length,
-          waitLots: formattedLots.filter((l) => l.status === "WAIT").length,
-          avgTat: "3.5 Days", // 이건 아직 계산 로직이 없으므로 고정값
-        });
       } catch (error) {
         console.error("Lot 목록 조회 실패:", error);
       }
     };
 
-    fetchLots();
+    fetchItems();
   }, []);
 
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
   }, []);
 
-  const handleLotClick = useCallback((lot) => {
-    setSelectedLot(lot);
+  const handleItemClick = useCallback((item) => {
+    setSelectedItem(item);
   }, []);
 
   // Search Filter Logic (Safe version)
-  const filteredLots = useMemo(() => {
-    return lots.filter((lot) => {
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
       const term = searchTerm.toLowerCase();
 
       // 1. Search by Lot Code (String) - e.g., "LOT-2026-A001"
       // Use optional chaining (?.) or logical OR (||) to prevent errors if data is missing
-      const codeMatch = lot.lotCode
-        ? lot.lotCode.toLowerCase().includes(term)
+      const codeMatch = item.itemCode
+        ? item.itemCode.toLowerCase().includes(term)
         : false;
 
       // 2. Search by Product Name (String)
-      const productMatch = lot.product
-        ? lot.product.toLowerCase().includes(term)
+      const productMatch = item.product
+        ? item.product.toLowerCase().includes(term)
         : false;
 
       // 3. (Optional) Search by Numeric ID - Convert to String first
-      const idMatch = String(lot.id).includes(term);
+      const idMatch = String(item.id).includes(term);
 
       return codeMatch || productMatch || idMatch;
     });
-  }, [lots, searchTerm]);
+  }, [items, searchTerm]);
 
   return (
     <Container>
@@ -303,23 +246,23 @@ const LotTrackingPage = () => {
           <PageTitle>
             <FaMicrochip /> Lot Tracking
           </PageTitle>
-          <SubTitle>Real-time WIP Tracking & History</SubTitle>
+          <SubTitle>Log Tracking & History</SubTitle>
         </TitleArea>
       </Header>
 
       {/* 2. Stats Section */}
-      <LotTrackingHeader stats={stats} />
+      {/* <LotTrackingHeader stats={stats} /> */}
 
       {/* 3. Main Content */}
       <MainContent>
-        <LotListPanel
+        <ItemListPanel
           searchTerm={searchTerm}
           onSearchChange={handleSearchChange}
-          filteredLots={filteredLots}
-          selectedLotId={selectedLot?.id}
-          onLotClick={handleLotClick}
+          filteredItems={filteredItems}
+          selectedItem={selectedItem}
+          onLotClick={handleItemClick}
         />
-        <DetailView selectedLot={selectedLot} />
+        <DetailView productionLogId={selectedItem.productionLogId} />
       </MainContent>
     </Container>
   );

@@ -8,7 +8,7 @@ import com.hm.mes_final_260106.dto.lot.LotResDto;
 import com.hm.mes_final_260106.dto.worker.WorkerResDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
-import com.hm.mes_final_260106.mapper.Mapper;
+import com.hm.mes_final_260106.mapper.ProductionLogMapper;
 import com.hm.mes_final_260106.repository.*;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +50,7 @@ public class ProductionService {
     private final ProductionResultRepository productionResultRepo;
 
     private final InspectionStandardRepository standardRepo;
-    private final Mapper mapper;
+    private final ProductionLogMapper productionLogMapper;
 
     // =========================
     // 1) 자재 입고
@@ -420,44 +420,34 @@ public class ProductionService {
                     .orElseThrow(() -> new RuntimeException("작업자를 찾을 수 없습니다. id=" + dto.getWorkerCode()));
         }
 
-        ProductionLog productionLog = mapper.toEntity(dto);
+        ProductionLog productionLog = productionLogMapper.toEntity(dto);
         productionLog.setWorkOrder(workOrder);
         productionLog.setEquipment(equipment);
         productionLog.setWorker(worker);
 
-        Dicing dicing = mapper.toEntity(dto.getDicingDto());
-        dicing.setProductionLog(productionLog);
-        DicingInspection dicingInspection = mapper.toEntity(dto.getDicingInspectionDto());
-        dicingInspection.setDicing(dicing);
 
-        DieBonding dieBonding = mapper.toEntity(dto.getDieBondingDto());
-        dieBonding.setProductionLog(productionLog);
-        DieBondingInspection dieBondingInspection = mapper.toEntity(dto.getDieBondingInspectionDto());
-        dieBondingInspection.setDieBonding(dieBonding);
+        Dicing dicing = productionLogMapper.toEntity(dto.getDicingDto(), productionLog);
+        DicingInspection dicingInspection = productionLogMapper.toEntity(dto.getDicingInspectionDto(), dicing);
 
-        WireBonding wireBonding = mapper.toEntity(dto.getWireBondingDto());
-        wireBonding.setProductionLog(productionLog);
-        WireBondingInspection wireBondingInspection = mapper.toEntity(dto.getWireBondingInspectionDto());
-        wireBondingInspection.setWireBonding(wireBonding);
+        DieBonding dieBonding = productionLogMapper.toEntity(dto.getDieBondingDto(), productionLog);
+        DieBondingInspection dieBondingInspection = productionLogMapper.toEntity(dto.getDieBondingInspectionDto(), dieBonding);
 
-        Molding molding = mapper.toEntity(dto.getMoldingDto());
-        molding.setProductionLog(productionLog);
-        MoldingInspection moldingInspection = mapper.toEntity(dto.getMoldingInspectionDto());
-        moldingInspection.setMolding(molding);
+        WireBonding wireBonding = productionLogMapper.toEntity(dto.getWireBondingDto(), productionLog);
+        WireBondingInspection wireBondingInspection = productionLogMapper.toEntity(dto.getWireBondingInspectionDto(), wireBonding);
+
+        Molding molding = productionLogMapper.toEntity(dto.getMoldingDto(), productionLog);
+        MoldingInspection moldingInspection = productionLogMapper.toEntity(dto.getMoldingInspectionDto(), molding);
+
 
         List<Item> items = new ArrayList<>();
         List<FinalInspection> finalInspections = new ArrayList<>();
 
         for (int i = 0; i < dto.getItemDtos().size(); i++) {
-            Item item = mapper.toEntity(dto.getItemDtos().get(i));
-            item.setProductionLog(productionLog);
-            item.setProduct(product);
+            Item item = productionLogMapper.toEntity(dto.getItemDtos().get(i), productionLog, product);
             items.add(item);
 
-            FinalInspection finalInspection = mapper.toEntity(dto.getFinalInspectionDtos().get(i));
-            finalInspection.setProductionLog(productionLog);
-            finalInspection.setItem(item);
-            finalInspections.add(finalInspection);
+            FinalInspection fi = productionLogMapper.toEntity(dto.getFinalInspectionDtos().get(i), productionLog, item);
+            finalInspections.add(fi);
         }
 
         List<Lot> lots = new ArrayList<>();
@@ -489,6 +479,8 @@ public class ProductionService {
         lotRepo.saveAll(lots);
         lotMappingRepo.saveAll(lotMappings);
 
+
+        // 자재 차감
         Bom bom = bomRepo.findById(product.getId())
                 .orElseThrow(() -> new EntityNotFoundException("BOM을 찾을 수 없습니다"));
 
