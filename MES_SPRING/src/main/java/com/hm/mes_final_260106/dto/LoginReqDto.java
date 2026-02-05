@@ -7,6 +7,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 public class LoginReqDto {
     private String email;
     private String password;
+    private String name;
 
     // Spring Security 인증을 위한 토큰 생성
     public UsernamePasswordAuthenticationToken toAuthenticationToken() {

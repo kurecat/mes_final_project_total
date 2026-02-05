@@ -40,7 +40,10 @@ const LoginPage = () => {
       const response = await axiosInstance.post("/auth/login", {
         email: inputs.id, // 백엔드가 username을 원하면 username으로 변경 필요
         password: inputs.password,
+        name: inputs.name,
       });
+
+      const resultData = response.data.data; // TokenDto
 
       console.log("✅ 로그인 응답 데이터:", response.data);
 
@@ -50,10 +53,17 @@ const LoginPage = () => {
       const refreshToken =
         response.data.data?.refreshToken || response.data.refreshToken;
 
+      const userName =
+        resultData.memberInfo?.name ||
+        resultData.name ||
+        inputs.id.split("@")[0] ||
+        "User";
+
       if (accessToken) {
         // 1. 로컬 스토리지 저장
         localStorage.setItem("refreshToken", refreshToken);
         localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("userName", userName);
 
         // [수정 2] ★ 중요: 다음 요청(대시보드)을 위해 즉시 헤더에 토큰 설정
         // 이걸 안 하면 페이지 이동 직후 첫 요청에서 401이 뜰 수 있음
