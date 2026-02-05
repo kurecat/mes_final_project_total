@@ -17,15 +17,14 @@ import {
   FaExclamationCircle,
   FaCalculator,
 } from "react-icons/fa";
-
-// ★ API 연결용
 import axiosInstance from "../../../api/axios";
 
-// --- Custom Dot for Chart ---
+// --- Custom Dot (규격 벗어난 점 표시) ---
 const CustomDot = (props) => {
   const { cx, cy, value, ucl, lcl } = props;
-  // 상한(UCL) 초과 또는 하한(LCL) 미만일 경우 빨간점 표시
-  const isOOC = value > ucl || value < lcl;
+  // 상한/하한이 없으면(undefined) 정상으로 간주
+  const isOOC =
+    (ucl !== undefined && value > ucl) || (lcl !== undefined && value < lcl);
 
   if (!cx || !cy) return null;
 
@@ -41,9 +40,7 @@ const CustomDot = (props) => {
   );
 };
 
-// --- Sub-Components ---
-
-// 1. Header Component
+// --- Header ---
 const SpcHeader = React.memo(
   ({ parameters, selectedParamId, onParamChange }) => {
     return (
@@ -57,6 +54,9 @@ const SpcHeader = React.memo(
             <FaFilter /> Parameter:
           </FilterLabel>
           <Select value={selectedParamId} onChange={onParamChange}>
+            {parameters.length === 0 && (
+              <option value="">No Parameters (DB Check Needed)</option>
+            )}
             {parameters.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.processName} - {p.checkItem}
@@ -69,7 +69,7 @@ const SpcHeader = React.memo(
   },
 );
 
-// 2. Chart Panel Component
+// --- Chart Panel ---
 const SpcChartPanel = React.memo(({ chartData, currentParam }) => {
   return (
     <ChartPanel>
@@ -94,8 +94,8 @@ const SpcChartPanel = React.memo(({ chartData, currentParam }) => {
               }}
             />
 
-            {/* Control Limits (백엔드 데이터 기준) */}
-            {currentParam.ucl && (
+            {/* 기준선 그리기 (데이터가 있을 때만) */}
+            {currentParam.ucl !== undefined && (
               <ReferenceLine
                 y={currentParam.ucl}
                 label="UCL"
@@ -103,16 +103,16 @@ const SpcChartPanel = React.memo(({ chartData, currentParam }) => {
                 strokeDasharray="5 5"
               />
             )}
-            {/* Target Line (USL과 LSL의 중간값으로 계산하거나 DB값 사용) */}
-            {currentParam.ucl && currentParam.lcl && (
-              <ReferenceLine
-                y={(currentParam.ucl + currentParam.lcl) / 2}
-                label="Target"
-                stroke="#2ecc71"
-                strokeDasharray="3 3"
-              />
-            )}
-            {currentParam.lcl && (
+            {currentParam.ucl !== undefined &&
+              currentParam.lcl !== undefined && (
+                <ReferenceLine
+                  y={(currentParam.ucl + currentParam.lcl) / 2}
+                  label="Target"
+                  stroke="#2ecc71"
+                  strokeDasharray="3 3"
+                />
+              )}
+            {currentParam.lcl !== undefined && (
               <ReferenceLine
                 y={currentParam.lcl}
                 label="LCL"
@@ -137,7 +137,7 @@ const SpcChartPanel = React.memo(({ chartData, currentParam }) => {
   );
 });
 
-// 3. Stat Panel Component
+// --- Stats Panel ---
 const SpcStatPanel = React.memo(({ stats, violations }) => {
   return (
     <SidePanel>
@@ -176,7 +176,7 @@ const SpcStatPanel = React.memo(({ stats, violations }) => {
                 <AlertIcon>!</AlertIcon>
                 <AlertText>
                   <div className="lot">{v.time}</div>
-                  <div className="desc">Value {v.value} (Limit Exceeded)</div>
+                  <div className="desc">Val {v.value} (Limit Exceeded)</div>
                 </AlertText>
               </AlertItem>
             ))
@@ -189,107 +189,107 @@ const SpcStatPanel = React.memo(({ stats, violations }) => {
   );
 });
 
-// --- Main Component ---
-
+// --- Main Page Component ---
 const SpcChartPage = () => {
-  // --- State ---
   const [parameters, setParameters] = useState([]);
   const [selectedParamId, setSelectedParamId] = useState("");
-  const [rawLogs, setRawLogs] = useState([]); // 백엔드 원본 데이터
+  const [rawLogs, setRawLogs] = useState([]);
 
-  // --- Data Fetching (API 연동) ---
+  // 1. 데이터 가져오기
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. 검사 기준(Parameter)과 측정 데이터(Log) 동시 조회
+        console.log("🔄 Fetching SPC Data...");
         const [stdRes, dataRes] = await Promise.all([
-          axiosInstance.get("/api/mes/quality/standard"), // 기준 정보
-          axiosInstance.get("/api/mes/quality/spc"), // DieBonding 데이터
+          axiosInstance.get("/api/mes/quality/standard"),
+          axiosInstance.get("/api/mes/quality/spc"),
         ]);
 
-        const params = stdRes.data || [];
-        const logs = dataRes.data || [];
+        console.log("✅ Standards:", stdRes.data);
+        console.log("✅ SPC Logs:", dataRes.data);
 
-        // DB 컬럼명 매핑 (Backend Entity Field -> Display Name)
-        // 백엔드의 InspectionStandard.checkItem 값과 매칭됨
-        const formattedParams = params.map((p) => ({
+        // 기준 정보 가공
+        const params = (stdRes.data || []).map((p) => ({
           id: p.id,
           processName: p.processName,
           checkItem: p.checkItem,
-          ucl: p.usl, // DB의 USL을 차트의 UCL로 사용
-          lcl: p.lsl, // DB의 LSL을 차트의 LCL로 사용
+          ucl: p.usl, // DB 필드명 매칭
+          lcl: p.lsl,
           unit: p.unit,
-          // 어떤 Java 필드를 읽어야 하는지 매핑 정보 추가
-          fieldKey:
-            p.checkItem === "Bonding Temp" ? "bondingTemperature" : "unknown",
         }));
 
-        setParameters(formattedParams);
-        setRawLogs(logs);
+        setParameters(params);
+        setRawLogs(dataRes.data || []);
 
-        if (formattedParams.length > 0) {
-          setSelectedParamId(formattedParams[0].id);
+        // 첫 번째 항목 자동 선택
+        if (params.length > 0) {
+          setSelectedParamId(params[0].id);
         }
       } catch (error) {
-        console.error("SPC 데이터 조회 실패:", error);
+        console.error("❌ SPC 데이터 조회 실패:", error);
       }
     };
     fetchData();
   }, []);
 
-  // --- Handlers ---
-  const handleParamChange = useCallback((e) => {
-    setSelectedParamId(Number(e.target.value));
-  }, []);
+  const handleParamChange = useCallback(
+    (e) => setSelectedParamId(Number(e.target.value)),
+    [],
+  );
 
-  // --- Derived State (Data Transformation) ---
-
-  // 1. 현재 선택된 파라미터 정보
+  // 선택된 파라미터 찾기
   const currentParam = useMemo(
     () => parameters.find((p) => p.id === selectedParamId) || {},
     [parameters, selectedParamId],
   );
 
-  // 2. 차트 데이터 가공 (Entity -> Chart Point)
+  // 2. 차트 데이터 가공 (★ 여기가 핵심 수정됨)
+  // 2. 차트 데이터 가공 (★ 여기가 완전히 새로워졌습니다!)
   const chartData = useMemo(() => {
-    if (!currentParam.fieldKey) return [];
+    if (!rawLogs || rawLogs.length === 0) return [];
+    if (!currentParam || !currentParam.checkItem) return [];
 
-    // 현재는 DieBonding 데이터만 가져오므로, "Bonding Temp"일 때만 데이터 매핑
-    // (WireBonding, Molding 데이터는 API 확장이 필요함)
-    if (currentParam.checkItem !== "Bonding Temp") return [];
+    // 백엔드가 준 데이터 중에서, "지금 선택한 공정"과 "항목"이 일치하는 것만 골라냄
+    const filteredLogs = rawLogs.filter(
+      (log) =>
+        log.processName === currentParam.processName && // 예: DieBonding
+        log.checkItem === currentParam.checkItem, // 예: curingTemp
+    );
 
-    return rawLogs.map((log) => ({
-      time: log.productionLog?.startTime
-        ? new Date(log.productionLog.startTime).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "-",
-      value: log.bondingTemperature || 0, // 실제 측정값
-      lotId: log.productionLog?.workOrder?.workOrderNumber || "Unknown",
-    }));
+    // 날짜순 정렬 (차트가 꼬이지 않게)
+    filteredLogs.sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    return filteredLogs
+      .map((log) => ({
+        time: new Date(log.time).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        }),
+        value: log.value, // 이미 백엔드에서 숫자로 바꿔서 줬음!
+      }))
+      .slice(-30); // 최근 30개만 표시
   }, [rawLogs, currentParam]);
 
-  // 3. 통계 계산 (Cp, Cpk, Mean, StdDev)
+  // 3. 통계 계산
   const stats = useMemo(() => {
-    if (chartData.length === 0 || !currentParam.ucl)
-      return { mean: 0, stdDev: 0, cp: 0, cpk: 0 };
+    if (chartData.length === 0) return { mean: 0, stdDev: 0, cp: 0, cpk: 0 };
 
     const values = chartData.map((d) => d.value);
     const sum = values.reduce((a, b) => a + b, 0);
     const mean = sum / values.length;
 
-    // 표준편차 (Sample StdDev)
     const variance =
       values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) /
-      (values.length - 1 || 1);
+      (values.length || 1);
     const stdDev = Math.sqrt(variance);
 
-    // Cp, Cpk 계산
-    const { ucl, lcl } = currentParam;
-    const cp = (ucl - lcl) / (6 * stdDev);
-    const cpu = (ucl - mean) / (3 * stdDev);
-    const cpl = (mean - lcl) / (3 * stdDev);
+    const { ucl = 0, lcl = 0 } = currentParam;
+    const safeStdDev = stdDev === 0 ? 1 : stdDev; // 0 나누기 방지
+
+    const cp = (ucl - lcl) / (6 * safeStdDev);
+    const cpu = (ucl - mean) / (3 * safeStdDev);
+    const cpl = (mean - lcl) / (3 * safeStdDev);
     const cpk = Math.min(cpu, cpl);
 
     return {
@@ -300,12 +300,11 @@ const SpcChartPage = () => {
     };
   }, [chartData, currentParam]);
 
-  // 4. OOC(Out of Control) 위반 목록 추출
+  // 4. 불량(OOC) 감지
   const violations = useMemo(() => {
-    if (!currentParam.ucl) return [];
-    return chartData.filter(
-      (d) => d.value > currentParam.ucl || d.value < currentParam.lcl,
-    );
+    const { ucl, lcl } = currentParam;
+    if (ucl === undefined || lcl === undefined) return [];
+    return chartData.filter((d) => d.value > ucl || d.value < lcl);
   }, [chartData, currentParam]);
 
   return (
@@ -315,7 +314,6 @@ const SpcChartPage = () => {
         selectedParamId={selectedParamId}
         onParamChange={handleParamChange}
       />
-
       <ContentRow>
         <SpcChartPanel chartData={chartData} currentParam={currentParam} />
         <SpcStatPanel stats={stats} violations={violations} />
@@ -326,7 +324,7 @@ const SpcChartPage = () => {
 
 export default SpcChartPage;
 
-// --- Styled Components (기존 유지) ---
+// --- Styled Components ---
 const Container = styled.div`
   width: 100%;
   height: 100%;
