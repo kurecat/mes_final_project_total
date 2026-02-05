@@ -16,8 +16,6 @@ import {
   FaCamera,
 } from "react-icons/fa";
 
-import MobileScanner from "../../../components/common/MobileScanner";
-
 /* =============================
    유틸
 ============================= */
@@ -90,9 +88,9 @@ const InputForm = React.memo(
         <FormGroup>
           <LabelRow>
             <Label>Material Barcode *</Label>
-            <SmallScanBtn type="button" onClick={onScanClick}>
+            {/* <SmallScanBtn type="button" onClick={onScanClick}>
               <FaCamera /> Scan
-            </SmallScanBtn>
+            </SmallScanBtn> */}
           </LabelRow>
 
           <InputWrapper>
@@ -316,15 +314,15 @@ const MaterialPage = () => {
         />
       </ContentWrapper>
 
-      {isScannerOpen && (
-        <MobileScanner
-          onScan={(code) => {
-            setInputs((p) => ({ ...p, barcode: code }));
-            setIsScannerOpen(false);
-          }}
-          onClose={() => setIsScannerOpen(false)}
-        />
-      )}
+      {/* {isScannerOpen && (
+        // <MobileScanner
+        //   onScan={(code) => {
+        //     setInputs((p) => ({ ...p, barcode: code }));
+        //     setIsScannerOpen(false);
+        //   }}
+        //   onClose={() => setIsScannerOpen(false)}
+        // />
+      )} */}
     </Container>
   );
 };

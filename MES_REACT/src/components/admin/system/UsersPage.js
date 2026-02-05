@@ -521,6 +521,7 @@ const TableContainer = styled.div`
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   overflow: auto;
+  margin-bottom: 70px;
 `;
 const Table = styled.table`
   width: 100%;
