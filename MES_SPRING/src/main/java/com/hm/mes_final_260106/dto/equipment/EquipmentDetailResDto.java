@@ -1,5 +1,5 @@
 // src/main/java/com/hm/mes_final_260106/dto/EquipmentDetailResDto.java
-package com.hm.mes_final_260106.dto;
+package com.hm.mes_final_260106.dto.equipment;
 
 import com.hm.mes_final_260106.constant.EquipmentStatus;
 import lombok.*;

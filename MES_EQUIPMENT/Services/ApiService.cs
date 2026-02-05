@@ -172,13 +172,13 @@ public class ApiService
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
-    // 실시간 설비 상태 온도 보고 
-    public async Task ReportMachineStatusAsync(MachineStatusDto statusDto)
+    // 실시간 설비 상태 보고 
+    public async Task ReportEquipmentMetricAsync(EquipmentMetricUpdateReqDto dto)
     {
         try
         {
             // 실시간 모니터링 API 호출
-            var response = await _httpClient.PostAsJsonAsync("api/mes/machine/status", statusDto);
+            var response = await _httpClient.PatchAsJsonAsync($"api/mes/equipment/{AppConfig.EquipmentCode}/metric", dto);
 
             if (!response.IsSuccessStatusCode)
             {
