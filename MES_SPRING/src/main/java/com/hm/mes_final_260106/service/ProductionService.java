@@ -316,9 +316,9 @@ public class ProductionService {
 
         // ✨ [신규 추가] 작업 시작/재개 시 재고 체크 로직
         // IN_PROGRESS로 가려고 할 때 재고가 부족하면 CustomException을 던지고 상태를 PAUSED로 유지합니다.
-        if ("IN_PROGRESS".equals(next)) {
-            validateInventoryAndFillShortage(order);
-        }
+//        if ("IN_PROGRESS".equals(next)) {
+//            validateInventoryAndFillShortage(order);
+//        }
 
         // 4. (기존) 상태 업데이트 및 로그 저장
         order.setStatus(next);
@@ -484,52 +484,91 @@ public class ProductionService {
         Bom bom = bomRepo.findById(product.getId())
                 .orElseThrow(() -> new EntityNotFoundException("BOM을 찾을 수 없습니다"));
 
+        // =========================================================
+        // 🔥 BOM 기준 자재 체크 / 차감
+        // =========================================================
         for (BomItem bomItem : bom.getItems()) {
             Material mat = bomItem.getMaterial();
-            int required = bomItem.getRequiredQty();
-            int current = mat.getCurrentStock();
 
-            if (current < required) {
-                int shortage = required - current;
+            int bomPerUnit = bomItem.getRequiredQty(); // 200
+            int currentStock = mat.getCurrentStock();
 
-                // 1️⃣ [자동 상태 변경] WorkOrder를 PAUSED로 만들고 부족 정보 기입
+            // =================================================
+            // 1️⃣ 자재 부족 → 즉시 PAUSE
+            // =================================================
+            if (currentStock < bomPerUnit) {
+
+                int remainingQty = workOrder.getTargetQty() - workOrder.getCurrentQty(); // 98
+                int requiredTotal = remainingQty * bomPerUnit;                            // 98 * 200
+                int shortageForDisplay = requiredTotal - currentStock;
+
                 workOrder.setStatus("PAUSED");
                 workOrder.setShortageMaterialName(mat.getName());
-                workOrder.setShortageQty(shortage);
+                workOrder.setShortageQty(shortageForDisplay);
                 orderRepo.saveAndFlush(workOrder);
 
-                // 2️⃣ [자동 로그 생성] "***재고가 부족합니다" 메시지로 로그 저장
                 ProductionLog autoLog = ProductionLog.builder()
                         .workOrder(workOrder)
                         .level("WARN")
                         .category("PRODUCTION")
-                        .message("*** [" + mat.getName() + "] 재고가 부족합니다 (부족분: " + shortage + ")")
+                        .message("*** [" + mat.getName() + "] 재고가 부족합니다 (부족분: " + requiredTotal + ", 보유: " + currentStock + ")")
                         .startTime(LocalDateTime.now())
                         .resultDate(LocalDate.now())
                         .resultQty(0)
-                        .status(ProductionStatus.PAUSED) // 설비 멈춤 상태
+                        .status(ProductionStatus.PAUSED)
                         .build();
                 productionLogRepo.save(autoLog);
 
-                // 3️⃣ [설비 알림] C# 설비에게 중단 신호 보냄
-                throw new CustomException("INVENTORY_SHORTAGE", mat.getName() + ":" + shortage);
+                throw new CustomException("INVENTORY_SHORTAGE", mat.getName() + ":" + shortageForDisplay);
             }
-            mat.setCurrentStock(current - required);
+
+            // =================================================
+            // 2️⃣ 정상 자재 차감
+            // =================================================
+            int afterStock = currentStock - bomPerUnit;
+            mat.setCurrentStock(afterStock);
             matRepo.save(mat);
 
             MaterialTransaction outboundTx = MaterialTransaction.builder()
                     .type(MaterialTxType.OUTBOUND)
                     .material(mat)
-                    .qty(required)
+                    .qty(bomPerUnit) // 🔧 [수정] 남은 생산 기준
                     .unit("ea")
                     .targetLocation(workOrder.getTargetLine())
                     .targetEquipment(dto.getEquipmentCode())
                     .workerName(worker != null ? worker.getName() : "SYSTEM")
                     .build();
-
             materialTxRepo.save(outboundTx);
+
+            // =================================================
+            // 3️⃣ 차감 후 재고가 0 → PAUSE
+            // =================================================
+            if (afterStock == 0) {
+
+                workOrder.setStatus("PAUSED");
+                workOrder.setShortageMaterialName(mat.getName());
+                workOrder.setShortageQty(0);
+                orderRepo.saveAndFlush(workOrder);
+
+                ProductionLog zeroLog = ProductionLog.builder()
+                        .workOrder(workOrder)
+                        .level("WARN")
+                        .category("PRODUCTION")
+                        .message("*** [" + mat.getName() + "] 재고가 0이 되어 작업을 중단합니다")
+                        .startTime(LocalDateTime.now())
+                        .resultDate(LocalDate.now())
+                        .resultQty(0)
+                        .status(ProductionStatus.PAUSED)
+                        .build();
+                productionLogRepo.save(zeroLog);
+
+                throw new CustomException("INVENTORY_EMPTY", mat.getName() + ":0");
+            }
         }
 
+        // =================================================
+        // 🔥 생산 수량 증가 (BOM 루프 밖!)
+        // =================================================
         workOrder.setCurrentQty(workOrder.getCurrentQty() + 1);
 
         if (workOrder.getCurrentQty() >= workOrder.getTargetQty()) {
@@ -539,6 +578,7 @@ public class ProductionService {
 
         orderRepo.save(workOrder);
     }
+
 
     // =========================
     // 8) 작업 지시 전체 목록 조회
