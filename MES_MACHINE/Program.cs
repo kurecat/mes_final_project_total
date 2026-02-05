@@ -11,7 +11,7 @@ namespace L1_MachineSim
     // 1. 매직 넘버를 Enum으로 정의하여 가독성 확보
     public enum MsgType : byte
     {
-        Temperature = 0x31,
+        Value = 0x31,
         SingleData = 0x32,
         ArrayData = 0x33,
         ProductionEnd = 0x34
@@ -34,6 +34,7 @@ namespace L1_MachineSim
         Item = 0x3A,
         FinalInspection = 0x3B,
         InputLot = 0x3C,
+        EquipmentMetric = 0x3D,
     }
 
     class Program
@@ -41,12 +42,45 @@ namespace L1_MachineSim
         // 상태 관리 클래스
         public static class Device
         {
-            public static double DicWear = 12.0;
-            public static double DbTemp = 150.0;
-            public static double WbTemp = 250.0;
-            public static double MolTemp = 175.0;
-            public static Random Rand = new Random();
-            public static string? ProductCode = "";
+            public static double DicWear { get; set; } = 12.0;
+            public static double DbTemp { get; set; } = 150.0;
+            public static double WbTemp { get; set; } = 250.0;
+            public static double MolTemp { get; set; } = 175.0;
+            public static TimeSpan AvgProcessTime { get; set; } = TimeSpan.Zero;
+            public static int Step { get; set; } = 0;
+
+            public static double TotalTemp
+            {
+                get
+                {
+                    return Math.Round((DbTemp + WbTemp + MolTemp) / 9.0 + 0);
+                }
+            }
+
+            // Units Per Hour (평균 처리시간 기반 계산)
+            public static double Uph
+            {
+                get
+                {
+                    if (AvgProcessTime.TotalSeconds > 0)
+                        return (int)Math.Round(3600 / AvgProcessTime.TotalSeconds);
+                    else
+                        return 0;
+                }
+            }
+
+            // Progress (Step 기반 진행률)
+            public static int Progress
+            {
+                get
+                {
+                    if (Step < 0) return 0;
+                    return (int)Math.Round(Step / 16.0 * 100);
+                }
+            }
+
+            public static Random Rand { get; } = new Random();
+            public static string? ProductCode { get; set; } = "";
 
             public static void Reset()
             {
@@ -87,21 +121,20 @@ namespace L1_MachineSim
             using (BinaryWriter writer = new BinaryWriter(bodyMs))
             {
 
-                int step = 0;
+                Device.Step = 0;
+                DateTime cycleStart = DateTime.Now;
+                DateTime cycleEnd = DateTime.Now;
 
                 while (client.Connected)
                 {
                     // 1. 주기적 온도 패킷 (항상 전송)
-                    double avgTemp = (Device.DbTemp + Device.DbTemp + Device.MolTemp) / 3.0;
-
-                    short totalTemp = (short)Math.Round(avgTemp - 120);
-
-                    SendTempPacket(stream, totalTemp);
-
-                    Console.WriteLine($"[TotalTemp] 종합온도 패킷 전송: {totalTemp}℃");
+                    bodyMs.SetLength(0); // 버퍼 초기화
+                    ReportMachineState(writer);
+                    byte[] stateBodyBytes = bodyMs.ToArray();
+                    SendDtoPacket(stream, DtoType.EquipmentMetric, stateBodyBytes);
 
                     // 2. 대기 상태 (Step 0)
-                    if (step == 0)
+                    if (Device.Step == 0)
                     {
                         if (client.Client.Available > 0)
                         {
@@ -119,7 +152,8 @@ namespace L1_MachineSim
                                     size = stream.Read(readBuffer, 0, readBuffer.Length);
 
                                     Device.ProductCode = System.Text.Encoding.UTF8.GetString(readBuffer, 0, size);
-                                    step = 1;
+
+                                    Device.Step = 1;
                                 }
                             }
                         }
@@ -135,8 +169,11 @@ namespace L1_MachineSim
                     DtoType procType = DtoType.Processing;
                     bool isArrayPacket = false;
 
-                    switch (step)
+                    switch (Device.Step)
                     {
+                        case 1:
+                            cycleStart = DateTime.Now;
+                            break;
                         case 2: // Dicing
                             procType = DtoType.Dicing;
                             ProcessDicing(writer);
@@ -189,14 +226,13 @@ namespace L1_MachineSim
                             ProcessInputLotSummary(writer);
                             break;
 
-                        case 16: // 사이클 종료 및 초기화
+                        case 16: // 공정 종료
                             procType = DtoType.Sleep;
                             byte[] packet = [
                                 0x01,                          // Header
                                 (byte)MsgType.ProductionEnd    // Message Type
                             ];
                             stream.Write(packet, 0, packet.Length);
-                            step = -1;
                             break;
 
                         default:
@@ -215,11 +251,35 @@ namespace L1_MachineSim
                         else
                             SendDtoPacket(stream, procType, bodyBytes);
                     }
+                    // 사이클 종료 및 초기화
+                    else if (procType == DtoType.Sleep)
+                    {
+                        Device.Reset();
+                        cycleEnd = DateTime.Now;
 
-                    step++;
-                    Thread.Sleep(100);
+                        TimeSpan cycleTime = cycleEnd - cycleStart;
+
+                        Device.AvgProcessTime = (Device.AvgProcessTime == TimeSpan.Zero)
+                            ? cycleTime
+                            : Device.AvgProcessTime * 0.5 + cycleTime * 0.5;
+
+                        Device.Step = -1;
+                    }
+
+                    Device.Step++;
+                    Thread.Sleep(1000);
                 }
             }
+        }
+
+        private static void ReportMachineState(BinaryWriter writer)
+        {
+            WritePacketString(writer, "");
+            writer.Write(Device.Uph);
+            writer.Write(Device.TotalTemp);
+            writer.Write(Device.Progress);
+
+            Console.WriteLine($"[MachineStatus] 기계 상태 패킷 전송: {Device.TotalTemp}℃");
         }
 
         private static void ProcessDicing(BinaryWriter writer)
@@ -242,12 +302,12 @@ namespace L1_MachineSim
         {
             int sampleSize = 50;
             string criteria = Device.ProductCode + "-DIC";
-            double overallPass = 97.0;
+            double overallPass = Math.Round(95.0 + Device.Rand.NextDouble() * 3, 1); // 95~98%
 
             writer.Write(sampleSize);
             WritePacketString(writer, criteria);
-            writer.Write(96.0);
-            writer.Write(98.0);
+            writer.Write(Math.Round(95.0 + Device.Rand.NextDouble() * 2, 1));
+            writer.Write(Math.Round(96.0 + Device.Rand.NextDouble() * 2, 1));
             writer.Write(overallPass);
 
             Console.WriteLine($"[Dicing Insp] 검사 완료 (합격률: {overallPass}%)");
@@ -258,26 +318,26 @@ namespace L1_MachineSim
             double force = Math.Round(1.5 + (Device.Rand.NextDouble() * 0.2 - 0.1), 2);
             double accuracy = Math.Round(0.05 + (Device.Rand.NextDouble() * 0.01 - 0.005), 3);
             double epoxy = Math.Round(0.8 + (Device.Rand.NextDouble() * 0.1 - 0.05), 2);
-            double temp = Math.Round(150.0 + (Device.Rand.NextDouble() * 5 - 2.5), 1);
+            Device.DbTemp = Math.Round(Device.DbTemp + (Device.Rand.NextDouble() * 5 - 2.5), 1);
 
             writer.Write(force);
             writer.Write(accuracy);
             writer.Write(epoxy);
-            writer.Write(temp);
+            writer.Write(Device.DbTemp);
 
-            Console.WriteLine($"[DieBonding] 픽업:{force}, 정확도:{accuracy}, 도포:{epoxy}, 온도:{temp}℃");
+            Console.WriteLine($"[DieBonding] 픽업:{force}, 정확도:{accuracy}, 도포:{epoxy}, 온도:{Device.DbTemp}℃");
         }
 
         private static void ProcessDieBondingInspection(BinaryWriter writer)
         {
             int sampleSize = 40;
             string criteria = Device.ProductCode + "-DIE";
-            double overallPass = 93.0;
+            double overallPass = Math.Round(92.0 + Device.Rand.NextDouble() * 3, 1); // 92~95%
 
             writer.Write(sampleSize);
             WritePacketString(writer, criteria);
-            writer.Write(94.0);
-            writer.Write(92.0);
+            writer.Write(Math.Round(92.0 + Device.Rand.NextDouble() * 2, 1));
+            writer.Write(Math.Round(93.0 + Device.Rand.NextDouble() * 2, 1));
             writer.Write(overallPass);
 
             Console.WriteLine($"[DieBond Insp] 검사 완료 (합격률: {overallPass}%)");
@@ -285,34 +345,34 @@ namespace L1_MachineSim
 
         private static void ProcessWireBonding(BinaryWriter writer)
         {
-            double temp = Math.Round(250.0 + (Device.Rand.NextDouble() * 10 - 5), 1);
+            Device.WbTemp = Math.Round(Device.WbTemp + (Device.Rand.NextDouble() * 10 - 5), 1);
             double force = Math.Round(0.5 + (Device.Rand.NextDouble() * 0.1 - 0.05), 3);
             double power = Math.Round(2.0 + (Device.Rand.NextDouble() * 0.2 - 0.1), 2);
             double time = Math.Round(0.02 + (Device.Rand.NextDouble() * 0.005 - 0.0025), 4);
             double loop = Math.Round(0.15 + (Device.Rand.NextDouble() * 0.02 - 0.01), 3);
             double ball = Math.Round(0.025 + (Device.Rand.NextDouble() * 0.005 - 0.0025), 4);
 
-            writer.Write(temp);
+            writer.Write(Device.WbTemp);
             writer.Write(force);
             writer.Write(power);
             writer.Write(time);
             writer.Write(loop);
             writer.Write(ball);
 
-            Console.WriteLine($"[WireBonding] 온도:{temp}℃, 힘:{force}N, 시간:{time}s");
+            Console.WriteLine($"[WireBonding] 온도:{Device.WbTemp}℃, 힘:{force}N, 시간:{time}s");
         }
 
         private static void ProcessWireBondingInspection(BinaryWriter writer)
         {
             int sampleSize = 30;
             string criteria = Device.ProductCode + "-WB";
-            double overallPass = 97.0;
+            double overallPass = Math.Round(95.0 + Device.Rand.NextDouble() * 3, 1); // 95~98%
 
             writer.Write(sampleSize);
             WritePacketString(writer, criteria);
-            writer.Write(95.0);
-            writer.Write(96.0);
-            writer.Write(98.0);
+            writer.Write(Math.Round(95.0 + Device.Rand.NextDouble() * 2, 1));
+            writer.Write(Math.Round(96.0 + Device.Rand.NextDouble() * 2, 1));
+            writer.Write(Math.Round(97.0 + Device.Rand.NextDouble() * 2, 1));
             writer.Write(overallPass);
 
             Console.WriteLine($"[WireBond Insp] 검사 완료 (합격률: {overallPass}%)");
@@ -320,30 +380,30 @@ namespace L1_MachineSim
 
         private static void ProcessMolding(BinaryWriter writer)
         {
-            double temp = Math.Round(175.0 + (Device.Rand.NextDouble() * 5 - 2.5), 1);
+            Device.MolTemp = Math.Round(Device.MolTemp + (Device.Rand.NextDouble() * 5 - 2.5), 1);
             double pressure = Math.Round(80.0 + (Device.Rand.NextDouble() * 10 - 5), 1);
             double time = Math.Round(30.0 + (Device.Rand.NextDouble() * 2 - 1), 1);
             double clamp = Math.Round(90.0 + (Device.Rand.NextDouble() * 5 - 2.5), 1);
 
-            writer.Write(temp);
+            writer.Write(Device.MolTemp);
             writer.Write(pressure);
             writer.Write(time);
             writer.Write(clamp);
 
-            Console.WriteLine($"[Molding] 온도:{temp}℃, 압력:{pressure}bar");
+            Console.WriteLine($"[Molding] 온도:{Device.MolTemp}℃, 압력:{pressure}bar");
         }
 
         private static void ProcessMoldingInspection(BinaryWriter writer)
         {
             int sampleSize = 30;
             string criteria = Device.ProductCode + "-MOL";
-            double overallPass = 96.0;
+            double overallPass = Math.Round(94.0 + Device.Rand.NextDouble() * 3, 1); // 94~97%
 
             writer.Write(sampleSize);
             WritePacketString(writer, criteria);
-            writer.Write(95.0);
-            writer.Write(96.0);
-            writer.Write(97.0);
+            writer.Write(Math.Round(94.0 + Device.Rand.NextDouble() * 2, 1));
+            writer.Write(Math.Round(95.0 + Device.Rand.NextDouble() * 2, 1));
+            writer.Write(Math.Round(96.0 + Device.Rand.NextDouble() * 2, 1));
             writer.Write(overallPass);
 
             Console.WriteLine($"[Molding Insp] 검사 완료 (합격률: {overallPass}%)");
@@ -355,7 +415,6 @@ namespace L1_MachineSim
             string[] elecOpts = { "Normal", "Abnormal" };
             string[] relOpts = { "Pass", "Fail" };
             string[] visOpts = { "Good", "Defect", "Average" };
-            string[] passOpts = { "Pass", "Fail" };
 
             using (MemoryStream itemMs = new MemoryStream())
             using (BinaryWriter itemWriter = new BinaryWriter(itemMs))
@@ -366,7 +425,7 @@ namespace L1_MachineSim
                     string electrical = elecOpts[Device.Rand.Next(elecOpts.Length)];
                     string reliability = relOpts[Device.Rand.Next(relOpts.Length)];
                     string visual = visOpts[Device.Rand.Next(visOpts.Length)];
-                    string finalPass = passOpts[Device.Rand.Next(passOpts.Length)];
+                    string finalPass = (Device.Rand.NextDouble() < 0.97) ? "Pass" : "Fail"; // 97% 합격률
 
                     DateTime endTime = DateTime.Now.AddSeconds(Device.Rand.Next(-5, 6));
                     byte[] timeBytes = BitConverter.GetBytes(endTime.Ticks);
@@ -473,13 +532,13 @@ namespace L1_MachineSim
             PrintByteLog(finalPacket);
         }
 
-        // --- 패킷 전송 메서드 (온도용) ---
-        static void SendTempPacket(NetworkStream stream, short temp)
+        // --- 패킷 전송 메서드 (단순 값) ---
+        static void SendValuePacket(NetworkStream stream, short value)
         {
             List<byte> packet = new List<byte>();
             packet.Add(0x01);
-            packet.Add((byte)MsgType.Temperature);
-            packet.AddRange(BitConverter.GetBytes(temp));
+            packet.Add((byte)MsgType.Value);
+            packet.AddRange(BitConverter.GetBytes(value));
 
             byte[] finalPacket = packet.ToArray();
             stream.Write(finalPacket, 0, finalPacket.Length);

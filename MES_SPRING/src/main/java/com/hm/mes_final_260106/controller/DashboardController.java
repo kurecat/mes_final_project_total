@@ -1,6 +1,6 @@
 package com.hm.mes_final_260106.controller;
 
-import com.hm.mes_final_260106.dto.EquipmentAlertDto;
+import com.hm.mes_final_260106.dto.equipment.EquipmentAlertDto;
 import com.hm.mes_final_260106.dto.dashboard.*;
 import com.hm.mes_final_260106.service.DashboardService;
 import lombok.RequiredArgsConstructor;

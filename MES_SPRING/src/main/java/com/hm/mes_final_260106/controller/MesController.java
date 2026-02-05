@@ -12,6 +12,7 @@ import com.hm.mes_final_260106.entity.Equipment;
 import com.hm.mes_final_260106.entity.Material;
 import com.hm.mes_final_260106.entity.Product;
 import com.hm.mes_final_260106.entity.WorkOrder;
+import com.hm.mes_final_260106.exception.CustomException;
 import com.hm.mes_final_260106.service.ProductionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -143,12 +144,37 @@ public class MesController {
     // ⭐ 정석: 작업지시 상태 변경 API (Start/Pause/Resume/Finish)
     // ================================
     @PatchMapping("/order/{id}/status")
-    public ResponseEntity<WorkOrderResDto> updateOrderStatus(
+    public ResponseEntity<?> updateOrderStatus(
             @PathVariable Long id,
             @RequestBody WorkOrderStatusUpdateReqDto dto
     ) {
-        WorkOrder updated = productionService.updateWorkOrderStatus(id, dto.getStatus()); // ⭐
-        return ResponseEntity.ok(WorkOrderResDto.fromEntity(updated));
+        try {
+            // 기존 서비스 로직 호출 (재고 체크 로직이 포함된 버전)
+            WorkOrder updated = productionService.updateWorkOrderStatus(id, dto.getStatus());
+            return ResponseEntity.ok(WorkOrderResDto.fromEntity(updated));
+
+        } catch (CustomException e) {
+            // ✨ [추가] 자재 부족 예외(SHORTAGE) 발생 시 프론트엔드 모달용 응답 생성
+            if ("INVENTORY_SHORTAGE".equals(e.getCode())) {
+                // Service에서 "자재명:수량" 형태로 던진 메시지를 파싱
+                String[] details = e.getMessage().split(":");
+                String matName = details.length > 0 ? details[0] : "알 수 없는 자재";
+                String qty = details.length > 1 ? details[1] : "0";
+
+                return ResponseEntity.badRequest().body(Map.of(
+                        "type", "INVENTORY_SHORTAGE",
+                        "materialName", matName,
+                        "shortageQty", qty,
+                        "message", "자재 재고가 부족하여 작업을 시작할 수 없습니다."
+                ));
+            }
+            // 그 외 일반적인 CustomException 처리
+            return ResponseEntity.badRequest().body(e.getMessage());
+
+        } catch (Exception e) {
+            // 기타 런타임 에러 처리
+            return ResponseEntity.internalServerError().body("서버 오류: " + e.getMessage());
+        }
     }
 
     // =========================
