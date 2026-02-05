@@ -205,14 +205,6 @@ const MaterialPage = () => {
 
   const [warehouses, setWarehouses] = useState([]); // 🔥 창고 상태 캐시
 
-  /* 🔥 창고 상태 조회 */
-  useEffect(() => {
-    axiosInstance
-      .get("/api/mes/master/warehouse/list")
-      .then((res) => setWarehouses(res.data || []))
-      .catch(() => setWarehouses([]));
-  }, []);
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -225,8 +217,16 @@ const MaterialPage = () => {
     }
   }, []);
 
+  /* 🔥 창고 상태 조회 */
   useEffect(() => {
-    fetchData();
+    fetchData(); // 첫 로드 시 실행
+
+    // 3초마다 자동으로 데이터를 새로 가져옴
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000);
+
+    return () => clearInterval(interval); // 페이지 나갈 때 메모리 해제
   }, [fetchData]);
 
   const handleSubmit = useCallback(

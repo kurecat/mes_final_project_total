@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.constant.MaterialTxType;
 import com.hm.mes_final_260106.constant.ProductionStatus;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.dto.lot.LotHistoryResDto;
@@ -34,6 +35,7 @@ public class ProductionService {
     private final LotMappingRepository lotMappingRepo;
     private final EquipmentRepository equipmentRepo;
     private final WorkerRepository workerRepo;
+    private final MaterialTransactionRepository materialTxRepo;
 
     private final DicingRepository dicingRepo;
     private final DicingInspectionRepository dicingInspectionRepo;
@@ -456,6 +458,19 @@ public class ProductionService {
                 throw new CustomException("SHORTAGE", "MATERIAL_SHORTAGE:" + mat.getName());
             }
             mat.setCurrentStock(current - required);
+            matRepo.save(mat);
+
+            MaterialTransaction outboundTx = MaterialTransaction.builder()
+                    .type(MaterialTxType.OUTBOUND)
+                    .material(mat)
+                    .qty(required)
+                    .unit("ea")
+                    .targetLocation(workOrder.getTargetLine())
+                    .targetEquipment(dto.getEquipmentCode())
+                    .workerName(worker != null ? worker.getName() : "SYSTEM")
+                    .build();
+
+            materialTxRepo.save(outboundTx);
         }
 
         workOrder.setCurrentQty(workOrder.getCurrentQty() + 1);
