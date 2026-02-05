@@ -255,18 +255,29 @@ const WorkOrderPage = () => {
   const [pauseReason, setPauseReason] = useState("");
   const [pauseTargetId, setPauseTargetId] = useState(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (isSilent = false) => {
+    if (!isSilent) setLoading(true); // 처음엔 로딩 바를 보여주지만, 자동 갱신 시에는 생략 가능
     try {
       const res = await axiosInstance.get(`/api/mes/order`);
       setOrders(res.data);
+    } catch (error) {
+      console.error("데이터 갱신 실패:", error);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    // 1. 처음 마운트 시 데이터 로드
     fetchData();
+
+    // 2. 5초마다 데이터 갱신 (5000ms = 5초)
+    const intervalId = setInterval(() => {
+      fetchData(true); // 자동 갱신은 사용자 모르게 'silent'하게 진행
+    }, 5000);
+
+    // 3. 언마운트 시 인터벌 제거 (메모리 누수 방지)
+    return () => clearInterval(intervalId);
   }, [fetchData]);
 
   const updateStatus = useCallback(

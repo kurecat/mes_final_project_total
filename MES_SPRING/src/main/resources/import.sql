@@ -26,9 +26,9 @@ INSERT INTO worker (id, member_id, code, name, join_date, shift, status, dept, c
 INSERT INTO warehouse
 (code, name, type, address, status, capacity, occupancy)
 VALUES
-('WH-ALL-001','All Material Warehouse','Main','ALL-ZONE','AVAILABLE',30000,2350),
-('WH-MAIN-001','Main Process Warehouse','Main','FAB-MAIN','AVAILABLE',20000,540),
-('WH-SUB-001','Sub Material Warehouse','Sub','FAB-SUB','AVAILABLE',15000,750);
+('WH-ALL-001','All Material Warehouse','Main','ALL-ZONE','AVAILABLE',300000,55000),
+('WH-MAIN-001','Main Process Warehouse','Main','FAB-MAIN','AVAILABLE',200000,54000),
+('WH-SUB-001','Sub Material Warehouse','Sub','FAB-SUB','AVAILABLE',150000,75000);
 
 
 -- 권한 및 역할 (RBAC)
@@ -57,16 +57,16 @@ INSERT INTO product (code, name, category) VALUES
 
 -- Material 등록
 INSERT INTO material (code, name, category, current_stock, safety_stock) VALUES
-('MAT-SUBSTRATE', '패키지 기판', 'RAW_MATERIAL', 50, 30),
-('MAT-SOLDERBALL', '솔더 볼', 'RAW_MATERIAL', 2000, 500),
-('MAT-UNDERFILL', '언더필 수지', 'RAW_MATERIAL', 300, 500),
-('MAT-MOLD', '몰딩 컴파운드', 'RAW_MATERIAL', 30, 400),
-('MAT-HEATSINK', '히트싱크', 'SEMI_FINISHED', 10, 300),
-('MAT-WIRE', '금 와이어', 'RAW_MATERIAL', 500, 600),
-('MAT-LEADFRAME', '리드프레임', 'RAW_MATERIAL', 400, 500),
-('MAT-ENCAPSULANT', '에폭시 봉지재', 'RAW_MATERIAL', 250, 300),
-('MAT-WAFER', 'DRAM 웨이퍼', 'RAW_MATERIAL', 100, 100),
-('8801234567891', '웨이퍼 기판', 'RAW_MATERIAL', 500, 1000);
+('MAT-SUBSTRATE', '패키지 기판', 'RAW_MATERIAL', 5000, 3000),
+('MAT-SOLDERBALL', '솔더 볼', 'RAW_MATERIAL', 20000, 5000),
+('MAT-UNDERFILL', '언더필 수지', 'RAW_MATERIAL', 30000, 5000),
+('MAT-MOLD', '몰딩 컴파운드', 'RAW_MATERIAL', 3000, 4000),
+('MAT-HEATSINK', '히트싱크', 'SEMI_FINISHED', 1000, 3000),
+('MAT-WIRE', '금 와이어', 'RAW_MATERIAL', 50000, 6000),
+('MAT-LEADFRAME', '리드프레임', 'RAW_MATERIAL', 40000, 5000),
+('MAT-ENCAPSULANT', '에폭시 봉지재', 'RAW_MATERIAL', 25000, 3000),
+('MAT-WAFER', 'DRAM 웨이퍼', 'RAW_MATERIAL', 10000, 1000),
+('8801234567891', '웨이퍼 기판', 'RAW_MATERIAL', 50000, 10000);
 
 -- Equipment 등록 (★ ID=1 강제 지정 ★)
 INSERT INTO equipment (id, code, name, type, location, status, install_date) VALUES
@@ -77,15 +77,15 @@ INSERT INTO equipment (id, code, name, type, location, status, install_date) VAL
 INSERT INTO material_transaction
 (tx_type, material_id, qty, unit, target_location, target_equipment, worker_name, created_at)
 VALUES
-('INBOUND', (SELECT id FROM material WHERE code='MAT-SUBSTRATE'), 50, 'ea', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-SOLDERBALL'), 2000, 'ea', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-UNDERFILL'), 300, 'kg', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-MOLD'), 30, 'kg', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-HEATSINK'), 10, 'ea', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-WIRE'), 500, 'm', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-LEADFRAME'), 400, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-ENCAPSULANT'), 250, 'kg', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
-('INBOUND', (SELECT id FROM material WHERE code='MAT-WAFER'), 100, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW());
+('INBOUND', (SELECT id FROM material WHERE code='MAT-SUBSTRATE'), 5000, 'ea', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-SOLDERBALL'), 20000, 'ea', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-UNDERFILL'), 30000, 'kg', 'WH-ALL-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-MOLD'), 3000, 'kg', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-HEATSINK'), 1000, 'ea', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-WIRE'), 50000, 'm', 'WH-MAIN-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-LEADFRAME'), 40000, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-ENCAPSULANT'), 25000, 'kg', 'WH-SUB-001', NULL, 'SYSTEM', NOW()),
+('INBOUND', (SELECT id FROM material WHERE code='MAT-WAFER'), 10000, 'ea', 'WH-SUB-001', NULL, 'SYSTEM', NOW());
 
 
 -- BOM 등록
