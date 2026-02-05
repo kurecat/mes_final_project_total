@@ -10,7 +10,8 @@ import {
   IoMdRainy,
   IoMdSnow,
 } from "react-icons/io";
-import { FaSignOutAlt, FaClock } from "react-icons/fa";
+// ★ 아이콘 추가 (FaUser)
+import { FaSignOutAlt, FaClock, FaUser } from "react-icons/fa";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import axiosInstance from "../../api/axios";
 
@@ -20,48 +21,44 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [weather, setWeather] = useState({ temp: null, desc: "", icon: "" });
 
-  // ★ [중요] 여기에 본인의 유효한 OpenWeatherMap API Key를 입력하세요.
-  // 기존 키는 401 에러(Invalid API key)가 발생하여 사용할 수 없습니다.
-  const API_KEY = "5b6a625b25065e038c9a33e0674ea4e6";
+  // ★ 로그인 사용자 이름 상태 추가
+  const [userName, setUserName] = useState("User");
 
-  // ★ [수정] AdminMainPage의 탭 경로와 정확히 일치시켜야 고정됩니다.
+  const API_KEY = "5b6a625b25065e038c9a33e0674ea4e6";
   const HOME_PATH = "/admin/dashboard";
 
-  // 홈 탭과 일반 탭 분리
   const homeTab = tabs.find((tab) => tab.path === HOME_PATH);
   const otherTabs = tabs.filter((tab) => tab.path !== HOME_PATH);
 
-  // 날씨 API (천안 기준) - axiosInstance 대신 fetch 사용
+  // ★ 사용자 이름 가져오기 (localStorage 또는 Context 사용)
+  useEffect(() => {
+    // 예: 로그인 시 localStorage.setItem('userName', '홍길동') 했다고 가정
+    const storedName = localStorage.getItem("userName");
+    if (storedName) {
+      setUserName(storedName);
+    }
+  }, []);
+
+  // 날씨 API
   useEffect(() => {
     const fetchWeather = async () => {
-      // API 키 확인
       if (!API_KEY) return;
-
       try {
         const lat = "36.815";
         const lon = "127.113";
-        // axiosInstance 대신 순수 fetch 사용 (인터셉터/헤더 충돌 방지)
         const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
-
         const response = await fetch(url);
         const data = await response.json();
-
-        // fetch는 401, 404 에러에도 catch로 가지 않으므로 수동 확인
-        if (!response.ok) {
-          throw new Error(`API Error: ${data.message}`);
-        }
-
+        if (!response.ok) throw new Error(`API Error: ${data.message}`);
         setWeather({
           temp: Math.round(data.main.temp * 10) / 10,
           desc: data.weather[0].main,
           icon: data.weather[0].icon,
         });
       } catch (err) {
-        console.warn("Weather API Failed:", err);
         setWeather({ temp: 22.5, desc: "Sunny", icon: "01d" });
       }
     };
-
     fetchWeather();
     const interval = setInterval(fetchWeather, 1800000);
     return () => clearInterval(interval);
@@ -92,6 +89,9 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
 
   const handleLogout = () => {
     if (window.confirm("로그아웃 하시겠습니까?")) {
+      // 로그아웃 시 스토리지 정리
+      localStorage.removeItem("token");
+      localStorage.removeItem("userName"); // 이름도 삭제
       navigate("/");
     }
   };
@@ -106,12 +106,24 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
             <span>{weather.temp ? `${weather.temp}°C` : "-"}</span>
             <span className="desc">({weather.desc})</span>
           </WeatherItem>
+
           <Divider />
+
           <ClockItem>
             <FaClock size={14} style={{ marginRight: 6 }} />
             {currentTime.toLocaleTimeString()}
           </ClockItem>
+
           <Divider />
+
+          {/* ★ 사용자 이름 표시 영역 추가 */}
+          <UserItem>
+            <FaUser size={14} />
+            <span>{userName}</span>
+          </UserItem>
+
+          <Divider />
+
           <HeaderBtn onClick={handleLogout} title="Logout" $logout>
             <FaSignOutAlt size={16} />
             <span>Logout</span>
@@ -120,7 +132,6 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
       </Menubar>
 
       <Toolbar>
-        {/* ★ 홈 탭 (고정) */}
         {homeTab && (
           <HomeTabItem
             $active={location.pathname === HOME_PATH}
@@ -131,7 +142,6 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
           </HomeTabItem>
         )}
 
-        {/* 나머지 탭 (스크롤 및 드래그 가능 영역) */}
         <ScrollContainer>
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="tabs" direction="horizontal">
@@ -187,7 +197,7 @@ const AdminHeader = ({ tabs, removeTab, onDragEnd }) => {
 
 export default AdminHeader;
 
-// --- 스타일 컴포넌트 (변경 사항 없음) ---
+// --- 스타일 컴포넌트 ---
 const Container = styled.div`
   height: 100px;
   background-color: #cdd2d9;
@@ -219,6 +229,22 @@ const RightSection = styled.div`
   align-items: center;
   gap: 15px;
   font-size: 14px;
+`;
+
+// ★ 사용자 이름 스타일 추가
+const UserItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #ecf0f1;
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+
+  svg {
+    color: #3498db; // 아이콘 색상 (하늘색 포인트)
+  }
 `;
 
 const ClockItem = styled.div`
