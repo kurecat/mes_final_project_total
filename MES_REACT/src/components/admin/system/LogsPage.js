@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import styled from "styled-components";
 import api from "../../../api/axios";
+
+// ★ PDF 관련 라이브러리
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+// ★ 폰트 파일 import
+import { fontBase64 } from "../../../fonts/NanumGothic";
+
 import {
   FaServer,
   FaSearch,
@@ -47,7 +54,6 @@ const LogHeader = React.memo(
   ({ levelFilter, onFilterChange, searchTerm, onSearchChange, onExport }) => (
     <Header>
       <TitleGroup>
-        {/* [복구] 근본 남색 아이콘 */}
         <FaServer size={22} color="#34495e" />
         <h1>System Logs & Audit</h1>
       </TitleGroup>
@@ -68,9 +74,8 @@ const LogHeader = React.memo(
             onChange={onSearchChange}
           />
         </SearchBox>
-        {/* [복구] 근본 남색 버튼 */}
         <DownloadBtn onClick={onExport}>
-          <FaDownload /> Export
+          <FaDownload /> Export PDF
         </DownloadBtn>
       </Controls>
     </Header>
@@ -176,20 +181,7 @@ const LogsPage = () => {
       .catch((err) => console.error("Failed to fetch logs:", err));
   }, []);
 
-  const toggleExpand = useCallback(
-    (id) => setExpandedLogId((prevId) => (prevId === id ? null : id)),
-    [],
-  );
-  const handleFilterChange = useCallback(
-    (e) => setLevelFilter(e.target.value),
-    [],
-  );
-  const handleSearchChange = useCallback(
-    (e) => setSearchTerm(e.target.value),
-    [],
-  );
-  const handleExport = useCallback(() => alert("Exporting logs..."), []);
-
+  // ★ 1. filteredLogs를 먼저 정의해야 합니다! (useMemo를 위로 올림)
   const filteredLogs = useMemo(() => {
     let result = logs;
     if (levelFilter !== "ALL")
@@ -204,6 +196,142 @@ const LogsPage = () => {
     }
     return result;
   }, [logs, levelFilter, searchTerm]);
+
+  // ★ PDF 다운로드 함수 (상세 내용 포함 버전)
+  const handleExport = useCallback(() => {
+    if (!filteredLogs || filteredLogs.length === 0) {
+      alert("출력할 로그 데이터가 없습니다.");
+      return;
+    }
+
+    const doc = new jsPDF();
+
+    // 1. 폰트 등록
+    doc.addFileToVFS("NanumGothic.ttf", fontBase64);
+    doc.addFont("NanumGothic.ttf", "NanumGothic", "normal");
+    doc.setFont("NanumGothic");
+
+    // 2. 타이틀
+    doc.setFontSize(18);
+    doc.text("System Logs & Audit Report", 14, 20);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+    doc.text(`Filter Level: ${levelFilter}`, 14, 33);
+
+    // 3. 테이블 컬럼 정의
+    const tableColumn = ["Time", "Level", "Category", "Message", "User", "IP"];
+
+    // 4. 테이블 행 데이터 생성 (메인 행 + 상세 행 결합)
+    const tableRows = [];
+
+    filteredLogs.forEach((log) => {
+      // (1) 메인 정보 행 추가
+      tableRows.push([
+        log.timestamp,
+        log.level,
+        log.category,
+        log.message,
+        log.userId,
+        log.userIp,
+      ]);
+
+      // (2) 상세 내용(JSON) 행 추가
+      // 화면의 검은색 박스처럼 보이게 스타일링합니다.
+      const detailString = JSON.stringify(
+        {
+          id: log.id,
+          timestamp: log.timestamp,
+          level: log.level,
+          category: log.category,
+          message: log.message,
+          userId: log.userId,
+          userIp: log.userIp,
+          details: log.details,
+        },
+        null,
+        2,
+      ); // 보기 좋게 들여쓰기
+
+      tableRows.push([
+        {
+          content: detailString,
+          colSpan: 6, // 6개 컬럼을 합쳐서 한 줄로 표시
+          styles: {
+            fillColor: [44, 62, 80], // 다크 네이비 배경 (화면과 비슷하게)
+            textColor: [236, 240, 241], // 밝은 글씨
+            font: "NanumGothic", // 또는 'courier' (고정폭)
+            fontSize: 8,
+            cellPadding: 3,
+            halign: "left", // 왼쪽 정렬
+          },
+        },
+      ]);
+    });
+
+    // 5. autoTable 생성
+    autoTable(doc, {
+      startY: 40,
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      headStyles: {
+        fillColor: [52, 152, 219], // 헤더 색상 (밝은 파랑)
+        textColor: 255,
+        fontStyle: "bold",
+      },
+      styles: {
+        font: "NanumGothic",
+        fontSize: 9,
+        valign: "middle",
+        cellPadding: 2,
+      },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 20, halign: "center" },
+        2: { cellWidth: 25 },
+        3: { cellWidth: "auto" },
+        4: { cellWidth: 35 },
+        5: { cellWidth: 25 },
+      },
+      // 메인 행의 Level 색상 처리 (ERROR 빨강 등)
+      didParseCell: function (data) {
+        // 상세 행(colSpan이 있는 행)이 아닐 때만 적용
+        if (
+          data.section === "body" &&
+          data.column.index === 1 &&
+          !data.row.raw[0].colSpan
+        ) {
+          const level = data.cell.raw;
+          if (level === "ERROR") {
+            data.cell.styles.textColor = [231, 76, 60];
+            data.cell.styles.fontStyle = "bold";
+          } else if (level === "WARN") {
+            data.cell.styles.textColor = [243, 156, 18];
+          }
+        }
+      },
+    });
+
+    doc.save(
+      `System_Logs_Detailed_${new Date().toISOString().slice(0, 10)}.pdf`,
+    );
+  }, [filteredLogs, levelFilter]);
+
+  // 나머지 핸들러들
+  const toggleExpand = useCallback(
+    (id) => setExpandedLogId((prevId) => (prevId === id ? null : id)),
+    [],
+  );
+  const handleFilterChange = useCallback(
+    (e) => setLevelFilter(e.target.value),
+    [],
+  );
+  const handleSearchChange = useCallback(
+    (e) => setSearchTerm(e.target.value),
+    [],
+  );
 
   return (
     <Container>
@@ -225,7 +353,7 @@ const LogsPage = () => {
 
 export default LogsPage;
 
-// --- Styled Components (오리지널 디자인 복구) ---
+// --- Styled Components (기존 코드 유지) ---
 
 const Container = styled.div`
   width: 100%;
@@ -332,7 +460,6 @@ const LogTable = styled.table`
   border-collapse: collapse;
   white-space: nowrap;
 
-  /* [복구] 회색 헤더, 기본 글씨 */
   thead {
     position: sticky;
     top: 0;
@@ -348,7 +475,6 @@ const LogTable = styled.table`
     border-bottom: 2px solid #eee;
   }
 
-  /* [복구] 기본 검은색 글씨 */
   td {
     padding: 10px 15px;
     font-size: 14px;
@@ -381,7 +507,6 @@ const LogRow = styled.tr`
   cursor: pointer;
   background-color: ${(props) => (props.$expanded ? "#f8f9fa" : "white")};
 
-  /* 상태별 왼쪽 라인 색상은 유지 (이건 기능이니까) */
   border-left: 4px solid
     ${(props) => {
       switch (props.$level) {
