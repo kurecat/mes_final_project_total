@@ -41,6 +41,13 @@ public class WorkOrder {
     private LocalDateTime startDate;  // 작업지시 생성 시점
     private LocalDateTime endDate;    // 생산마감 시점
 
+    @Column(name = "shortage_material_name", nullable = true) // null 허용
+    private String shortageMaterialName;
+
+    @Column(name = "shortage_qty", nullable = true) // null 허용
+    private Integer shortageQty;
+
+
     @PrePersist
     public void prePersist() {
         startDate = LocalDateTime.now();
