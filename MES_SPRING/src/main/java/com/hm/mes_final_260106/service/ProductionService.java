@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.service;
 
+import com.hm.mes_final_260106.constant.ProductionStatus;
 import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.dto.lot.LotHistoryResDto;
 import com.hm.mes_final_260106.dto.lot.LotResDto;
@@ -565,21 +566,23 @@ public class ProductionService {
 
     // ✅ 작업지시 상태 변경 시 ProductionLog(이벤트 로그) 1건 저장
     private void writeWorkOrderStatusChangeLog(WorkOrder order, String from, String to) {
-        String level = "INFO";
-        if ("PAUSED".equals(to)) level = "WARN";
 
-        String msg = "작업지시 상태 변경: " + from + " → " + to;
+        String level;
+        if ("PAUSED".equals(to)) {
+            level = "WARN";           // 🔥 중단은 경고
+        } else {
+            level = "INFO";           // 나머지는 정보
+        }
 
         ProductionLog log = ProductionLog.builder()
                 .workOrder(order)
                 .level(level)
-                .category("PRODUCTION")
-                .message(msg)
+                .category("WORK_ORDER")   // 🔥 여기 중요
+                .message("작업지시 상태 변경: " + from + " → " + to)
                 .startTime(LocalDateTime.now())
                 .resultDate(LocalDate.now())
                 .resultQty(0)
-                // ✅ 기존 코드와 동일하게 RUN로 두면 안전 (enum mismatch 방지)
-                .status(com.hm.mes_final_260106.constant.ProductionStatus.RUN)
+                .status(ProductionStatus.RUN)
                 .build();
 
         productionLogRepo.save(log);

@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Collections.Generic; // [수정] List 사용을 위해 추가
 
 public enum MsgType : byte
 {
@@ -31,6 +32,7 @@ public enum DtoType : byte
     FinalInspection = 0x3B,
     InputLot = 0x3C,
 }
+
 public class MachineSimulator
 {
     private readonly ApiService _apiService;  // Backend Server 통신을 위해 주입 받음
@@ -232,7 +234,10 @@ public class MachineSimulator
                             Console.WriteLine($"[Deserialize Error] 배열 DTO 변환 실패 : {ex.Message}");
                         }
 
-                        size = BitConverter.ToInt16(await _tcpService.ReadPacketAsync(2));
+                        // [수정] 다음 데이터의 사이즈를 읽어옴. (Array 데이터 구조 대응)
+                        byte[] nextSizeBuffer = await _tcpService.ReadPacketAsync(2);
+                        if (nextSizeBuffer == null || nextSizeBuffer.Length < 2) break;
+                        size = BitConverter.ToInt16(nextSizeBuffer, 0);
                     }
                 }
                 else if (type == (byte)MsgType.ProductionEnd)
@@ -274,33 +279,30 @@ public class MachineSimulator
             return;
         }
 
-        // var report = new ProductionLogDto
-        // {
-        //     WorkOrderNumber = _currentWorkOrder.WorkOrderNumber,
-        //     WorkerCode = UserSession.WorkerCode ?? 0,
-        //     EquipmentCode = AppConfig.EquipmentCode,
+        // [수정] 서버 엔티티의 Not Null 및 Enum 정합성 세팅
+        _productionLogDto.WorkOrderNumber = _currentWorkOrder.WorkOrderNumber;
+        _productionLogDto.EquipmentCode = AppConfig.EquipmentCode;
+        _productionLogDto.ResultQty = 1;
+        _productionLogDto.Status = "DONE";                   // [수정] 서버 ProductionStatus Enum (RUN, DONE, PAUSED) 중 DONE으로 변경
+        _productionLogDto.Category = "PRODUCTION";
+        _productionLogDto.Level = "INFO";
 
-        //     DicingDto = _productionLogDto.DicingDto,
-        //     DicingInspectionDto = _productionLogDto.DicingInspectionDto,
-        //     DieBondingDto = _productionLogDto.DieBondingDto,
-        //     DieBondingInspectionDto = _productionLogDto.DieBondingInspectionDto,
-        //     WireBondingDto = _productionLogDto.WireBondingDto,
-        //     WireBondingInspectionDto = _productionLogDto.WireBondingInspectionDto,
-        //     MoldingDto = _productionLogDto.MoldingDto,
-        //     MoldingInspectionDto = _productionLogDto.MoldingInspectionDto,
-        //     ItemDtos = _productionLogDto.ItemDtos.ToArray(),
-        //     FinalInspectionDtos = _productionLogDto.FinalInspectionDtos.ToArray(),
-        //     InputLots = _productionLogDto.InputLots.ToArray()
-        // };
+        // [수정] DateOnly를 사용하여 서버 LocalDate 규격(yyyy-MM-dd)에 맞춤
+        _productionLogDto.ResultDate = DateOnly.FromDateTime(DateTime.Today); 
 
-        string status = await _apiService.ReportProductionAsync(_productionLogDto);
-        Console.WriteLine($"[생산 보고] 작업지시번호 : {_productionLogDto.WorkOrderNumber}");
+        try 
+        {
+            string status = await _apiService.ReportProductionAsync(_productionLogDto);
+            Console.WriteLine($"[생산 보고 완료] 결과: {status}, 지시번호: {_productionLogDto.WorkOrderNumber}");
 
-        _currentWorkOrder = null;
-
-        _productionLogDto.ItemDtos.Clear();
-        _productionLogDto.FinalInspectionDtos.Clear();
-        _productionLogDto.InputLots.Clear();
+            // 성공 후 초기화
+            _currentWorkOrder = null;
+            _productionLogDto = new ProductionLogDto(); 
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[생산 보고 실패] 원인: {ex.Message}");
+        }
     }
 
     private async Task SendWorkOrderToDevice(WorkOrderDto order)
@@ -320,6 +322,10 @@ public class MachineSimulator
 
         _currentWorkOrder = order;
 
+        // [수정] 작업 시작 시 기본 정보 세팅
+        _productionLogDto.WorkOrderNumber = order.WorkOrderNumber; 
+        _productionLogDto.EquipmentCode = AppConfig.EquipmentCode;
+        
         byte[] productCodeBody = System.Text.Encoding.UTF8.GetBytes(order.ProductId);
         byte[] packet = new byte[4 + productCodeBody.Length];
         packet[0] = 0x01;  // STX
