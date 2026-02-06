@@ -1,6 +1,6 @@
 package com.hm.mes_final_260106.controller;
 
-import com.hm.mes_final_260106.dto.SpcLogDto;
+import com.hm.mes_final_260106.dto.spc.SpcLogDto;
 import com.hm.mes_final_260106.entity.InspectionStandard;
 import com.hm.mes_final_260106.service.SpcService;
 import lombok.RequiredArgsConstructor;
