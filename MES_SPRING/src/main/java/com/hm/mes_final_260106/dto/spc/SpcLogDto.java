@@ -1,4 +1,4 @@
-package com.hm.mes_final_260106.dto;
+package com.hm.mes_final_260106.dto.spc;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

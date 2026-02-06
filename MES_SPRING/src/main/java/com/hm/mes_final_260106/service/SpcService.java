@@ -1,6 +1,6 @@
 package com.hm.mes_final_260106.service;
 
-import com.hm.mes_final_260106.dto.SpcLogDto;
+import com.hm.mes_final_260106.dto.spc.SpcLogDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.repository.*;
 import lombok.RequiredArgsConstructor;
