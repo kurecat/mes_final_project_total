@@ -17,14 +17,14 @@ import {
 // 1. Control Bar Component
 
 const categoryLabels = {
-  ALL: "All",
-  RAW_MATERIAL: "원재료",
-  SEMI_FINISHED: "반제품",
-  FINISHED_GOOD: "완제품",
-  PACKAGING: "포장재",
-  CONSUMABLE: "소모품",
-  PHANTOM: "가상품목",
-  ALTERNATIVE: "대체품",
+  ALL: "ALL",
+  RAW_MATERIAL: "RAW_MATERIAL",
+  SEMI_FINISHED: "SEMI_FINISHED",
+  FINISHED_GOOD: "FINISHED_GOOD",
+  PACKAGING: "PACKAGING",
+  CONSUMABLE: "CONSUMABLE",
+  PHANTOM: "PHANTOM",
+  ALTERNATIVE: "ALTERNATIVE",
 };
 
 const ControlBarSection = React.memo(
@@ -94,14 +94,21 @@ const MaterialTableRow = React.memo(
         </td>
         <td>
           {isEditing ? (
-            <InlineInput
+            <InlineSelect
               value={editValues.category || ""}
-              placeholder={material.category}
               onChange={(e) => onChangeEdit("category", e.target.value)}
-            />
+            >
+              {Object.entries(categoryLabels)
+                .filter(([key]) => key !== "ALL")
+                .map(([key, label]) => (
+                  <option key={key} value={key}>
+                    {label}
+                  </option>
+                ))}
+            </InlineSelect>
           ) : (
             <TypeBadge $category={material.category}>
-              {material.category}
+              {categoryLabels[material.category] || material.category}
             </TypeBadge>
           )}
         </td>
@@ -402,6 +409,7 @@ const ControlBar = styled.div`
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 `;
 const FilterGroup = styled.div`
+  flex-wrap: wrap;
   display: flex;
   gap: 8px;
 `;
@@ -553,5 +561,31 @@ const InlineInput = styled.input`
   &::placeholder {
     color: #aaa;
     font-size: 13px;
+  }
+`;
+
+const InlineSelect = styled.select`
+  width: calc(100% - 0px);
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #333;
+  background: #fafafa;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: #1a4f8b;
+    background: #fff;
+    box-shadow: 0 0 0 2px rgba(26, 79, 139, 0.1);
+  }
+
+  option {
+    font-size: 14px;
+    color: #333;
+    background: #fff;
   }
 `;

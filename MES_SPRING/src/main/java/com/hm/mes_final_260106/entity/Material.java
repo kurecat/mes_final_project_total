@@ -30,6 +30,9 @@ public class Material {
     @Column(nullable = false, length = 200)
     private String name;
 
+    @Column(length = 200)
+    private String spec;
+
     @Column(length = 100)
     private String category;
 

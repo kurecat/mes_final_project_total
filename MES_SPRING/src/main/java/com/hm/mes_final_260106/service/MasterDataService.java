@@ -93,6 +93,7 @@ public class MasterDataService {
                 .code(dto.getCode())
                 .name(dto.getName())
                 .category(dto.getCategory())
+                .spec(dto.getSpec())
                 .currentStock(dto.getCurrentStock())
                 .safetyStock(dto.getSafetyStock())
                 .location(dto.getLocation())
@@ -121,8 +122,10 @@ public class MasterDataService {
         Material material = materialRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("해당 자재가 존재하지 않습니다. id=" + id));
 
+        material.setCode(dto.getCode());
         material.setName(dto.getName());
         material.setCategory(dto.getCategory());
+        material.setSpec(dto.getSpec());
         material.setCurrentStock(dto.getCurrentStock());
         material.setSafetyStock(dto.getSafetyStock());
         material.setLocation(dto.getLocation());
@@ -145,6 +148,7 @@ public class MasterDataService {
                 .code(material.getCode())
                 .name(material.getName())
                 .category(material.getCategory())
+                .spec(material.getSpec())
                 .currentStock(material.getCurrentStock())
                 .safetyStock(material.getSafetyStock())
                 .location(material.getLocation())
