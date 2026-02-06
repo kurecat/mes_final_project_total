@@ -39,56 +39,64 @@ const getProgressColor = (percent) => {
 
 // 1. Header Stats Component
 
-// 2. Item List Item Component
-const ItemListItem = React.memo(({ item, isActive, onClick }) => {
+// 2. Lot List Item Component
+const LotListItem = React.memo(({ item, isActive, onClick }) => {
   return (
-    <ItemCard $active={isActive} onClick={() => onClick(item)}>
+    <LotCard $active={isActive} onClick={() => onClick(item)}>
       <CardTop>
-        <SerialNumber>{item.serialNumber}</SerialNumber>
-        <StatusBadge $status={item.inspectionResult}>
-          {item.inspectionResult}
-        </StatusBadge>
+        <LotId>{item.id}</LotId>
+        <StatusBadge $status={item.status}>{item.status}</StatusBadge>
       </CardTop>
-      <ProductCode>{item.productCode}</ProductCode>
-    </ItemCard>
+      <ProductName>{item.product}</ProductName>
+      <StepInfo>
+        Current: <b>{item.currentStep}</b>
+      </StepInfo>
+      <ProgressBarContainer>
+        <ProgressBar
+          $width={item.progress}
+          $color={getProgressColor(item.progress)}
+        />
+      </ProgressBarContainer>
+      <ProgressLabel>{item.progress}% Complete</ProgressLabel>
+    </LotCard>
   );
 });
 
 // 3. List Panel Component
 const ItemListPanel = React.memo(
-  ({ searchTerm, onSearchChange, items, selectedItem, onItemClick }) => {
+  ({ searchTerm, onSearchChange, filteredItems, selectedItem, onLotClick }) => {
     return (
       <ListPanel>
         <SearchArea>
           <FaSearch color="#999" />
           <SearchInput
-            placeholder="Search Item ID or Product..."
+            placeholder="Search Lot ID or Product..."
             value={searchTerm}
             onChange={onSearchChange}
           />
         </SearchArea>
 
-        <ItemList>
-          {items.map((item) => (
-            <ItemListItem
+        <LotList>
+          {filteredItems.map((item) => (
+            <LotListItem
               key={item.id}
               item={item}
               isActive={selectedItem === item.id}
-              onClick={onItemClick}
+              onClick={onLotClick}
             />
           ))}
-        </ItemList>
+        </LotList>
       </ListPanel>
     );
   },
 );
 
 // 4. Detail View Component
-const DetailView = React.memo(({ productionLog }) => {
-  if (!productionLog) {
+const DetailView = React.memo(({ selectedLot }) => {
+  if (!selectedLot) {
     return (
       <DetailPanel>
-        <EmptyState>Select a Production Log to view details</EmptyState>
+        <EmptyState>Select a Lot to view details</EmptyState>
       </DetailPanel>
     );
   }
@@ -98,328 +106,54 @@ const DetailView = React.memo(({ productionLog }) => {
       <DetailHeader>
         <TitleGroup>
           <FaBoxOpen size={24} color="#555" />
-          <h2>Production Log #{productionLog.id}</h2>
+          <h2>{selectedLot.id} Details</h2>
         </TitleGroup>
         <MetaGroup>
-          <MetaTag $type="status">{productionLog.status}</MetaTag>
-          <MetaTag $type="qty">{productionLog.resultQty} Produced</MetaTag>
-          <MetaTag $type="defect">{productionLog.defectQty} Defects</MetaTag>
+          <MetaTag $type="priority">{selectedLot.priority} Priority</MetaTag>
+          <MetaTag $type="qty">{selectedLot.waferQty} Wafers</MetaTag>
         </MetaGroup>
       </DetailHeader>
 
       <InfoGrid>
         <InfoItem>
-          <Label>Work Order</Label>
-          <Value>{productionLog.workOrderNumber}</Value>
-        </InfoItem>
-        <InfoItem>
-          <Label>Worker</Label>
-          <Value>{productionLog.workerCode}</Value>
+          <Label>Product ID</Label>
+          <Value>{selectedLot.product}</Value>
         </InfoItem>
         <InfoItem>
           <Label>Equipment</Label>
-          <Value>{productionLog.equipmentCode}</Value>
+          <Value>{selectedLot.equipmentId}</Value>
         </InfoItem>
         <InfoItem>
           <Label>Start Time</Label>
-          <Value>{productionLog.startTime}</Value>
+          <Value>{selectedLot.startTime}</Value>
         </InfoItem>
         <InfoItem>
-          <Label>End Time</Label>
-          <Value>{productionLog.endTime}</Value>
+          <Label>Est. Completion</Label>
+          <Value>{selectedLot.eta}</Value>
         </InfoItem>
       </InfoGrid>
 
-      {/* --- 공정 정보 --- */}
+      {selectedLot.status === "HOLD" && (
+        <AlertBox>
+          <FaExclamationTriangle />
+          <span>
+            <b>HOLD REASON:</b> {selectedLot.holdReason}
+          </span>
+        </AlertBox>
+      )}
+
       <ProcessSection>
-        <h3>Process Details</h3>
-
-        {/* 1. Dicing */}
-        {productionLog.dicingDto && (
-          <>
-            <h4>Dicing</h4>
-            <InfoGrid>
-              <InfoItem>
-                <Label>Spindle Speed</Label>
-                <Value>{productionLog.dicingDto.spindleSpeed}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Feed Rate</Label>
-                <Value>{productionLog.dicingDto.feedRate}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Blade Wear</Label>
-                <Value>{productionLog.dicingDto.bladeWear}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Coolant Flow</Label>
-                <Value>{productionLog.dicingDto.coolantFlow}</Value>
-              </InfoItem>
-            </InfoGrid>
-          </>
-        )}
-
-        {/* 2. Dicing Inspection */}
-        {productionLog.dicingInspectionDto && (
-          <>
-            <h4>Dicing Inspection</h4>
-            <InfoGrid>
-              <InfoItem>
-                <Label>Sample Size</Label>
-                <Value>{productionLog.dicingInspectionDto.sampleSize}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Criteria</Label>
-                <Value>
-                  {productionLog.dicingInspectionDto.inspectionCriteria}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Thickness Pass %</Label>
-                <Value>
-                  {productionLog.dicingInspectionDto.thicknessPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Chipping Pass %</Label>
-                <Value>
-                  {productionLog.dicingInspectionDto.chippingPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Overall Pass %</Label>
-                <Value>
-                  {productionLog.dicingInspectionDto.overallPassRatio}
-                </Value>
-              </InfoItem>
-            </InfoGrid>
-          </>
-        )}
-
-        {/* 3. Die Bonding */}
-        {productionLog.dieBondingDto && (
-          <>
-            <h4>Die Bonding</h4>
-            <InfoGrid>
-              <InfoItem>
-                <Label>Pick Up Force</Label>
-                <Value>{productionLog.dieBondingDto.pickUpForce}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Placement Accuracy</Label>
-                <Value>{productionLog.dieBondingDto.placementAccuracy}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Epoxy Volume</Label>
-                <Value>{productionLog.dieBondingDto.epoxyDispenseVolume}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Curing Temp</Label>
-                <Value>{productionLog.dieBondingDto.curingTemp}</Value>
-              </InfoItem>
-            </InfoGrid>
-          </>
-        )}
-
-        {/* 4. Die Bonding Inspection */}
-        {productionLog.dieBondingInspectionDto && (
-          <>
-            <h4>Die Bonding Inspection</h4>
-            <InfoGrid>
-              <InfoItem>
-                <Label>Sample Size</Label>
-                <Value>
-                  {productionLog.dieBondingInspectionDto.sampleSize}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Criteria</Label>
-                <Value>
-                  {productionLog.dieBondingInspectionDto.inspectionCriteria}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Alignment Pass %</Label>
-                <Value>
-                  {productionLog.dieBondingInspectionDto.alignmentPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Void Pass %</Label>
-                <Value>
-                  {productionLog.dieBondingInspectionDto.voidPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Overall Pass %</Label>
-                <Value>
-                  {productionLog.dieBondingInspectionDto.overallPassRatio}
-                </Value>
-              </InfoItem>
-            </InfoGrid>
-          </>
-        )}
-
-        {/* 5. Wire Bonding */}
-        {productionLog.wireBondingDto && (
-          <>
-            <h4>Wire Bonding</h4>
-            <InfoGrid>
-              <InfoItem>
-                <Label>Bonding Temp</Label>
-                <Value>{productionLog.wireBondingDto.bondingTemp}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Bonding Force</Label>
-                <Value>{productionLog.wireBondingDto.bondingForce}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Ultrasonic Power</Label>
-                <Value>{productionLog.wireBondingDto.ultrasonicPower}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Bonding Time</Label>
-                <Value>{productionLog.wireBondingDto.bondingTime}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Loop Height</Label>
-                <Value>{productionLog.wireBondingDto.loopHeight}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Ball Diameter</Label>
-                <Value>{productionLog.wireBondingDto.ballDiameter}</Value>
-              </InfoItem>
-            </InfoGrid>
-          </>
-        )}
-
-        {/* 6. Wire Bonding Inspection */}
-        {productionLog.wireBondingInspectionDto && (
-          <>
-            <h4>Wire Bonding Inspection</h4>
-            <InfoGrid>
-              <InfoItem>
-                <Label>Sample Size</Label>
-                <Value>
-                  {productionLog.wireBondingInspectionDto.sampleSize}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Criteria</Label>
-                <Value>
-                  {productionLog.wireBondingInspectionDto.inspectionCriteria}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Pull Test %</Label>
-                <Value>
-                  {productionLog.wireBondingInspectionDto.pullTestPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Shear Test %</Label>
-                <Value>
-                  {productionLog.wireBondingInspectionDto.shearTestPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>X-Ray %</Label>
-                <Value>
-                  {productionLog.wireBondingInspectionDto.xrayPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Overall Pass %</Label>
-                <Value>
-                  {productionLog.wireBondingInspectionDto.overallPassRatio}
-                </Value>
-              </InfoItem>
-            </InfoGrid>
-          </>
-        )}
-
-        {/* 7. Molding */}
-        {productionLog.moldingDto && (
-          <>
-            <h4>Molding</h4>
-            <InfoGrid>
-              <InfoItem>
-                <Label>Mold Temp</Label>
-                <Value>{productionLog.moldingDto.moldTemp}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Injection Pressure</Label>
-                <Value>{productionLog.moldingDto.injectionPressure}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Cure Time</Label>
-                <Value>{productionLog.moldingDto.cureTime}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Clamp Force</Label>
-                <Value>{productionLog.moldingDto.clampForce}</Value>
-              </InfoItem>
-            </InfoGrid>
-          </>
-        )}
-
-        {/* 8. Molding Inspection */}
-        {productionLog.moldingInspectionDto && (
-          <>
-            <h4>Molding Inspection</h4>
-            <InfoGrid>
-              <InfoItem>
-                <Label>Sample Size</Label>
-                <Value>{productionLog.moldingInspectionDto.sampleSize}</Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Criteria</Label>
-                <Value>
-                  {productionLog.moldingInspectionDto.inspectionCriteria}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Thickness Pass %</Label>
-                <Value>
-                  {productionLog.moldingInspectionDto.thicknessPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Void Pass %</Label>
-                <Value>
-                  {productionLog.moldingInspectionDto.voidPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Crack Pass %</Label>
-                <Value>
-                  {productionLog.moldingInspectionDto.crackPassRatio}
-                </Value>
-              </InfoItem>
-              <InfoItem>
-                <Label>Overall Pass %</Label>
-                <Value>
-                  {productionLog.moldingInspectionDto.overallPassRatio}
-                </Value>
-              </InfoItem>
-            </InfoGrid>
-          </>
-        )}
-      </ProcessSection>
-
-      {/* --- LOT 리스트 --- */}
-      <ProcessSection>
-        <h3>Input Lots</h3>
+        <h3>Process Route Tracking</h3>
         <RouteContainer>
-          {productionLog.inputLots &&
-            productionLog.inputLots.map((lot, idx) => (
-              <StepItem key={lot} $status="DONE">
-                {/* 번호 대신 그냥 아이콘만 표시 */}
-                <StepCircle $status="DONE">✔</StepCircle>
+          {selectedLot.route &&
+            selectedLot.route.map((step, idx) => (
+              <StepItem key={idx} $status={step.status}>
+                <StepCircle $status={step.status}>{idx + 1}</StepCircle>
                 <StepText>
-                  <StepName>{lot.code}</StepName>
-                  <StepStatus $status="DONE">{lot.materialCode}</StepStatus>
+                  <StepName>{step.step}</StepName>
+                  <StepStatus $status={step.status}>{step.status}</StepStatus>
                 </StepText>
+                {idx !== selectedLot.route.length - 1 && <Line />}
               </StepItem>
             ))}
         </RouteContainer>
@@ -427,58 +161,51 @@ const DetailView = React.memo(({ productionLog }) => {
     </DetailPanel>
   );
 });
+
 // --- Main Component ---
 
 const LotTrackingPage = () => {
   const [items, setItems] = useState([]);
-  const [productionLog, setProductionLog] = useState({});
   const [selectedItem, setSelectedItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    if (!searchTerm) return;
     const fetchItems = async () => {
       try {
         // 1. 백엔드 API 호출 (Lot 목록)
-        const response = await axiosInstance.get(
-          `/api/mes/item/search?serialNumber=${searchTerm}`,
-        );
+        const response = await axiosInstance.get("/api/mes/item/list");
+        const rawData = response.data || [];
 
-        setItems(response.data);
+        // 2. 데이터 가공 (LotResDto -> 화면 포맷)
+        const formattedItems = rawData.map((item) => ({
+          id: item.id, // DB PK (나중에 클릭 시 사용)
+          itemCode: item.itemCode, // 화면 표시용 번호 (LOT-2024...)
+          product: item.materialName, // 자재명
+          status: item.status, // 상태 (IN_USE 등)
+          currentStep: item.location || "Unknown", // 위치
+          progress: item.currentQty > 0 ? 100 : 0, // (임시) 잔량 있으면 100%
+          waferQty: item.currentQty, // 수량
+          startTime: "-", // 리스트엔 없음
+          eta: "-",
+          route: [], // 상세 이력은 클릭해야 가져옴 (Lazy Loading)
+        }));
+
+        setItems(formattedItems);
 
         // 첫 번째 항목 자동 선택 (선택 시 이력 조회 트리거)
-        if (response.data.length > 0) {
+        if (formattedItems.length > 0) {
           // 주의: 여기서 바로 handleItemClick을 부르거나,
           // setSelectedItem만 하고 별도로 로딩해야 함.
           // 간단하게 첫번째는 정보만 보여줍니다.
-          setSelectedItem(response.data[0]);
+          setSelectedItem(formattedItems[0]);
         }
       } catch (error) {
-        console.error("Item 목록 조회 실패:", error);
+        console.error("Lot 목록 조회 실패:", error);
       }
     };
 
     fetchItems();
-  }, [searchTerm]);
-
-  useEffect(() => {
-    if (!selectedItem) return;
-    const fetchProductionLog = async () => {
-      console.log("selectedItem", selectedItem);
-
-      try {
-        const response = await axiosInstance.get(
-          `/api/mes/production-log/${selectedItem.productionLogId}`,
-        );
-        console.log(response.data);
-        setProductionLog(response.data);
-      } catch (error) {
-        console.error("ProductionLog 조회 실패:", error);
-      }
-    };
-
-    fetchProductionLog();
-  }, [selectedItem]);
+  }, []);
 
   const handleSearchChange = useCallback((e) => {
     setSearchTerm(e.target.value);
@@ -488,6 +215,29 @@ const LotTrackingPage = () => {
     setSelectedItem(item);
   }, []);
 
+  // Search Filter Logic (Safe version)
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const term = searchTerm.toLowerCase();
+
+      // 1. Search by Lot Code (String) - e.g., "LOT-2026-A001"
+      // Use optional chaining (?.) or logical OR (||) to prevent errors if data is missing
+      const codeMatch = item.itemCode
+        ? item.itemCode.toLowerCase().includes(term)
+        : false;
+
+      // 2. Search by Product Name (String)
+      const productMatch = item.product
+        ? item.product.toLowerCase().includes(term)
+        : false;
+
+      // 3. (Optional) Search by Numeric ID - Convert to String first
+      const idMatch = String(item.id).includes(term);
+
+      return codeMatch || productMatch || idMatch;
+    });
+  }, [items, searchTerm]);
+
   return (
     <Container>
       {/* 1. Header (추가됨) */}
@@ -496,7 +246,7 @@ const LotTrackingPage = () => {
           <PageTitle>
             <FaMicrochip /> Lot Tracking
           </PageTitle>
-          <SubTitle>Serial Number & Log Tracking </SubTitle>
+          <SubTitle>Log Tracking & History</SubTitle>
         </TitleArea>
       </Header>
 
@@ -508,11 +258,11 @@ const LotTrackingPage = () => {
         <ItemListPanel
           searchTerm={searchTerm}
           onSearchChange={handleSearchChange}
-          items={items}
+          filteredItems={filteredItems}
           selectedItem={selectedItem}
-          onItemClick={handleItemClick}
+          onLotClick={handleItemClick}
         />
-        <DetailView productionLog={productionLog} />
+        <DetailView productionLogId={selectedItem.productionLogId} />
       </MainContent>
     </Container>
   );
@@ -638,14 +388,14 @@ const SearchInput = styled.input`
   }
 `;
 
-const ItemList = styled.div`
+const LotList = styled.div`
   flex: 1;
   overflow-y: auto;
   padding: 10px;
   background: #fcfcfc;
 `;
 
-const ItemCard = styled.div`
+const LotCard = styled.div`
   background: ${(props) => (props.$active ? "#eef2f7" : "white")};
   border: 1px solid ${(props) => (props.$active ? "#3498db" : "#eee")};
   padding: 15px;
@@ -666,7 +416,7 @@ const CardTop = styled.div`
   margin-bottom: 5px;
 `;
 
-const SerialNumber = styled.span`
+const LotId = styled.span`
   font-weight: 700;
   color: #333;
   font-size: 14px;
@@ -691,7 +441,7 @@ const StatusBadge = styled.span`
         : "#f39c12"};
 `;
 
-const ProductCode = styled.div`
+const ProductName = styled.div`
   font-size: 12px;
   color: #666;
   margin-bottom: 8px;
@@ -774,8 +524,7 @@ const InfoGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
-  margin-top: 20px;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
 `;
 
 const InfoItem = styled.div`

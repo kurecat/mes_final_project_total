@@ -156,6 +156,36 @@ const BarcodePage = () => {
         location: "B-05",
         description: "SSD Storage controller",
       },
+      {
+        id: 3,
+        name: "SUBSTRATE",
+        barcode: "MAT-SUBSTRATE",
+        category: "RAW_MATERIAL",
+        stock: 50,
+        price: 120000,
+        location: "WH-ALL-001",
+        description: "SSD Storage controller",
+      },
+      {
+        id: 4,
+        name: "SOLDERBALL",
+        barcode: "MAT-SOLDERBALL",
+        category: "Storage",
+        stock: 50,
+        price: 120000,
+        location: "WH-ALL-001",
+        description: "SSD Storage controller",
+      },
+      {
+        id: 5,
+        name: "UNDERFILL",
+        barcode: "MAT-UNDERFILL",
+        category: "Storage",
+        stock: 50,
+        price: 120000,
+        location: "WH-ALL-001",
+        description: "SSD Storage controller",
+      },
     ];
     setProducts(mockProducts);
   }, []);

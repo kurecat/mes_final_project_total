@@ -19,7 +19,7 @@ public class RoleDto {
     private String name;
     private String code;
     private String description;
-    private boolean isSystem;
+    private Boolean isSystem;
     private List<Long> permissionIds; // 프론트엔드에서 체크박스 상태 관리에 필요
 
     // Entity -> DTO 변환 메서드
