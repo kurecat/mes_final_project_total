@@ -11,4 +11,5 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     Optional<Item> findBySerialNumber(String serialNumber);
     List<Item> findBySerialNumberContaining(String serialNumber);
 
+    long countByProductionLog_WorkOrder_IdAndInspectionResult(Long id, String fail);
 }

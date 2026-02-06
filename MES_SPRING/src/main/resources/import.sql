@@ -127,7 +127,7 @@ INSERT INTO lot (code, material_id, location, status) VALUES
 INSERT INTO work_order (
   id, work_order_number, product_id, target_qty, current_qty, status, assigned_machine_id, target_line
 ) VALUES (
-  1, 'WO-20260120-1001', 1, 5000, 0, 'IN_PROGRESS', 'LINE-01-M01', 'Fab-Line-A'
+  1, 'WO-20260120-1001', 1, 5000,5000, 'COMPLETED', 'LINE-01-M01', 'Fab-Line-A'
 );
 
 -- 생산로그 등록 (기존 더미 데이터 유지)

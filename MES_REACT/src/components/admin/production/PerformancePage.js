@@ -187,7 +187,7 @@ const KpiBoard = React.memo(({ summary }) => {
         <KpiInfo>
           <Label>Daily Plan</Label>
           <Value>
-            {Number(totalPlan).toLocaleString()} <Unit>wfrs</Unit>
+            {Number(totalPlan).toLocaleString()} <Unit>die</Unit>
           </Value>
         </KpiInfo>
       </KpiCard>
@@ -199,7 +199,7 @@ const KpiBoard = React.memo(({ summary }) => {
         <KpiInfo>
           <Label>Daily Output</Label>
           <Value>
-            {Number(totalActual).toLocaleString()} <Unit>wfrs</Unit>
+            {Number(totalActual).toLocaleString()} <Unit>die</Unit>
           </Value>
         </KpiInfo>
       </KpiCard>
@@ -211,7 +211,7 @@ const KpiBoard = React.memo(({ summary }) => {
         <KpiInfo>
           <Label>Scrap / Loss</Label>
           <Value style={{ color: "#e74c3c" }}>
-            {Number(totalScrap).toLocaleString()} <Unit>wfrs</Unit>
+            {Number(totalScrap).toLocaleString()} <Unit>die</Unit>
           </Value>
         </KpiInfo>
       </KpiCard>

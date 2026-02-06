@@ -13,8 +13,20 @@ import {
   FaSave,
 } from "react-icons/fa";
 
-const getLevelBadge = (level) => {
-  switch (level) {
+// LogsPage.js 상단 getLevelBadge 함수 수정
+const getLevelBadge = (level, message = "") => {
+  // 메시지에 경고 키워드가 포함되어 있으면 level이 INFO라도 WARN으로 취급
+  console.log(`검사 중인 로그 - 레벨: ${level}, 메시지: ${message}`);
+  const isWarnMessage =
+    message.includes("지연") ||
+    message.includes("불량") ||
+    message.includes("PAUSED") ||
+    message.includes("감지") ||
+    message.includes("중단");
+
+  const displayLevel = isWarnMessage ? "WARN" : level;
+
+  switch (displayLevel) {
     case "INFO":
       return (
         <Badge $color="#3498db" $bg="#ebf5fb">
@@ -30,7 +42,7 @@ const getLevelBadge = (level) => {
     default:
       return (
         <Badge $color="#95a5a6" $bg="#f4f6f7">
-          {level}
+          {displayLevel}
         </Badge>
       );
   }
@@ -85,7 +97,7 @@ const LogTableRow = React.memo(
           onClick={() => onToggleExpand(log.id)}
         >
           <td className="mono">{log.timestamp}</td>
-          <td>{getLevelBadge(log.level)}</td>
+          <td>{getLevelBadge(log.level, log.message)}</td>
           <td className="category">{log.category}</td>
           <td
             className="message"
@@ -187,7 +199,7 @@ const LogsPage = () => {
         timestamp: new Date(item.timestamp).toLocaleString(),
         level: item.level,
         category: item.category,
-        message: item.message ?? "",
+        message: item.message || (item.raw && item.raw.message) || "",
         raw: item,
       }));
 

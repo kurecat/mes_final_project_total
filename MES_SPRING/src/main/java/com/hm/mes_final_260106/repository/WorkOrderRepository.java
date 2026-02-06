@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +24,14 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
 
     Optional<WorkOrder> findByStatusAndAssignedMachineId(String status, String assignedMachineId);
 
+    // ⭐ 오늘 기준 + 라인 기준 작업지시 조회(dashboard-timechart)
+    List<WorkOrder> findByTargetLineAndStartDateBetween(
+            String targetLine,
+            LocalDateTime startOfDay,
+            LocalDateTime endOfDay
+    );
+    List<WorkOrder> findByStartDateBetween(LocalDateTime start, LocalDateTime end);
+
     // ▼ [선택 수정] 만약 이 메서드 결과로도 화면에 품목명(Product)을 띄운다면 여기도 FETCH를 추가해야 합니다.
     @Query("""
         SELECT wo
@@ -34,4 +43,6 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
     List<WorkOrder> findByLineForPerformance(@Param("line") String line);
 
     Optional<WorkOrder> findByWorkOrderNumber(String workOrderNumber);
+
+
 }

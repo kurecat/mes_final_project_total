@@ -53,6 +53,9 @@ public class ProductionService {
     private final InspectionStandardRepository standardRepo;
     private final ProductionLogMapper productionLogMapper;
 
+    // 웨이퍼 1매당 다이 수량 정의
+    private static final int WAFER_TO_DIE = 156;
+
     // =========================
     // 1) 자재 입고
     // =========================
@@ -211,20 +214,28 @@ public class ProductionService {
     // 작업지시 로그 기록 (이벤트)
     @Transactional
     public void createEventLog(ProductionLogEventReqDto dto) {
-        String level = "INFO";
-        // 기본 메시지 설정 (프론트에서 온 게 없으면 기본값 사용)
+        // 1. 기본 메시지 설정
         String message = (dto.getMessage() != null) ? dto.getMessage() : "";
 
+        // 2. 기본 레벨 설정 (ActionType 기준)
+        String level = "INFO";
         if ("START".equals(dto.getActionType())) {
-            level = "INFO";
             if(message.isEmpty()) message = "작업을 시작했습니다";
         } else if ("PAUSE".equals(dto.getActionType())) {
             level = "WARN";
-            // 프론트에서 보낸 pauseReason이 여기 dto.getMessage()로 들어옵니다.
             if(message.isEmpty()) message = "작업 중단";
         } else if ("FINISH".equals(dto.getActionType())) {
-            level = "INFO";
             if(message.isEmpty()) message = "작업이 완료되었습니다";
+        }
+
+        // 3. 🔥 핵심 추가: 메시지 내용에 특정 단어가 있으면 레벨을 WARN으로 강제 변경
+        // 이 로직이 아래에 있어야 ActionType이 FINISH(INFO)여도 "불량" 단어가 있으면 WARN이 됩니다.
+        if (message.contains("지연") ||
+                message.contains("불량") ||
+                message.contains("PAUSED") ||
+                message.contains("감지") ||
+                message.contains("중단")) {
+            level = "WARN";
         }
 
         WorkOrder workOrder = orderRepo.findById(dto.getWorkOrderId())
@@ -234,7 +245,7 @@ public class ProductionService {
                 .workOrder(workOrder)
                 .level(level)
                 .category("PRODUCTION")
-                .message(message) // ⭐ 이 부분이 DB의 message 컬럼으로 들어갑니다.
+                .message(message)
                 .startTime(LocalDateTime.now())
                 .resultDate(LocalDate.now())
                 .resultQty(0)
@@ -292,10 +303,9 @@ public class ProductionService {
         String current = order.getStatus();
 
         // 1. (기존) 같은 상태면 return
-        if (current.equals(next)) {
-            if (order.getProduct() != null) order.getProduct().getName();
-            return order;
-        }
+        boolean isCompleting =
+                ("IN_PROGRESS".equals(current) || "PAUSED".equals(current))
+                        && "COMPLETED".equals(next);
 
         // 2. (기존) 비즈니스 제약 조건 검증
         if ("WAITING".equals(current) && "IN_PROGRESS".equals(next)) {
@@ -325,6 +335,11 @@ public class ProductionService {
         order.setStatus(next);
         writeWorkOrderStatusChangeLog(order, current, next);
 
+        // 5. 상태 업데이트 및 실적 저장
+        if (isCompleting) {
+            applyProductionResultFromWorkOrder(order);
+        }
+
         // ✨ [신규 추가] 정상적으로 상태가 변경될 때(특히 재고 문제가 해결되었을 때) 부족 정보 초기화
         if (!"PAUSED".equals(next)) {
             order.setShortageMaterialName(null);
@@ -338,6 +353,7 @@ public class ProductionService {
 
         if ("COMPLETED".equals(next)) {
             order.setEndDate(LocalDateTime.now());
+            applyProductionResultFromWorkOrder(order);
         }
 
         // Lazy Loading 방지 (기존 유지)
@@ -347,7 +363,39 @@ public class ProductionService {
 
         return orderRepo.save(order);
     }
+    // 생산 완료 시 생산실적 저장
+    private void applyProductionResultFromWorkOrder(WorkOrder order) {
 
+        LocalDate date = LocalDate.now();
+        int hour = LocalDateTime.now().getHour();
+        String line = (order.getTargetLine() == null || order.getTargetLine().isBlank())
+                ? "Fab-Line-A"
+                : order.getTargetLine();
+
+        ProductionResult pr = productionResultRepo
+                .findByResultDateAndResultHourAndLineAndProduct(
+                        date, hour, line, order.getProduct()
+                )
+                .orElseGet(() -> {
+                    ProductionResult created = new ProductionResult();
+                    created.setResultDate(date);
+                    created.setResultHour(hour);
+                    created.setLine(line);
+                    created.setProduct(order.getProduct());
+                    created.setPlanQty(0);
+                    created.setGoodQty(0);
+                    created.setDefectQty(0);
+                    created.setCreatedAt(LocalDateTime.now());
+                    return created;
+                });
+
+        int baseGood = pr.getGoodQty() == null ? 0 : pr.getGoodQty();
+
+        // ✅ WorkOrder.currentQty를 그대로 사용
+        pr.setGoodQty(baseGood + order.getCurrentQty());
+
+        productionResultRepo.save(pr);
+    }
     /**
      * ✨ [신규 메서드] BOM 기반 재고 검증 및 부족 정보 엔티티 기록
      */
@@ -401,6 +449,9 @@ public class ProductionService {
         return WorkOrderResDto.fromEntity(waiting);
     }
 
+    // =========================
+    // 7) 생산 실적 보고
+    // =========================
     // =========================
     // 7) 생산 실적 보고
     // =========================
@@ -487,6 +538,15 @@ public class ProductionService {
         lotRepo.saveAll(lots);
         lotMappingRepo.saveAll(lotMappings);
 
+        // 🔥 [추가] 이번 보고에 포함된 불량 수량 계산 및 통계 반영
+        long currentFailCount = items.stream()
+                .filter(item -> "Fail".equalsIgnoreCase(item.getInspectionResult()))
+                .count();
+
+        if (currentFailCount > 0) {
+            updateProductionResultDefect(workOrder, (int)currentFailCount);
+        }
+
         // 자재 차감
         Bom bom = bomRepo.findById(product.getId())
                 .orElseThrow(() -> new EntityNotFoundException("BOM을 찾을 수 없습니다"));
@@ -497,16 +557,12 @@ public class ProductionService {
         for (BomItem bomItem : bom.getItems()) {
             Material mat = bomItem.getMaterial();
 
-            int bomPerUnit = bomItem.getRequiredQty(); // 200
+            int bomPerUnit = bomItem.getRequiredQty();
             int currentStock = mat.getCurrentStock();
 
-            // =================================================
-            // 1️⃣ 자재 부족 → 즉시 PAUSE
-            // =================================================
             if (currentStock < bomPerUnit) {
-
-                int remainingQty = workOrder.getTargetQty() - workOrder.getCurrentQty(); // 98
-                int requiredTotal = remainingQty * bomPerUnit;                            // 98 * 200
+                int remainingQty = workOrder.getTargetQty() - workOrder.getCurrentQty();
+                int requiredTotal = remainingQty * bomPerUnit;
                 int shortageForDisplay = requiredTotal - currentStock;
 
                 workOrder.setStatus("PAUSED");
@@ -529,9 +585,6 @@ public class ProductionService {
                 throw new CustomException("INVENTORY_SHORTAGE", mat.getName() + ":" + shortageForDisplay);
             }
 
-            // =================================================
-            // 2️⃣ 정상 자재 차감
-            // =================================================
             int afterStock = currentStock - bomPerUnit;
             mat.setCurrentStock(afterStock);
             matRepo.save(mat);
@@ -539,7 +592,7 @@ public class ProductionService {
             MaterialTransaction outboundTx = MaterialTransaction.builder()
                     .type(MaterialTxType.OUTBOUND)
                     .material(mat)
-                    .qty(bomPerUnit) // 🔧 [수정] 남은 생산 기준
+                    .qty(bomPerUnit)
                     .unit("ea")
                     .targetLocation(workOrder.getTargetLine())
                     .targetEquipment(dto.getEquipmentCode())
@@ -547,11 +600,7 @@ public class ProductionService {
                     .build();
             materialTxRepo.save(outboundTx);
 
-            // =================================================
-            // 3️⃣ 차감 후 재고가 0 → PAUSE
-            // =================================================
             if (afterStock == 0) {
-
                 workOrder.setStatus("PAUSED");
                 workOrder.setShortageMaterialName(mat.getName());
                 workOrder.setShortageQty(0);
@@ -574,16 +623,46 @@ public class ProductionService {
         }
 
         // =================================================
-        // 🔥 생산 수량 증가 (BOM 루프 밖!)
+        // 🔥 생산 수량 증가
         // =================================================
         workOrder.setCurrentQty(workOrder.getCurrentQty() + 1);
 
         if (workOrder.getCurrentQty() >= workOrder.getTargetQty()) {
             workOrder.setStatus("COMPLETED");
             workOrder.setEndDate(LocalDateTime.now());
+            applyProductionResultFromWorkOrder(workOrder);
         }
 
         orderRepo.save(workOrder);
+    }
+
+    // 🔥 [신규 메서드] 불량 발생 시 실적 테이블에 즉시 반영
+    private void updateProductionResultDefect(WorkOrder order, int failQty) {
+        if (failQty <= 0) return;
+
+        LocalDate today = LocalDate.now();
+        int hour = LocalDateTime.now().getHour();
+        String line = (order.getTargetLine() == null || order.getTargetLine().isBlank()) ? "Fab-Line-A" : order.getTargetLine();
+
+        ProductionResult pr = productionResultRepo
+                .findByResultDateAndResultHourAndLineAndProduct(today, hour, line, order.getProduct())
+                .orElseGet(() -> {
+                    ProductionResult created = new ProductionResult();
+                    created.setResultDate(today);
+                    created.setResultHour(hour);
+                    created.setLine(line);
+                    created.setProduct(order.getProduct());
+                    created.setPlanQty(0);
+                    created.setGoodQty(0);
+                    created.setDefectQty(0);
+                    created.setCreatedAt(LocalDateTime.now());
+                    return created;
+                });
+
+        int baseDefect = pr.getDefectQty() == null ? 0 : pr.getDefectQty();
+        pr.setDefectQty(baseDefect + failQty);
+
+        productionResultRepo.save(pr);
     }
 
 
@@ -612,7 +691,14 @@ public class ProductionService {
     public PerformanceSummaryResDto getPerformanceSummary(LocalDate date, String line) {
         PerformanceSummaryResDto dto = productionResultRepo.getSummary(date, line);
         if (dto == null) return new PerformanceSummaryResDto(0L, 0L, 0L, 0.0);
-        return dto;
+
+        long convertedPlan = dto.getTotalPlanQty() * WAFER_TO_DIE;
+        long convertedActual = dto.getTotalGoodQty() * WAFER_TO_DIE;
+        long totalLoss = dto.getTotalDefectQty(); // 불량은 이미 die 단위
+
+        double yieldRate = (convertedPlan == 0) ? 0 : (double) convertedActual / convertedPlan * 100;
+
+        return new PerformanceSummaryResDto(convertedPlan, convertedActual, totalLoss, yieldRate);
     }
 
     @Transactional(readOnly = true)
@@ -634,10 +720,11 @@ public class ProductionService {
         List<WorkOrder> orders = orderRepo.findByLineForPerformance(line);
 
         return orders.stream().map(wo -> {
-            long plan = (long) wo.getTargetQty();
-            long actual = (long) wo.getCurrentQty();
-            long loss = Math.max(plan - actual, 0L);
-            double rate = (plan == 0L) ? 0.0 : (actual * 100.0 / plan);
+            long planDie = (long) wo.getTargetQty() * WAFER_TO_DIE;
+            long actualDie = (long) wo.getCurrentQty() * WAFER_TO_DIE;
+            long lossDie = itemRepo.countByProductionLog_WorkOrder_IdAndInspectionResult(wo.getId(), "Fail");
+            double rate = (planDie == 0L) ? 0.0 : (actualDie * 100.0 / planDie);
+
             String status = "IN_PROGRESS".equals(wo.getStatus()) ? "RUNNING" : wo.getStatus();
 
             return new WorkOrderPerformanceResDto(
@@ -645,9 +732,9 @@ public class ProductionService {
                     wo.getProduct().getCode(),
                     wo.getTargetLine(),
                     "wfrs",
-                    plan,
-                    actual,
-                    loss,
+                    planDie,
+                    actualDie,
+                    lossDie,
                     rate,
                     status
             );
@@ -683,21 +770,30 @@ public class ProductionService {
         log.setMessage(message);
     }
 
+    private String determineLogLevel(String message) {
+        if (message == null) return "INFO";
+
+        // 검사할 키워드 리스트
+        List<String> warnKeywords = List.of("지연", "불량", "PAUSED", "감지");
+
+        // 하나라도 포함되어 있으면 WARN 반환
+        boolean isWarn = warnKeywords.stream().anyMatch(message::contains);
+
+        return isWarn ? "WARN" : "INFO";
+    }
+
     // ✅ 작업지시 상태 변경 시 ProductionLog(이벤트 로그) 1건 저장
     private void writeWorkOrderStatusChangeLog(WorkOrder order, String from, String to) {
+        String message = "작업지시 상태 변경: " + from + " → " + to;
 
-        String level;
-        if ("PAUSED".equals(to)) {
-            level = "WARN";           // 🔥 중단은 경고
-        } else {
-            level = "INFO";           // 나머지는 정보
-        }
+        // 💡 메시지 내용(PAUSED 포함 여부 등)을 분석하여 레벨 결정
+        String level = determineLogLevel(message);
 
         ProductionLog log = ProductionLog.builder()
                 .workOrder(order)
                 .level(level)
-                .category("WORK_ORDER")   // 🔥 여기 중요
-                .message("작업지시 상태 변경: " + from + " → " + to)
+                .category("WORK_ORDER")
+                .message(message)
                 .startTime(LocalDateTime.now())
                 .resultDate(LocalDate.now())
                 .resultQty(0)
