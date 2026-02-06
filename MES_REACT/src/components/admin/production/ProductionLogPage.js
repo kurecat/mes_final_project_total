@@ -18,7 +18,7 @@ const getLevelBadge = (level, message = "") => {
   // 메시지에 경고 키워드가 포함되어 있으면 level이 INFO라도 WARN으로 취급
   console.log(`검사 중인 로그 - 레벨: ${level}, 메시지: ${message}`);
   const isWarnMessage =
-    message.includes("지연") ||
+    message.includes("이상") ||
     message.includes("불량") ||
     message.includes("PAUSED") ||
     message.includes("감지") ||

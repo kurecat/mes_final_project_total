@@ -237,6 +237,8 @@ const WorkOrderPage = () => {
   const [pauseModalOpen, setPauseModalOpen] = useState(false);
   const [pauseReason, setPauseReason] = useState("");
   const [pauseTargetId, setPauseTargetId] = useState(null);
+  const [selectedReason, setSelectedReason] = useState(""); // 체크박스 선택값
+  const [etcReason, setEtcReason] = useState(""); // 기타 입력값
 
   // 자재 부족 알림 모달 State
   const [inventoryModal, setInventoryModal] = useState({
@@ -287,6 +289,13 @@ const WorkOrderPage = () => {
     return () => clearInterval(intervalId);
   }, [fetchData]);
 
+  // 중단 사유
+  const REASON_OPTIONS = [
+    "불량 - 재고 퀄리티 미달",
+    "이상 - 설비 불량 및 고장",
+    "이상 - 생산정보 오류",
+    "기타",
+  ];
   // 자재 부족 모달 닫기 함수
   const closeInventoryModal = () => {
     // 현재 부족 현상이 있는 작업의 ID를 handledShortageId에 등록하여 다음 폴링 때 안 뜨게 함
@@ -302,28 +311,46 @@ const WorkOrderPage = () => {
 
   const updateStatus = useCallback(
     async (id, nextStatus) => {
+      // 🔥 [수정] Pause 버튼 클릭 시 즉시 PAUSED 상태로 변경 처리
       if (nextStatus === "PAUSE_REQUEST") {
-        setPauseTargetId(id);
-        setPauseReason("");
-        setPauseModalOpen(true);
-        return;
+        try {
+          // 1. 서버에 즉시 PAUSED 상태 전송
+          await axiosInstance.patch(`/api/mes/order/${id}/status`, {
+            status: "PAUSED",
+          });
+
+          // 2. 이벤트 로그 기록 (사유 없음 버전)
+          await axiosInstance.post(`/api/mes/production-log/event`, {
+            workOrderId: id,
+            actionType: "PAUSE",
+          });
+
+          // 3. UI 갱신 및 모달 띄우기
+          setPauseTargetId(id);
+          setPauseReason("");
+          setPauseModalOpen(true);
+          fetchData(true); // 상태 변경 확인을 위해 silent fetch
+          return;
+        } catch (e) {
+          alert("일시정지 처리 중 오류가 발생했습니다.");
+          return;
+        }
       }
 
+      // 기존 IN_PROGRESS, COMPLETED 로직은 유지
       try {
         await axiosInstance.patch(`/api/mes/order/${id}/status`, {
           status: nextStatus,
         });
 
         let actionType = "START";
-        if (nextStatus === "PAUSED") actionType = "PAUSE";
-        else if (nextStatus === "COMPLETED") actionType = "FINISH";
+        if (nextStatus === "COMPLETED") actionType = "FINISH";
 
         await axiosInstance.post(`/api/mes/production-log/event`, {
           workOrderId: id,
           actionType,
         });
 
-        // 다시 시작하거나 다른 상태로 가면 '확인 완료된 ID' 목록에서 제거 (나중에 또 발생하면 떠야 하므로)
         if (nextStatus === "IN_PROGRESS" || nextStatus === "COMPLETED") {
           setInventoryModal((prev) => ({ ...prev, handledShortageId: null }));
         }
@@ -346,26 +373,31 @@ const WorkOrderPage = () => {
         }
       }
     },
-    [fetchData, orders],
+    [fetchData],
   );
 
+  // 🔥 [수정] 사유 저장 함수 - 이미 상태는 PAUSED이므로 사유 업데이트(로그)만 수행
   const savePauseReason = async () => {
-    if (!pauseReason.trim()) return alert("중단 사유를 입력해주세요.");
+    // 실제 저장될 최종 메시지 결정
+    const finalReason = selectedReason === "기타" ? etcReason : selectedReason;
+
+    if (!finalReason.trim())
+      return alert("중단 사유를 선택하거나 입력해주세요.");
+
     try {
-      await axiosInstance.patch(`/api/mes/order/${pauseTargetId}/status`, {
-        status: "PAUSED",
-      });
       await axiosInstance.post(`/api/mes/production-log/event`, {
         workOrderId: pauseTargetId,
         actionType: "PAUSE",
-        message: pauseReason,
+        message: finalReason, // 합쳐진 사유 전달
       });
+
       setPauseModalOpen(false);
       setPauseTargetId(null);
-      setPauseReason("");
+      setSelectedReason("");
+      setEtcReason("");
       fetchData();
     } catch (e) {
-      alert("중단 처리에 실패했습니다.");
+      alert("사유 저장에 실패했습니다.");
     }
   };
 
@@ -438,15 +470,43 @@ const WorkOrderPage = () => {
         <ModalOverlay>
           <ModalBox>
             <h3>
-              <FaPause /> 작업 중단 사유
+              <FaPause /> 작업 중단 사유 선택
             </h3>
-            <textarea
-              value={pauseReason}
-              onChange={(e) => setPauseReason(e.target.value)}
-              placeholder="중단 사유를 입력하세요"
-            />
+            <ReasonList>
+              {REASON_OPTIONS.map((option) => (
+                <ReasonItem
+                  key={option}
+                  onClick={() => setSelectedReason(option)}
+                >
+                  <input
+                    type="radio" // 하나만 선택하므로 radio가 적합합니다
+                    checked={selectedReason === option}
+                    onChange={() => setSelectedReason(option)}
+                  />
+                  <span>{option}</span>
+                </ReasonItem>
+              ))}
+            </ReasonList>
+
+            {/* '기타' 선택 시에만 입력창 활성화 */}
+            {selectedReason === "기타" && (
+              <textarea
+                value={etcReason}
+                onChange={(e) => setEtcReason(e.target.value)}
+                placeholder="기타 사유를 상세히 입력하세요"
+                style={{ marginTop: "10px", height: "80px" }}
+              />
+            )}
+
             <ModalActions>
-              <ModalBtn $cancel onClick={() => setPauseModalOpen(false)}>
+              <ModalBtn
+                $cancel
+                onClick={() => {
+                  setPauseModalOpen(false);
+                  setSelectedReason("");
+                  setEtcReason("");
+                }}
+              >
                 Cancel
               </ModalBtn>
               <ModalBtn onClick={savePauseReason}>Save</ModalBtn>
@@ -787,5 +847,38 @@ const ModalBtn = styled.button`
   background: ${(p) => (p.$cancel ? "#95a5a6" : "#f39c12")};
   &:hover {
     opacity: 0.9;
+  }
+`;
+
+const ReasonList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 10px 0;
+`;
+
+const ReasonItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f8f9fa;
+  }
+
+  input {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+  }
+
+  span {
+    font-size: 14px;
+    color: #333;
   }
 `;

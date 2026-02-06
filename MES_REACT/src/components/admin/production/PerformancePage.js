@@ -235,40 +235,55 @@ const KpiBoard = React.memo(({ summary }) => {
 });
 
 const HourlyChart = React.memo(({ data }) => {
+  // 웨이퍼 당 다이 수량 상수
+  const DIE_PER_WAFER = 156;
+
+  // 🔥 [수정] 차트용 데이터 가공: plan과 actual에만 계수를 곱함
+  // scrap(loss)은 이미 die 단위이므로 그대로 유지합니다.
+  const chartData = useMemo(() => {
+    return data.map((item) => ({
+      ...item,
+      plan: (item.plan || 0) * DIE_PER_WAFER,
+      actual: (item.actual || 0) * DIE_PER_WAFER,
+      // scrap: item.scrap (이미 die 단위)
+    }));
+  }, [data]);
+
   return (
     <ChartSection>
       <SectionHeader>
-        <SectionTitle>Hourly Output Trend (Fab Wafer Out)</SectionTitle>
+        {/* 제목 단위를 die로 명시 */}
+        <SectionTitle>Hourly Output Trend (Die Unit)</SectionTitle>
       </SectionHeader>
       <ChartWrapper>
-        {/* minHeight로 높이 확보 (이전 답변 내용) */}
         <ResponsiveContainer width="100%" height="100%" minHeight={300}>
           <ComposedChart
-            data={data}
-            margin={{ top: 20, right: 20, bottom: 20, left: 20 }} // 여백 약간 추가
+            data={chartData}
+            margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
           >
             <CartesianGrid stroke="#f5f5f5" strokeDasharray="3 3" />
 
-            {/* interval={0}을 주면 모든 시간(9,10,11...)을 다 표시합니다 */}
             <XAxis dataKey="time" tick={{ fontSize: 12 }} interval={0} />
 
+            {/* 왼쪽 Y축: Plan/Actual용 (die 단위) */}
             <YAxis
               yAxisId="left"
               tick={{ fontSize: 12 }}
               label={{
-                value: "Wafer (wfrs)",
+                value: "Quantity (die)",
                 angle: -90,
                 position: "insideLeft",
                 fontSize: 12,
                 fill: "#999",
               }}
             />
+            {/* 오른쪽 Y축: Scrap/Loss 전용 */}
             <YAxis
               yAxisId="right"
               orientation="right"
               tick={{ fontSize: 12 }}
               label={{
-                value: "Scrap",
+                value: "Scrap (die)",
                 angle: 90,
                 position: "insideRight",
                 fontSize: 12,
@@ -282,14 +297,15 @@ const HourlyChart = React.memo(({ data }) => {
                 border: "none",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
               }}
+              // 툴팁 수치 뒤에 die 붙여주기
+              formatter={(value) => `${value.toLocaleString()} die`}
             />
             <Legend wrapperStyle={{ fontSize: 12, paddingTop: 10 }} />
 
-            {/* ▼ [수정] barSize를 40 정도로 키워주세요 (기존 16 -> 40) */}
             <Bar
               yAxisId="left"
               dataKey="plan"
-              name="Plan"
+              name="Plan (die)"
               fill="#e0e0e0"
               barSize={40}
               radius={[4, 4, 0, 0]}
@@ -297,7 +313,7 @@ const HourlyChart = React.memo(({ data }) => {
             <Bar
               yAxisId="left"
               dataKey="actual"
-              name="Actual"
+              name="Actual (die)"
               fill="#1a4f8b"
               barSize={40}
               radius={[4, 4, 0, 0]}
@@ -305,12 +321,12 @@ const HourlyChart = React.memo(({ data }) => {
 
             <Line
               yAxisId="right"
-              type="monotone" // 데이터가 촘촘해지면 곡선이 자연스러워집니다.
+              type="monotone"
               dataKey="scrap"
               name="Scrap/Loss"
               stroke="#e74c3c"
               strokeWidth={2}
-              dot={{ r: 4 }} // 점 크기도 살짝 키움
+              dot={{ r: 4 }}
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -387,56 +403,55 @@ const PerformancePage = () => {
     yieldRate: 0,
   });
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const resSummary = await axiosInstance.get(
-        `/api/mes/performance/summary`,
-        { params: { date, line: selectedLine } },
-      );
-      setSummary({
-        totalPlanQty: resSummary.data?.totalPlanQty ?? 0,
-        totalGoodQty: resSummary.data?.totalGoodQty ?? 0,
-        totalDefectQty: resSummary.data?.totalDefectQty ?? 0,
-        yieldRate: resSummary.data?.yieldRate ?? 0,
-      });
+  const fetchData = useCallback(
+    async (isSilent = false) => {
+      if (!isSilent) setLoading(true);
+      try {
+        const [resSummary, resHourly, resList] = await Promise.all([
+          axiosInstance.get(`/api/mes/performance/summary`, {
+            params: { date, line: selectedLine },
+          }),
+          axiosInstance.get(`/api/mes/performance/hourly`, {
+            params: { date, line: selectedLine },
+          }),
+          axiosInstance.get(`/api/mes/performance/list`, {
+            params: { date, line: selectedLine },
+          }),
+        ]);
 
-      const resHourly = await axiosInstance.get(`/api/mes/performance/hourly`, {
-        params: { date, line: selectedLine },
-      });
-      setHourlyData(fillMissingHours(resHourly.data ?? []));
+        setSummary({
+          totalPlanQty: resSummary.data?.totalPlanQty ?? 0,
+          totalGoodQty: resSummary.data?.totalGoodQty ?? 0,
+          totalDefectQty: resSummary.data?.totalDefectQty ?? 0,
+          yieldRate: resSummary.data?.yieldRate ?? 0,
+        });
+        setHourlyData(fillMissingHours(resHourly.data ?? []));
+        setListData(resList.data ?? []);
+      } catch (err) {
+        console.error("Data fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [date, selectedLine],
+  );
 
-      const resList = await axiosInstance.get(`/api/mes/performance/list`, {
-        params: { date, line: selectedLine },
-      });
-      setListData(resList.data ?? []);
-
-      setLoading(false);
-    } catch (err) {
-      console.error(err);
-      setSummary({
-        totalPlanQty: 52400,
-        totalGoodQty: 51050,
-        totalDefectQty: 25,
-        yieldRate: 97.4,
-      });
-      setHourlyData(MOCK_HOURLY);
-      setListData(MOCK_LIST);
-      setLoading(false);
-    }
-  }, [date, selectedLine]);
-
+  // 🔥 [핵심 수정] 5초마다 폴링 설정
   useEffect(() => {
-    fetchData();
+    fetchData(); // 처음 진입시 호출
+
+    const timer = setInterval(() => {
+      fetchData(true); // 5초마다 자동 갱신 (isSilent=true로 로딩 스피너 방지)
+    }, 5000);
+
+    return () => clearInterval(timer); // 컴포넌트 언마운트 시 타이머 제거
   }, [fetchData]);
 
-  const handleDateChange = useCallback((e) => {
-    setDate(e.target.value);
-  }, []);
-
-  const handleLineChange = useCallback((e) => {
-    setSelectedLine(e.target.value);
-  }, []);
+  const handleDateChange = useCallback((e) => setDate(e.target.value), []);
+  const handleLineChange = useCallback(
+    (e) => setSelectedLine(e.target.value),
+    [],
+  );
 
   const handleExport = useCallback(() => {
     // 데이터가 없으면 중단
