@@ -12,6 +12,7 @@ public class MaterialResDto {
     private String code;
     private String name;
     private String category;
+    private String spec;
     private Integer currentStock;
     private Integer safetyStock;
     private String location;
