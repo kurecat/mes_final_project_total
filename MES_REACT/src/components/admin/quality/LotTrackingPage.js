@@ -62,7 +62,7 @@ const ItemListPanel = React.memo(
         <SearchArea>
           <FaSearch color="#999" />
           <SearchInput
-            placeholder="Search Item ID or Product..."
+            placeholder="Search Serial Number..."
             value={searchTerm}
             onChange={onSearchChange}
           />
