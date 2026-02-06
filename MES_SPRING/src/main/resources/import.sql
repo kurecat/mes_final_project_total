@@ -116,19 +116,21 @@ INSERT INTO lot (code, material_id, location, status) VALUES
 ('LOT-20260122-07', 4, '클린룸', '공정중'),
 ('LOT-20260122-08', 8, '클린룸', '공정중');
 
-
 -- ==========================================
 -- 4. 생산 운영 데이터 (WorkOrder -> ProductionLog)
 -- ==========================================
 
--- 작업지시 등록 (★ ID=1 강제 지정 ★)
+-- [수정됨] 작업지시 등록
+-- 상태: 'IN_PROGRESS' (진행 중)
+-- 설비: 'LINE-01-M01' (실제 설비 코드와 일치시킴)
+-- 수량: 0 / 5000 (아직 안 만듦, 목표 넉넉하게)
 INSERT INTO work_order (
   id, work_order_number, product_id, target_qty, current_qty, status, assigned_machine_id, target_line
 ) VALUES (
-  1, 'WO-20260120-1001', 1, 1200, 1200, 'COMPLETED', 'MACHINE-01', 'Fab-Line-A'
+  1, 'WO-20260120-1001', 1, 5000, 0, 'IN_PROGRESS', 'LINE-01-M01', 'Fab-Line-A'
 );
 
--- 생산로그 등록 (WorkOrder ID=1, Equipment ID=1 필요)
+-- 생산로그 등록 (기존 더미 데이터 유지)
 INSERT INTO production_log (
   id, work_order_id, equipment_id, process_step, lot_no,
   result_qty, defect_qty, status, result_date, start_time, end_time,
@@ -162,3 +164,34 @@ INSERT INTO production_result (defect_qty, good_qty, plan_qty, result_date, resu
 (0, 180, 180, '2026-02-02', 15, '2026-01-20 15:05:00', 5, 'Mod-Line-C'),
 (1, 195, 200, '2026-02-03', 16, '2026-01-20 16:05:00', 5, 'Mod-Line-C'),
 (0, 210, 210, '2026-02-04', 17, '2026-01-20 17:05:00', 5, 'Mod-Line-C');
+
+
+-- ==========================================
+-- 1. SPC 기준 정보 등록 (이게 없으면 드롭다운이 안 뜹니다!)
+-- ==========================================
+INSERT INTO inspection_standard (process_name, check_item, lsl, usl, unit, description) VALUES
+('DieBonding', 'curingTemp', 145.0, 155.0, '°C', '경화 온도 관리'),
+('DieBonding', 'pickUpForce', 90.0, 110.0, 'N', '픽업 압력 관리'),
+('WireBonding', 'bondingTemp', 200.0, 220.0, '°C', '본딩 온도 관리'),
+('Molding', 'moldTemp', 170.0, 180.0, '°C', '금형 온도 관리');
+
+-- ==========================================
+-- 2. 공정별 상세 데이터 등록 (이게 없으면 차트가 텅 빕니다!)
+-- ==========================================
+
+-- [DieBonding] 데이터 생성 (기존 생산로그 1, 2, 3번에 연결)
+INSERT INTO die_bonding (production_log_id, curing_temp, pick_up_force, epoxy_dispense_volume, placement_accuracy) VALUES
+(1, '150.5', '100.2', '0.5', '0.01'),
+(2, '152.1', '98.5',  '0.51', '0.02'),
+(3, '148.9', '101.0', '0.49', '0.01');
+
+-- [WireBonding] 데이터 생성 (기존 생산로그 4, 5, 6번에 연결)
+INSERT INTO wire_bonding (production_log_id, bonding_temp, bonding_force, bonding_time, ultrasonic_power, loop_height, ball_diameter) VALUES
+(4, '210.5', '50.5', '10', '120', '50', '25'),
+(5, '212.0', '51.0', '10', '122', '51', '25'),
+(6, '209.8', '49.8', '10', '118', '49', '25');
+
+-- [Molding] 데이터 생성 (기존 생산로그 7, 8번에 연결)
+INSERT INTO molding (production_log_id, mold_temp, injection_pressure, cure_time, clamp_force) VALUES
+(7, '175.5', '10.2', '120', '500'),
+(8, '176.0', '10.5', '120', '505');
