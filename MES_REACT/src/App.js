@@ -17,7 +17,6 @@ const AdminMainPage = lazy(() => import("./pages/admin/AdminMainPage"));
 const DashboardPage = lazy(
   () => import("./components/admin/dashboard/DashboardPage"),
 );
-const KpiPage = lazy(() => import("./components/admin/dashboard/KpiPage"));
 
 // Production
 const ProductionPlanPage = lazy(
@@ -113,7 +112,6 @@ const App = () => {
 
             {/* Dashboard */}
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="dashboard/kpi" element={<KpiPage />} />
 
             {/* Production */}
             <Route path="production/plan" element={<ProductionPlanPage />} />

@@ -62,7 +62,15 @@ public class SystemService {
 
     // 2. 역할 생성
     @Transactional
-    public RoleDto createRole(Role role) {
+    public RoleDto createRole(RoleDto dto) {
+        Role role = Role.builder()
+                .name(dto.getName())
+                .code(dto.getCode()) // 코드 필드가 있다면
+                .description(dto.getDescription())
+                // ★ null 체크 후 저장 (null이면 false로 처리)
+                .isSystem(dto.getIsSystem() != null && dto.getIsSystem())
+                .build();
+
         Role savedRole = roleRepository.save(role);
         return RoleDto.from(savedRole);
     }

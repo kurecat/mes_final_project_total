@@ -11,6 +11,7 @@ import {
   FaTimes,
   FaLock,
   FaKey,
+  FaEdit, // 수정 아이콘 추가
 } from "react-icons/fa";
 
 // --- [서브 컴포넌트] ---
@@ -65,10 +66,9 @@ const PermissionGroup = React.memo(
             <PermissionItem
               key={perm.id}
               perm={perm}
-              // ADMIN 역할은 모든 권한이 체크된 상태로 보이게 처리 (선택 사항)
               isChecked={editedPermissionIds.includes(perm.id)}
               onToggle={onToggle}
-              disabled={roleIsAdmin && perm.isSystem} // 시스템 필수 권한은 수정 불가 처리 등
+              disabled={roleIsAdmin && perm.isSystem}
             />
           ))}
         </Grid>
@@ -77,8 +77,8 @@ const PermissionGroup = React.memo(
   },
 );
 
-// 4. 모달 (새 역할 추가)
-const RoleModal = ({ isOpen, onClose, onSave }) => {
+// ★ 4. 모달 (새 역할 추가 및 수정)
+const RoleModal = ({ isOpen, onClose, onSave, initialData, isEditMode }) => {
   const [form, setForm] = useState({
     name: "",
     code: "ROLE_",
@@ -86,8 +86,18 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
   });
 
   useEffect(() => {
-    if (isOpen) setForm({ name: "", code: "ROLE_", description: "" });
-  }, [isOpen]);
+    if (isOpen) {
+      if (isEditMode && initialData) {
+        setForm({
+          name: initialData.name,
+          code: initialData.code,
+          description: initialData.description || "",
+        });
+      } else {
+        setForm({ name: "", code: "ROLE_", description: "" });
+      }
+    }
+  }, [isOpen, isEditMode, initialData]);
 
   if (!isOpen) return null;
 
@@ -100,7 +110,11 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
     <Overlay>
       <ModalBox>
         <ModalHeader>
-          <h3>새 역할 정의 (Create Role)</h3>
+          <h3>
+            {isEditMode
+              ? "역할 정보 수정 (Edit Role)"
+              : "새 역할 정의 (Create Role)"}
+          </h3>
           <button onClick={onClose}>
             <FaTimes />
           </button>
@@ -119,7 +133,10 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
             <input
               placeholder="예: ROLE_QUALITY_MGR"
               value={form.code}
+              // 수정 모드일 때는 코드 변경 불가 (선택 사항)
+              disabled={isEditMode}
               onChange={(e) => setForm({ ...form, code: e.target.value })}
+              style={{ backgroundColor: isEditMode ? "#f5f5f5" : "white" }}
             />
           </InputGroup>
           <InputGroup>
@@ -136,7 +153,9 @@ const RoleModal = ({ isOpen, onClose, onSave }) => {
         </ModalBody>
         <ModalFooter>
           <CancelBtn onClick={onClose}>취소</CancelBtn>
-          <SubmitBtn onClick={handleSubmit}>생성</SubmitBtn>
+          <SubmitBtn onClick={handleSubmit}>
+            {isEditMode ? "수정 저장" : "생성"}
+          </SubmitBtn>
         </ModalFooter>
       </ModalBox>
     </Overlay>
@@ -152,7 +171,10 @@ const RolesPage = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [editedPermissionIds, setEditedPermissionIds] = useState([]);
   const [isDirty, setIsDirty] = useState(false);
+
+  // 모달 상태 관리
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // 1. 초기 데이터 로딩
   const fetchData = useCallback(async () => {
@@ -166,7 +188,6 @@ const RolesPage = () => {
       setRoles(roleList);
       setAllPermissions(permsRes.data || []);
 
-      // 첫 진입 시 첫번째 역할 자동 선택
       if (roleList.length > 0 && !selectedRole) {
         selectRole(roleList[0]);
       }
@@ -181,46 +202,32 @@ const RolesPage = () => {
 
   // 2. 역할 선택 핸들러
   const selectRole = (role) => {
-    // 변경사항이 있으면 경고 (생략 가능)
     setSelectedRole(role);
-    // 해당 역할이 가진 권한 ID 목록을 복사해서 편집용 State에 넣음
     setEditedPermissionIds(role.permissionIds ? [...role.permissionIds] : []);
     setIsDirty(false);
   };
 
   // 3. 권한 토글 핸들러
-  const handleTogglePermission = useCallback(
-    (permId) => {
-      if (selectedRole?.code === "ROLE_ADMIN") {
-        // alert("최고 관리자 권한은 수정할 수 없습니다.");
-        // return;
-        // 필요시 관리자 수정 막기
+  const handleTogglePermission = useCallback((permId) => {
+    setEditedPermissionIds((prev) => {
+      if (prev.includes(permId)) {
+        return prev.filter((id) => id !== permId); // 제거
+      } else {
+        return [...prev, permId]; // 추가
       }
+    });
+    setIsDirty(true);
+  }, []);
 
-      setEditedPermissionIds((prev) => {
-        if (prev.includes(permId)) {
-          return prev.filter((id) => id !== permId); // 제거
-        } else {
-          return [...prev, permId]; // 추가
-        }
-      });
-      setIsDirty(true);
-    },
-    [selectedRole],
-  );
-
-  // 4. 저장 핸들러 (PUT)
-  const handleSave = async () => {
+  // 4. 권한 설정 저장 (PUT)
+  const handleSavePermissions = async () => {
     if (!selectedRole) return;
     try {
       await axiosInstance.put(
         `/api/mes/system/role/${selectedRole.id}/permissions`,
-        {
-          permissionIds: editedPermissionIds,
-        },
+        { permissionIds: editedPermissionIds },
       );
 
-      // 로컬 상태 업데이트
       setRoles((prev) =>
         prev.map((r) =>
           r.id === selectedRole.id
@@ -235,13 +242,13 @@ const RolesPage = () => {
     }
   };
 
-  // 5. 역할 추가 핸들러 (POST)
+  // 5. 역할 추가 (POST)
   const handleAddRole = async (formData) => {
     try {
       const res = await axiosInstance.post("/api/mes/system/role", formData);
       const newRole = res.data;
       setRoles((prev) => [...prev, newRole]);
-      selectRole(newRole); // 새로 만든 역할 선택
+      selectRole(newRole);
       setIsModalOpen(false);
       alert("새 역할이 생성되었습니다.");
     } catch (err) {
@@ -249,7 +256,50 @@ const RolesPage = () => {
     }
   };
 
-  // 6. 역할 삭제 핸들러 (DELETE)
+  // ★ 6. 역할 수정 (PUT) - 추가됨
+  const handleUpdateRole = async (formData) => {
+    try {
+      // API 경로 예시: /api/mes/system/role/{id}
+      // 백엔드 구현에 따라 경로 확인 필요
+      const res = await axiosInstance.put(
+        `/api/mes/system/role/${selectedRole.id}`,
+        formData,
+      );
+
+      // 응답받은 최신 정보로 리스트 업데이트
+      // 만약 백엔드가 수정된 객체를 리턴하지 않는다면 formData와 id로 직접 구성해야 함
+      const updatedRole = res.data || { ...selectedRole, ...formData };
+
+      setRoles((prev) =>
+        prev.map((r) =>
+          r.id === selectedRole.id
+            ? { ...updatedRole, permissionIds: r.permissionIds }
+            : r,
+        ),
+      );
+      setSelectedRole((prev) => ({ ...prev, ...formData })); // 선택된 정보도 갱신
+
+      setIsModalOpen(false);
+      alert("역할 정보가 수정되었습니다.");
+    } catch (err) {
+      alert("수정 실패: " + err.message);
+    }
+  };
+
+  // 모달 열기 핸들러 (추가)
+  const openAddModal = () => {
+    setIsEditMode(false);
+    setIsModalOpen(true);
+  };
+
+  // 모달 열기 핸들러 (수정)
+  const openEditModal = () => {
+    if (!selectedRole) return;
+    setIsEditMode(true);
+    setIsModalOpen(true);
+  };
+
+  // 7. 역할 삭제 (DELETE)
   const handleDeleteRole = async () => {
     if (!window.confirm(`'${selectedRole.name}' 역할을 정말 삭제하시겠습니까?`))
       return;
@@ -265,7 +315,6 @@ const RolesPage = () => {
     }
   };
 
-  // 권한 그룹핑 (화면 표시용)
   const groupedPermissions = useMemo(() => {
     const groups = {};
     allPermissions.forEach((p) => {
@@ -290,7 +339,7 @@ const RolesPage = () => {
         <LeftPanel>
           <PanelTitle>
             <span>Roles</span>
-            <AddBtn onClick={() => setIsModalOpen(true)}>
+            <AddBtn onClick={openAddModal}>
               <FaPlus />
             </AddBtn>
           </PanelTitle>
@@ -317,13 +366,18 @@ const RolesPage = () => {
                   <p>{selectedRole.description}</p>
                 </div>
                 <div className="actions">
+                  {/* ★ 수정 버튼 추가 */}
+                  <EditBtn onClick={openEditModal}>
+                    <FaEdit /> 수정
+                  </EditBtn>
+
                   {!selectedRole.isSystem && (
                     <DeleteBtn onClick={handleDeleteRole}>
                       <FaTrashAlt /> 삭제
                     </DeleteBtn>
                   )}
                   {isDirty && (
-                    <SaveBtn onClick={handleSave}>
+                    <SaveBtn onClick={handleSavePermissions}>
                       <FaSave /> 저장
                     </SaveBtn>
                   )}
@@ -351,8 +405,10 @@ const RolesPage = () => {
 
       <RoleModal
         isOpen={isModalOpen}
+        isEditMode={isEditMode}
+        initialData={isEditMode ? selectedRole : null}
         onClose={() => setIsModalOpen(false)}
-        onSave={handleAddRole}
+        onSave={isEditMode ? handleUpdateRole : handleAddRole}
       />
     </Container>
   );
@@ -361,6 +417,7 @@ const RolesPage = () => {
 export default RolesPage;
 
 // --- [Styled Components] ---
+// 기존 스타일 유지 + EditBtn 추가
 
 const Container = styled.div`
   width: 100%;
@@ -391,8 +448,6 @@ const Content = styled.div`
   flex: 1;
   overflow: hidden;
 `;
-
-// Left Panel
 const LeftPanel = styled.div`
   width: 300px;
   background: white;
@@ -477,8 +532,6 @@ const RoleDesc = styled.div`
   color: #666;
   line-height: 1.3;
 `;
-
-// Right Panel
 const RightPanel = styled.div`
   flex: 1;
   background: white;
@@ -552,8 +605,21 @@ const DeleteBtn = styled.button`
     background: #fdedec;
   }
 `;
-
-// Permissions
+// ★ 수정 버튼 스타일
+const EditBtn = styled.button`
+  background: white;
+  color: #f39c12;
+  border: 1px solid #f39c12;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  &:hover {
+    background: #fef9e7;
+  }
+`;
 const GroupSection = styled.div`
   margin-bottom: 30px;
   background: white;
@@ -627,8 +693,6 @@ const EmptyState = styled.div`
   color: #aaa;
   font-size: 16px;
 `;
-
-// Modal
 const Overlay = styled.div`
   position: fixed;
   top: 0;

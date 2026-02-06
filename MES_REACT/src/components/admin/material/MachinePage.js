@@ -258,13 +258,6 @@ const DetailModal = React.memo(({ target, logs, onClose }) => {
             </InfoItem>
 
             <InfoItem>
-              <InfoKey>Current Lot</InfoKey>
-              <InfoValueText className="mono">
-                {target.lotId ?? "-"}
-              </InfoValueText>
-            </InfoItem>
-
-            <InfoItem>
               <InfoKey>UPH</InfoKey>
               <InfoValueText>{target.uph ?? 0}</InfoValueText>
             </InfoItem>
@@ -272,11 +265,6 @@ const DetailModal = React.memo(({ target, logs, onClose }) => {
             <InfoItem>
               <InfoKey>Temperature</InfoKey>
               <InfoValueText>{target.temperature ?? 0}°C</InfoValueText>
-            </InfoItem>
-
-            <InfoItem style={{ gridColumn: "1 / -1" }}>
-              <InfoKey>Main Param</InfoKey>
-              <InfoValueText>{target.param ?? "-"}</InfoValueText>
             </InfoItem>
           </InfoGrid>
 
