@@ -411,7 +411,7 @@ namespace L1_MachineSim
 
         private static void ProcessFinalInspectionArray(BinaryWriter writer)
         {
-            short arrayLength = (short)Device.Rand.Next(150, 160);
+            short arrayLength = (short)Device.Rand.Next(150, 160);  // 1웨이퍼당 다이 수
             string[] elecOpts = { "Normal", "Abnormal" };
             string[] relOpts = { "Pass", "Fail" };
             string[] visOpts = { "Good", "Defect", "Average" };
