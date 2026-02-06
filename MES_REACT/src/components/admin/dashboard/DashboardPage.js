@@ -195,11 +195,12 @@ const AlertBoard = React.memo(({ alerts, onAck }) => (
     <AlertTable>
       <thead>
         <tr>
-          <th>Time</th>
-          <th>Equipment</th>
-          <th>Level</th>
-          <th>Message</th>
-          <th>Status</th>
+          {/* ⭐ 각 컬럼의 너비를 %로 명시하여 고정합니다 */}
+          <th style={{ width: "15%" }}>Time</th>
+          <th style={{ width: "20%" }}>Equipment</th>
+          <th style={{ width: "15%" }}>Level</th>
+          <th style={{ width: "35%" }}>Message</th>
+          <th style={{ width: "15%" }}>Status</th>
         </tr>
       </thead>
       <tbody>
@@ -212,17 +213,30 @@ const AlertBoard = React.memo(({ alerts, onAck }) => (
             <td>
               <AlertBadge $level={a.level}>{a.level}</AlertBadge>
             </td>
-            <td>{a.msg}</td>
+            {/* 메시지가 너무 길 경우를 대비해 툴팁(title) 추가 */}
+            <td title={a.msg} className="truncate">
+              {a.msg}
+            </td>
             <td>
               <ActionBtn onClick={() => onAck(a.id)}>Ack</ActionBtn>
             </td>
           </tr>
         ))}
+        {/* 데이터가 없을 때의 처리 */}
+        {alerts.length === 0 && (
+          <tr>
+            <td
+              colSpan="5"
+              style={{ textAlign: "center", color: "#999", padding: "30px" }}
+            >
+              No active equipment alerts.
+            </td>
+          </tr>
+        )}
       </tbody>
     </AlertTable>
   </BottomSection>
 ));
-
 /* ================= Main ================= */
 
 const DashboardPage = () => {
@@ -230,26 +244,36 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
+  // DashboardPage.js 내의 fetchData 함수 부분 수정
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      if (USE_MOCK) {
-        setData(MOCK_DATA);
-        return;
-      }
-
-      const [summary, hourly, wip, alerts] = await Promise.all([
+      const [summary, hourly, wip, alertsRes] = await Promise.all([
         fetchDashboardSummary(),
         fetchHourlyOutput(),
         fetchWipBalance(),
         fetchEquipmentAlerts(),
       ]);
 
+      // 🔥 [수정] 서버에서 오는 다양한 필드명을 'msg' 하나로 통합 매핑
+      const mappedAlerts = alertsRes.data.map((a) => ({
+        id: a.id,
+        // 1. 시간: created_at 또는 timestamp 필드 사용
+        time: a.timestamp || a.created_at || a.time || "-",
+        // 2. 장비: 장비 명칭 필드 확인
+        equip: a.equipment_name || a.equip || a.equipment_id || "Unknown",
+        // 3. 레벨: CRITICAL, INFO 등
+        level: a.level || (a.event_type === "ERROR" ? "CRITICAL" : "INFO"),
+        // 4. 메시지: 설비 로그의 'message' 또는 검사 결과의 'inspection_result' 가져오기
+        msg: a.message || a.inspection_result || a.msg || "세부 내용 없음",
+      }));
+
       setData({
         stats: summary.data,
         productionTrend: hourly.data,
         wipBalance: wip.data,
-        alerts: alerts.data,
+        alerts: mappedAlerts,
       });
 
       setLastUpdated(new Date());
@@ -398,23 +422,36 @@ const BottomSection = styled.div`
 const AlertTable = styled.table`
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed; /* ⭐ 핵심 */
+  table-layout: fixed;
   font-size: 14px;
+  background: white;
 
   th,
   td {
-    padding: 12px;
-    vertical-align: middle; /* ⭐ 행 기준선 정렬 */
-  }
-
-  th {
-    background: #f9f9f9;
-    color: #666;
+    padding: 12px 15px;
+    text-align: left; /* ⭐ 왼쪽 정렬 통일 */
+    vertical-align: middle;
     border-bottom: 1px solid #eee;
   }
 
-  td {
-    border-bottom: 1px solid #f5f5f5;
+  th {
+    background: #f8f9fb;
+    color: #7f8c8d;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ⭐ 메시지가 길어질 경우 말줄임표(...) 처리 */
+  .truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  tr:hover {
+    background-color: #fcfcfc;
   }
 `;
 
@@ -434,8 +471,19 @@ const AlertBadge = styled.span`
   color: ${(p) => (p.$level === "CRITICAL" ? "#c62828" : "#e67e22")};
 `;
 const ActionBtn = styled.button`
-  border: 1px solid #ddd;
-  padding: 4px 10px;
+  border: 1px solid #dcdde1;
+  padding: 6px 12px;
   background: white;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2f3640;
   cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #f5f6fa;
+    border-color: #1a4f8b;
+    color: #1a4f8b;
+  }
 `;
