@@ -77,7 +77,7 @@ const ControlHeader = React.memo(
           <FaFilter color="#666" />
           <select value={lineFilter} onChange={onFilterChange}>
             <option value="ALL">All Processes</option>
-            <option value="LINE">Line A</option>
+            <option value="Line-A">Line-A</option>
             <option value="EDS">EDS</option>
             <option value="MOD">Module</option>
           </select>
