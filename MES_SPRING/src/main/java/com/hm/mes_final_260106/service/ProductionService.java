@@ -75,20 +75,20 @@ public class ProductionService {
     // 2) 작업 지시 생성
     // =========================
     @Transactional
-    public WorkOrder createWorkOrder(String productCode, int targetQty, String targetLine) {
-        Product product = productRepo.findByCode(productCode)
-                .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다"));
+    public WorkOrderResDto createWorkOrder(WorkOrderReqDto dto) {
+        Bom bom = bomRepo.findByProduct_CodeAndRevision(dto.getProductCode(), dto.getRevision())
+                .orElseThrow(() -> new EntityNotFoundException("BOM을 찾을 수 없습니다"));
 
         WorkOrder order = WorkOrder.builder()
                 .workOrderNumber(generateWorkOrderNumber())
-                .product(product)
-                .targetQty(targetQty)
+                .bom(bom)
+                .targetQty(dto.getTargetQty())
                 .currentQty(0)
                 .status("WAITING")
-                .targetLine(targetLine)
+                .targetLine(dto.getTargetLine())
                 .build();
 
-        return orderRepo.save(order);
+        return WorkOrderResDto.fromEntity(orderRepo.save(order));
     }
 
     // =========================
@@ -116,13 +116,13 @@ public class ProductionService {
                     : order.getTargetLine();
 
             ProductionResult pr = productionResultRepo
-                    .findByResultDateAndResultHourAndLineAndProduct(today, hour, line, order.getProduct())
+                    .findByResultDateAndResultHourAndLineAndProduct(today, hour, line, order.getBom().getProduct())
                     .orElseGet(() -> {
                         ProductionResult created = new ProductionResult();
                         created.setResultDate(today);
                         created.setResultHour(hour);
                         created.setLine(line);
-                        created.setProduct(order.getProduct());
+                        created.setProduct(order.getBom().getProduct());
                         created.setPlanQty(0);
                         created.setGoodQty(0);
                         created.setDefectQty(0);
@@ -141,8 +141,8 @@ public class ProductionService {
         }
 
         // ▼ [추가] LazyInitializationException 방지: Product 정보 강제 로드
-        if (order.getProduct() != null) {
-            order.getProduct().getName();
+        if (order.getBom().getProduct() != null) {
+            order.getBom().getProduct().getName();
         }
 
         return orderRepo.save(order);
@@ -162,8 +162,8 @@ public class ProductionService {
 
         // 🔒 이미 작업중이면 조용히 리턴 (중복 클릭 방지)
         if ("IN_PROGRESS".equals(status)) {
-            if (order.getProduct() != null) {
-                order.getProduct().getName();
+            if (order.getBom().getProduct() != null) {
+                order.getBom().getProduct().getName();
             }
             return order;
         }
@@ -181,8 +181,8 @@ public class ProductionService {
             order.setStartDate(LocalDateTime.now());
         }
 
-        if (order.getProduct() != null) {
-            order.getProduct().getName();
+        if (order.getBom().getProduct() != null) {
+            order.getBom().getProduct().getName();
         }
 
         return orderRepo.save(order);
@@ -204,8 +204,8 @@ public class ProductionService {
         order.setEndDate(LocalDateTime.now());
 
         // ▼ [추가] LazyInitializationException 방지
-        if (order.getProduct() != null) {
-            order.getProduct().getName();
+        if (order.getBom().getProduct() != null) {
+            order.getBom().getProduct().getName();
         }
 
         return orderRepo.save(order);
@@ -274,22 +274,22 @@ public class ProductionService {
     // 5) 작업지시 수정
     // =========================
     @Transactional
-    public WorkOrder updateWorkOrder(Long id, String productCode, int targetQty, String targetLine) {
+    public WorkOrderResDto updateWorkOrder(Long id, WorkOrderReqDto dto) {
         WorkOrder order = orderRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. ID: " + id));
 
-        Product product = productRepo.findByCode(productCode)
-                .orElseThrow(() -> new RuntimeException("품목을 찾을 수 없습니다"));
+        Bom bom = bomRepo.findByProduct_CodeAndRevision(dto.getProductCode(), dto.getRevision())
+                .orElseThrow(() -> new RuntimeException("BOM을 찾을 수 없습니다"));
 
         if ("IN_PROGRESS".equals(order.getStatus()) || "COMPLETED".equals(order.getStatus())) {
             throw new RuntimeException("진행중/완료된 작업은 수정할 수 없습니다.");
         }
 
-        order.setProduct(product);
-        order.setTargetQty(targetQty);
-        order.setTargetLine(targetLine);
+        order.setBom(bom);
+        order.setTargetQty(dto.getTargetQty());
+        order.setTargetLine(dto.getTargetLine());
 
-        return orderRepo.save(order);
+        return WorkOrderResDto.fromEntity(orderRepo.save(order));
     }
 
     @Transactional
@@ -357,8 +357,8 @@ public class ProductionService {
         }
 
         // Lazy Loading 방지 (기존 유지)
-        if (order.getProduct() != null) {
-            order.getProduct().getName();
+        if (order.getBom().getProduct() != null) {
+            order.getBom().getProduct().getName();
         }
 
         return orderRepo.save(order);
@@ -374,14 +374,14 @@ public class ProductionService {
 
         ProductionResult pr = productionResultRepo
                 .findByResultDateAndResultHourAndLineAndProduct(
-                        date, hour, line, order.getProduct()
+                        date, hour, line, order.getBom().getProduct()
                 )
                 .orElseGet(() -> {
                     ProductionResult created = new ProductionResult();
                     created.setResultDate(date);
                     created.setResultHour(hour);
                     created.setLine(line);
-                    created.setProduct(order.getProduct());
+                    created.setProduct(order.getBom().getProduct());
                     created.setPlanQty(0);
                     created.setGoodQty(0);
                     created.setDefectQty(0);
@@ -401,7 +401,7 @@ public class ProductionService {
      */
     private void validateInventoryAndFillShortage(WorkOrder order) {
         // 해당 제품의 BOM 조회
-        Bom bom = bomRepo.findById(order.getProduct().getId())
+        Bom bom = bomRepo.findById(order.getBom().getProduct().getId())
                 .orElseThrow(() -> new RuntimeException("해당 제품의 BOM 설정이 없습니다."));
 
         for (BomItem bomItem : bom.getItems()) {
@@ -462,7 +462,7 @@ public class ProductionService {
         WorkOrder workOrder = orderRepo.findByWorkOrderNumber(dto.getWorkOrderNumber())
                 .orElseThrow(() -> new RuntimeException("작업 지시를 찾을 수 없습니다. 번호 : " + dto.getWorkOrderNumber()));
 
-        Product product = workOrder.getProduct();
+        Product product = workOrder.getBom().getProduct();
         Equipment equipment = equipmentRepo.findByCode(dto.getEquipmentCode())
                 .orElseThrow(() -> new RuntimeException("설비를 찾을 수 없습니다"));
 
@@ -645,13 +645,13 @@ public class ProductionService {
         String line = (order.getTargetLine() == null || order.getTargetLine().isBlank()) ? "Fab-Line-A" : order.getTargetLine();
 
         ProductionResult pr = productionResultRepo
-                .findByResultDateAndResultHourAndLineAndProduct(today, hour, line, order.getProduct())
+                .findByResultDateAndResultHourAndLineAndProduct(today, hour, line, order.getBom().getProduct())
                 .orElseGet(() -> {
                     ProductionResult created = new ProductionResult();
                     created.setResultDate(today);
                     created.setResultHour(hour);
                     created.setLine(line);
-                    created.setProduct(order.getProduct());
+                    created.setProduct(order.getBom().getProduct());
                     created.setPlanQty(0);
                     created.setGoodQty(0);
                     created.setDefectQty(0);
@@ -729,7 +729,7 @@ public class ProductionService {
 
             return new WorkOrderPerformanceResDto(
                     wo.getWorkOrderNumber(),
-                    wo.getProduct().getCode(),
+                    wo.getBom().getProduct().getCode(),
                     wo.getTargetLine(),
                     "wfrs",
                     planDie,
@@ -921,7 +921,7 @@ public class ProductionService {
                             .status(status)
                             .time(log.getStartTime())
                             .worker(log.getWorker() != null ? log.getWorker().getName() : "-")
-                            .result("Used for: " + log.getWorkOrder().getProduct().getName())
+                            .result("Used for: " + log.getWorkOrder().getBom().getProduct().getName())
                             .build();
                 })
                 .sorted(Comparator.comparing(LotHistoryResDto::getTime))

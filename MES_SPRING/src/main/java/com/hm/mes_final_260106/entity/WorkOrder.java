@@ -25,8 +25,8 @@ public class WorkOrder {
     private String workOrderNumber;   // 작업지시번호
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;          // 생산할 제품
+    @JoinColumn(name = "bom_id", nullable = false)
+    private Bom bom;                   // 생산할 bom
 
     private int targetQty;             // 목표 수량
     private int currentQty;            // 현재 생산량

@@ -529,8 +529,7 @@ const DetailView = React.memo(
               {bom.productName} <RevBadge>{bom.revision}</RevBadge>
             </BomName>
             <BomMeta>
-              Code: <strong>{bom.productCode}</strong>
-              {/* | Type: {bom.type} */}| Last Updated:{" "}
+              {/* | Type: {bom.type} */}Last Updated:{" "}
               {new Date(bom.lastUpdate).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
