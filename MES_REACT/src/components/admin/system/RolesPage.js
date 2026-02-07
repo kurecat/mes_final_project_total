@@ -7,16 +7,14 @@ import {
   FaPlus,
   FaTrashAlt,
   FaSave,
-  FaLayerGroup,
   FaTimes,
   FaLock,
-  FaKey,
-  FaEdit, // 수정 아이콘 추가
+  FaEdit,
 } from "react-icons/fa";
 
 // --- [서브 컴포넌트] ---
 
-// 1. 역할 카드 (왼쪽 리스트 아이템)
+// 1. 역할 카드
 const RoleCardItem = React.memo(({ role, isActive, onSelect }) => {
   return (
     <RoleCard $active={isActive} onClick={() => onSelect(role)}>
@@ -35,7 +33,7 @@ const RoleCardItem = React.memo(({ role, isActive, onSelect }) => {
   );
 });
 
-// 2. 권한 체크박스 (오른쪽 상세 아이템)
+// 2. 권한 체크박스
 const PermissionItem = React.memo(({ perm, isChecked, onToggle, disabled }) => {
   return (
     <PermCard
@@ -49,13 +47,13 @@ const PermissionItem = React.memo(({ perm, isChecked, onToggle, disabled }) => {
       <PermInfo>
         <PermName>{perm.name}</PermName>
         <PermCode>{perm.code}</PermCode>
-        <PermDesc>{perm.description}</PermDesc>
+        {/* <PermDesc>{perm.description}</PermDesc> 설명이 길면 생략 가능 */}
       </PermInfo>
     </PermCard>
   );
 });
 
-// 3. 권한 그룹 (카테고리별 분류)
+// 3. 권한 그룹 (섹션)
 const PermissionGroup = React.memo(
   ({ groupName, permissions, editedPermissionIds, onToggle, roleIsAdmin }) => {
     return (
@@ -77,7 +75,7 @@ const PermissionGroup = React.memo(
   },
 );
 
-// ★ 4. 모달 (새 역할 추가 및 수정)
+// 4. 모달
 const RoleModal = ({ isOpen, onClose, onSave, initialData, isEditMode }) => {
   const [form, setForm] = useState({
     name: "",
@@ -110,30 +108,23 @@ const RoleModal = ({ isOpen, onClose, onSave, initialData, isEditMode }) => {
     <Overlay>
       <ModalBox>
         <ModalHeader>
-          <h3>
-            {isEditMode
-              ? "역할 정보 수정 (Edit Role)"
-              : "새 역할 정의 (Create Role)"}
-          </h3>
+          <h3>{isEditMode ? "역할 정보 수정" : "새 역할 정의"}</h3>
           <button onClick={onClose}>
             <FaTimes />
           </button>
         </ModalHeader>
         <ModalBody>
           <InputGroup>
-            <label>역할 이름 (한글 가능)</label>
+            <label>역할 이름</label>
             <input
-              placeholder="예: 품질 관리자"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </InputGroup>
           <InputGroup>
-            <label>역할 코드 (시스템용, ROLE_ 로 시작)</label>
+            <label>역할 코드</label>
             <input
-              placeholder="예: ROLE_QUALITY_MGR"
               value={form.code}
-              // 수정 모드일 때는 코드 변경 불가 (선택 사항)
               disabled={isEditMode}
               onChange={(e) => setForm({ ...form, code: e.target.value })}
               style={{ backgroundColor: isEditMode ? "#f5f5f5" : "white" }}
@@ -143,7 +134,6 @@ const RoleModal = ({ isOpen, onClose, onSave, initialData, isEditMode }) => {
             <label>설명</label>
             <textarea
               rows={3}
-              placeholder="이 역할이 수행하는 업무 범위에 대한 설명"
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
@@ -167,16 +157,13 @@ const RoleModal = ({ isOpen, onClose, onSave, initialData, isEditMode }) => {
 const RolesPage = () => {
   const [roles, setRoles] = useState([]);
   const [allPermissions, setAllPermissions] = useState([]);
-
   const [selectedRole, setSelectedRole] = useState(null);
   const [editedPermissionIds, setEditedPermissionIds] = useState([]);
   const [isDirty, setIsDirty] = useState(false);
-
-  // 모달 상태 관리
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // 1. 초기 데이터 로딩
+  // 데이터 로딩
   const fetchData = useCallback(async () => {
     try {
       const [rolesRes, permsRes] = await Promise.all([
@@ -185,8 +172,10 @@ const RolesPage = () => {
       ]);
 
       const roleList = rolesRes.data || [];
+      const permList = permsRes.data || [];
+
       setRoles(roleList);
-      setAllPermissions(permsRes.data || []);
+      setAllPermissions(permList);
 
       if (roleList.length > 0 && !selectedRole) {
         selectRole(roleList[0]);
@@ -200,26 +189,20 @@ const RolesPage = () => {
     fetchData();
   }, []);
 
-  // 2. 역할 선택 핸들러
   const selectRole = (role) => {
     setSelectedRole(role);
     setEditedPermissionIds(role.permissionIds ? [...role.permissionIds] : []);
     setIsDirty(false);
   };
 
-  // 3. 권한 토글 핸들러
   const handleTogglePermission = useCallback((permId) => {
     setEditedPermissionIds((prev) => {
-      if (prev.includes(permId)) {
-        return prev.filter((id) => id !== permId); // 제거
-      } else {
-        return [...prev, permId]; // 추가
-      }
+      if (prev.includes(permId)) return prev.filter((id) => id !== permId);
+      else return [...prev, permId];
     });
     setIsDirty(true);
   }, []);
 
-  // 4. 권한 설정 저장 (PUT)
   const handleSavePermissions = async () => {
     if (!selectedRole) return;
     try {
@@ -227,7 +210,6 @@ const RolesPage = () => {
         `/api/mes/system/role/${selectedRole.id}/permissions`,
         { permissionIds: editedPermissionIds },
       );
-
       setRoles((prev) =>
         prev.map((r) =>
           r.id === selectedRole.id
@@ -236,40 +218,31 @@ const RolesPage = () => {
         ),
       );
       setIsDirty(false);
-      alert("권한 설정이 저장되었습니다.");
+      alert("저장되었습니다.");
     } catch (err) {
       alert("저장 실패: " + err.message);
     }
   };
 
-  // 5. 역할 추가 (POST)
   const handleAddRole = async (formData) => {
     try {
       const res = await axiosInstance.post("/api/mes/system/role", formData);
-      const newRole = res.data;
-      setRoles((prev) => [...prev, newRole]);
-      selectRole(newRole);
+      setRoles((prev) => [...prev, res.data]);
+      selectRole(res.data);
       setIsModalOpen(false);
-      alert("새 역할이 생성되었습니다.");
+      alert("생성되었습니다.");
     } catch (err) {
       alert("생성 실패: " + err.message);
     }
   };
 
-  // ★ 6. 역할 수정 (PUT) - 추가됨
   const handleUpdateRole = async (formData) => {
     try {
-      // API 경로 예시: /api/mes/system/role/{id}
-      // 백엔드 구현에 따라 경로 확인 필요
-      const res = await axiosInstance.put(
+      await axiosInstance.put(
         `/api/mes/system/role/${selectedRole.id}`,
         formData,
       );
-
-      // 응답받은 최신 정보로 리스트 업데이트
-      // 만약 백엔드가 수정된 객체를 리턴하지 않는다면 formData와 id로 직접 구성해야 함
-      const updatedRole = res.data || { ...selectedRole, ...formData };
-
+      const updatedRole = { ...selectedRole, ...formData };
       setRoles((prev) =>
         prev.map((r) =>
           r.id === selectedRole.id
@@ -277,32 +250,16 @@ const RolesPage = () => {
             : r,
         ),
       );
-      setSelectedRole((prev) => ({ ...prev, ...formData })); // 선택된 정보도 갱신
-
+      setSelectedRole(updatedRole);
       setIsModalOpen(false);
-      alert("역할 정보가 수정되었습니다.");
+      alert("수정되었습니다.");
     } catch (err) {
       alert("수정 실패: " + err.message);
     }
   };
 
-  // 모달 열기 핸들러 (추가)
-  const openAddModal = () => {
-    setIsEditMode(false);
-    setIsModalOpen(true);
-  };
-
-  // 모달 열기 핸들러 (수정)
-  const openEditModal = () => {
-    if (!selectedRole) return;
-    setIsEditMode(true);
-    setIsModalOpen(true);
-  };
-
-  // 7. 역할 삭제 (DELETE)
   const handleDeleteRole = async () => {
-    if (!window.confirm(`'${selectedRole.name}' 역할을 정말 삭제하시겠습니까?`))
-      return;
+    if (!window.confirm("정말 삭제하시겠습니까?")) return;
     try {
       await axiosInstance.delete(`/api/mes/system/role/${selectedRole.id}`);
       const filtered = roles.filter((r) => r.id !== selectedRole.id);
@@ -315,13 +272,23 @@ const RolesPage = () => {
     }
   };
 
+  // ★ 핵심 수정: 그룹핑 로직 (groupName 처리)
   const groupedPermissions = useMemo(() => {
     const groups = {};
     allPermissions.forEach((p) => {
-      const g = p.group || "기타 (Misc)";
+      // DB의 group_name -> JSON의 groupName으로 넘어오는 경우가 많음
+      const g = p.groupName || p.group_name || p.group || "기타 (Misc)";
+
       if (!groups[g]) groups[g] = [];
       groups[g].push(p);
     });
+
+    // 키 정렬 (가나다 순) - 필요시 주석 해제
+    // const sortedKeys = Object.keys(groups).sort();
+    // const sortedGroups = {};
+    // sortedKeys.forEach(key => sortedGroups[key] = groups[key]);
+    // return sortedGroups;
+
     return groups;
   }, [allPermissions]);
 
@@ -330,16 +297,20 @@ const RolesPage = () => {
       <Header>
         <TitleGroup>
           <FaUserShield size={24} color="#34495e" />
-          <h1>권한 그룹 관리 (Role Management)</h1>
+          <h1>권한 그룹 관리</h1>
         </TitleGroup>
       </Header>
 
       <Content>
-        {/* === 좌측: 역할 목록 === */}
         <LeftPanel>
           <PanelTitle>
             <span>Roles</span>
-            <AddBtn onClick={openAddModal}>
+            <AddBtn
+              onClick={() => {
+                setIsEditMode(false);
+                setIsModalOpen(true);
+              }}
+            >
               <FaPlus />
             </AddBtn>
           </PanelTitle>
@@ -355,7 +326,6 @@ const RolesPage = () => {
           </RoleList>
         </LeftPanel>
 
-        {/* === 우측: 권한 매트릭스 === */}
         <RightPanel>
           {selectedRole ? (
             <>
@@ -366,11 +336,14 @@ const RolesPage = () => {
                   <p>{selectedRole.description}</p>
                 </div>
                 <div className="actions">
-                  {/* ★ 수정 버튼 추가 */}
-                  <EditBtn onClick={openEditModal}>
+                  <EditBtn
+                    onClick={() => {
+                      setIsEditMode(true);
+                      setIsModalOpen(true);
+                    }}
+                  >
                     <FaEdit /> 수정
                   </EditBtn>
-
                   {!selectedRole.isSystem && (
                     <DeleteBtn onClick={handleDeleteRole}>
                       <FaTrashAlt /> 삭제
@@ -385,6 +358,7 @@ const RolesPage = () => {
               </DetailHeader>
 
               <MatrixArea>
+                {/* 그룹별 렌더링 */}
                 {Object.keys(groupedPermissions).map((group) => (
                   <PermissionGroup
                     key={group}
@@ -417,8 +391,6 @@ const RolesPage = () => {
 export default RolesPage;
 
 // --- [Styled Components] ---
-// 기존 스타일 유지 + EditBtn 추가
-
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -447,6 +419,7 @@ const Content = styled.div`
   gap: 20px;
   flex: 1;
   overflow: hidden;
+  margin-bottom: 80px;
 `;
 const LeftPanel = styled.div`
   width: 300px;
@@ -605,7 +578,6 @@ const DeleteBtn = styled.button`
     background: #fdedec;
   }
 `;
-// ★ 수정 버튼 스타일
 const EditBtn = styled.button`
   background: white;
   color: #f39c12;
