@@ -125,7 +125,7 @@ INSERT INTO lot (code, material_id, location, status) VALUES
 -- 설비: 'LINE-01-M01' (실제 설비 코드와 일치시킴)
 -- 수량: 0 / 5000 (아직 안 만듦, 목표 넉넉하게)
 INSERT INTO work_order (
-  id, work_order_number, product_id, target_qty, current_qty, status, assigned_machine_id, target_line
+  id, work_order_number, bom_id, target_qty, current_qty, status, assigned_machine_id, target_line
 ) VALUES (
   1, 'WO-20260120-1001', 1, 5000,5000, 'COMPLETED', 'LINE-01-M01', 'Fab-Line-A'
 );

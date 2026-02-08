@@ -292,16 +292,16 @@ public class MachineSimulator
         _productionLogDto.Level = "INFO";
 
         // [수정] DateOnly를 사용하여 서버 LocalDate 규격(yyyy-MM-dd)에 맞춤
-        _productionLogDto.ResultDate = DateOnly.FromDateTime(DateTime.Today); 
+        _productionLogDto.ResultDate = DateOnly.FromDateTime(DateTime.Today);
 
-        try 
+        try
         {
             string status = await _apiService.ReportProductionAsync(_productionLogDto);
             Console.WriteLine($"[생산 보고 완료] 결과: {status}, 지시번호: {_productionLogDto.WorkOrderNumber}");
 
             // 성공 후 초기화
             _currentWorkOrder = null;
-            _productionLogDto = new ProductionLogDto(); 
+            _productionLogDto = new ProductionLogDto();
         }
         catch (Exception ex)
         {
@@ -311,7 +311,7 @@ public class MachineSimulator
 
     private async Task SendWorkOrderToDevice(WorkOrderDto order)
     {
-        if (order.ProductId == null)
+        if (order.ProductCode == null)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine($"[WORN] 작업지시서 오류, 작업취소");
@@ -327,10 +327,10 @@ public class MachineSimulator
         _currentWorkOrder = order;
 
         // [수정] 작업 시작 시 기본 정보 세팅
-        _productionLogDto.WorkOrderNumber = order.WorkOrderNumber; 
+        _productionLogDto.WorkOrderNumber = order.WorkOrderNumber;
         _productionLogDto.EquipmentCode = AppConfig.EquipmentCode;
-        
-        byte[] productCodeBody = System.Text.Encoding.UTF8.GetBytes(order.ProductId);
+
+        byte[] productCodeBody = System.Text.Encoding.UTF8.GetBytes(order.ProductCode);
         byte[] packet = new byte[4 + productCodeBody.Length];
         packet[0] = 0x01;  // STX
         packet[1] = 0x31;  // 생산 작업 지시

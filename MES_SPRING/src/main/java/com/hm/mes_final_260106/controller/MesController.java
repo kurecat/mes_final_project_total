@@ -61,8 +61,8 @@ public class MesController {
     // =========================
     @PostMapping("/order")
     public ResponseEntity<WorkOrderResDto> createOrder(@RequestBody WorkOrderReqDto dto) {
-        WorkOrder order = productionService.createWorkOrder(dto.getProductId(), dto.getTargetQty(),dto.getTargetLine());
-        return ResponseEntity.ok(WorkOrderResDto.fromEntity(order));
+        WorkOrderResDto resDto = productionService.createWorkOrder(dto);
+        return ResponseEntity.ok(resDto);
     }
 
     // =========================
@@ -137,8 +137,8 @@ public class MesController {
             @PathVariable Long id,
             @RequestBody WorkOrderReqDto dto
     ) {
-        WorkOrder updated = productionService.updateWorkOrder(id, dto.getProductId(), dto.getTargetQty(),dto.getTargetLine());
-        return ResponseEntity.ok(WorkOrderResDto.fromEntity(updated));
+        WorkOrderResDto resDto = productionService.updateWorkOrder(id, dto);
+        return ResponseEntity.ok(resDto);
     }
 
     // ================================

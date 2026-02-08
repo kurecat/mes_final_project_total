@@ -11,4 +11,6 @@ import java.util.Optional;
 @Repository
 public interface BomRepository extends JpaRepository<Bom, Long> {
    List<Bom> findAllByOrderByProductIdAscRevisionDesc();
+   Optional<Bom> findByProduct_CodeAndRevision(String code, int revision);
+
 }

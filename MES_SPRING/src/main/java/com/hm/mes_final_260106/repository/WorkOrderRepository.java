@@ -15,7 +15,10 @@ import java.util.Optional;
 public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
 
     // ▼ [수정] 기존 메서드에 @Query를 추가하여 Product를 함께 가져오도록 변경 (JOIN FETCH)
-    @Query("SELECT DISTINCT w FROM WorkOrder w JOIN FETCH w.product ORDER BY w.id DESC")
+    @Query("SELECT DISTINCT w FROM WorkOrder w " +
+            "JOIN FETCH w.bom b " +
+            "JOIN FETCH b.product p " +
+            "ORDER BY w.id DESC")
     List<WorkOrder> findAllByOrderByIdDesc();
 
     Optional<WorkOrder> findFirstByStatusOrderByIdAsc(String status);
@@ -33,13 +36,11 @@ public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
     List<WorkOrder> findByStartDateBetween(LocalDateTime start, LocalDateTime end);
 
     // ▼ [선택 수정] 만약 이 메서드 결과로도 화면에 품목명(Product)을 띄운다면 여기도 FETCH를 추가해야 합니다.
-    @Query("""
-        SELECT wo
-        FROM WorkOrder wo
-        JOIN FETCH wo.product
-        WHERE (:line = 'ALL' OR wo.targetLine = :line)
-        ORDER BY wo.id DESC
-    """)
+    @Query("SELECT wo FROM WorkOrder wo " +
+            "JOIN FETCH wo.bom b " +
+            "JOIN FETCH b.product p " +
+            "WHERE (:line = 'ALL' OR wo.targetLine = :line) " +
+            "ORDER BY wo.id DESC")
     List<WorkOrder> findByLineForPerformance(@Param("line") String line);
 
     Optional<WorkOrder> findByWorkOrderNumber(String workOrderNumber);

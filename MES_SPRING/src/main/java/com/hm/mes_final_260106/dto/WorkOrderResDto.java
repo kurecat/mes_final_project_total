@@ -12,7 +12,8 @@ import java.time.LocalDateTime;
 public class WorkOrderResDto {
     private Long id;
     private String workOrderNumber;   // work_order_number
-    private String productId;
+    private String productCode;
+    private int revision;
     private int targetQty;
     private int currentQty;
     private String status;
@@ -30,7 +31,8 @@ public class WorkOrderResDto {
         return WorkOrderResDto.builder()
                 .id(workOrder.getId())
                 .workOrderNumber(workOrder.getWorkOrderNumber())
-                .productId(workOrder.getProduct().getCode())
+                .productCode(workOrder.getBom().getProduct().getCode())
+                .revision(workOrder.getBom().getRevision())
                 .targetQty(workOrder.getTargetQty())
                 .currentQty(workOrder.getCurrentQty())
                 .shortageMaterialName(workOrder.getShortageMaterialName() != null ? workOrder.getShortageMaterialName() : "")

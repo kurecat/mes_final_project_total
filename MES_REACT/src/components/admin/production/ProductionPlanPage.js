@@ -66,6 +66,7 @@ const PlanTableRow = React.memo(
     onRelease,
     onDelete,
     products,
+    boms,
   }) => {
     return (
       <tr>
@@ -89,25 +90,52 @@ const PlanTableRow = React.memo(
           )}
         </td>
 
-        {/* Product (드롭다운으로 변경) */}
+        {/* Product + BOM */}
         <td style={{ fontWeight: "600" }}>
           {isEditing ? (
-            <EditSelect
-              value={editForm.productCode}
-              onChange={(e) => onEditFormChange("productCode", e.target.value)}
-            >
-              <option value="">-- Select Product --</option>
-              {products.map((p) => (
-                <option key={p.code} value={p.code}>
-                  {p.name} ({p.code})
-                </option>
-              ))}
-            </EditSelect>
+            <>
+              {/* Product 선택 */}
+              <EditSelect
+                value={editForm.productCode}
+                onChange={(e) =>
+                  onEditFormChange("productCode", e.target.value)
+                }
+              >
+                <option value="">-- Select Product --</option>
+                {products.map((p) => (
+                  <option key={p.code} value={p.code}>
+                    {p.name} ({p.code})
+                  </option>
+                ))}
+              </EditSelect>
+
+              {/* BOM Revision 선택 */}
+              <EditSelect
+                value={editForm.revision ?? ""}
+                onChange={(e) =>
+                  onEditFormChange("revision", Number(e.target.value))
+                }
+              >
+                {!editForm.revision && (
+                  <option value="">-- Select BOM --</option>
+                )}
+                {boms
+                  .filter((b) => b.productCode === editForm.productCode)
+                  .map((b) => (
+                    <option key={b.id} value={b.revision}>
+                      Rev.{b.revision}
+                    </option>
+                  ))}
+              </EditSelect>
+            </>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span>{plan.productName || "-"}</span>
               <span style={{ fontSize: 11, color: "#999" }}>
                 {plan.productCode || "-"}
+              </span>
+              <span style={{ fontSize: 11, color: "#555" }}>
+                Rev.{plan.revision ?? "-"}
               </span>
             </div>
           )}
@@ -199,13 +227,16 @@ const ProductionPlanPage = () => {
   const [filterLine, setFilterLine] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 제품 목록 (code/name)
+  // 제품 목록
   const [products, setProducts] = useState([]);
+  // BOM 목록
+  const [boms, setBoms] = useState([]);
 
   // 수정 상태
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [editForm, setEditForm] = useState({
     productCode: "",
+    revision: "", // bomId 대신 revision
     planQty: "",
     targetLine: "",
   });
@@ -216,22 +247,22 @@ const ProductionPlanPage = () => {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // 두 요청을 동시에 보냄 (병렬 처리)
-      const [productRes, orderRes] = await Promise.all([
-        axiosInstance.get(`/api/mes/item`),
+      const [productRes, bomRes, orderRes] = await Promise.all([
+        axiosInstance.get(`/api/mes/master/product/list`),
+        axiosInstance.get(`/api/mes/master/bom/list`), // BOM 목록 추가
         axiosInstance.get(`/api/mes/order`),
       ]);
 
-      // 1. 제품 목록 세팅
       const productList = Array.isArray(productRes.data) ? productRes.data : [];
       setProducts(productList);
 
-      // 2. 작업지시 목록 세팅 (여기서 바로 매핑)
+      const bomList = Array.isArray(bomRes.data) ? bomRes.data : [];
+      setBoms(bomList);
+
       const orderList = Array.isArray(orderRes.data) ? orderRes.data : [];
 
       const mappedPlans = orderList.map((wo) => {
-        const code = wo.productId || "";
-        // 미리 받아온 productList에서 이름 찾기
+        const code = wo.productCode || "";
         const found = productList.find((p) => p.code === code);
 
         return {
@@ -239,7 +270,8 @@ const ProductionPlanPage = () => {
           orderId: wo.id,
           date: wo.startDate ? wo.startDate.split("T")[0] : "",
           productCode: code,
-          productName: found?.name || "", // 여기서 매핑됨
+          productName: found?.name || "",
+          revision: wo.revision ?? null, // BOM Revision 표시
           line: wo.targetLine || "Fab-Line-A",
           type: "FAB",
           planQty: wo.targetQty ?? 0,
@@ -250,8 +282,8 @@ const ProductionPlanPage = () => {
       setPlans(mappedPlans);
     } catch (err) {
       console.error("데이터 로드 실패:", err);
-      // 에러 시 빈 배열 처리 (화면 깨짐 방지)
       setProducts([]);
+      setBoms([]);
       setPlans([]);
     } finally {
       setLoading(false);
@@ -268,22 +300,35 @@ const ProductionPlanPage = () => {
   // =============================
   const handleAdd = useCallback(async () => {
     try {
-      const defaultProductCode = products?.[0]?.code || "DRAM-4G-DDR4-001";
+      const defaultProductCode = products?.[0]?.code;
+      const candidateBoms = boms.filter(
+        (b) => b.productCode === defaultProductCode,
+      );
+      const latestBom = candidateBoms.reduce(
+        (prev, curr) => (prev.revision > curr.revision ? prev : curr),
+        candidateBoms[0],
+      );
+
+      if (!latestBom) {
+        alert("해당 제품의 BOM이 없습니다.");
+        return;
+      }
 
       const payload = {
-        productId: defaultProductCode,
+        productCode: defaultProductCode,
+        revision: latestBom.revision, // bomId 대신 revision
         targetQty: 500,
         targetLine: "Fab-Line-A",
       };
 
       await axiosInstance.post(`/api/mes/order`, payload);
       alert("작업지시가 추가되었습니다.");
-      loadData(); // 재조회
+      loadData();
     } catch (err) {
       console.error("작업지시 생성 실패:", err);
       alert("작업지시 추가 실패");
     }
-  }, [loadData, products]);
+  }, [loadData, products, boms]);
 
   const handleRelease = useCallback(
     async (planId, orderId) => {
@@ -321,6 +366,7 @@ const ProductionPlanPage = () => {
     setEditingPlanId(plan.id);
     setEditForm({
       productCode: plan.productCode ?? "",
+      revision: plan.revision ?? "",
       planQty: plan.planQty ?? "",
       targetLine: plan.line ?? "",
     });
@@ -339,8 +385,8 @@ const ProductionPlanPage = () => {
     async (planId, orderId) => {
       if (!orderId) return;
 
-      if (!editForm.productCode?.trim()) {
-        alert("제품을 선택하세요.");
+      if (!editForm.productCode?.trim() || !editForm.revision) {
+        alert("제품과 BOM Revision을 선택하세요.");
         return;
       }
 
@@ -357,7 +403,8 @@ const ProductionPlanPage = () => {
 
       try {
         const payload = {
-          productId: editForm.productCode.trim(),
+          productCode: editForm.productCode.trim(),
+          revision: editForm.revision, // bomId 대신 revision
           targetQty: qty,
           targetLine: editForm.targetLine.trim(),
         };
@@ -366,7 +413,7 @@ const ProductionPlanPage = () => {
 
         alert(`Plan [${planId}] 수정 저장 완료`);
         setEditingPlanId(null);
-        loadData(); // 재조회
+        loadData();
       } catch (err) {
         console.error("수정 저장 실패:", err);
         alert("수정 저장 실패");
@@ -443,7 +490,7 @@ const ProductionPlanPage = () => {
               <th>Plan ID</th>
               <th>Date</th>
               <th>Target Line</th>
-              <th>Product Item</th>
+              <th>Product</th> {/* 수정 */}
               <th>Plan Qty</th>
               <th>Action</th>
             </tr>
@@ -454,7 +501,7 @@ const ProductionPlanPage = () => {
               <PlanTableRow
                 key={plan.id} // map의 key는 여기서 처리
                 plan={plan}
-                isEditing={editingPlanId === plan.id}
+                isEditing={editingPlanId && editingPlanId === plan.id}
                 editForm={editForm}
                 onEditStart={handleEditStart}
                 onEditCancel={handleEditCancel}
@@ -463,6 +510,7 @@ const ProductionPlanPage = () => {
                 onRelease={handleRelease}
                 onDelete={handleDelete}
                 products={products}
+                boms={boms}
               />
             ))}
           </tbody>
