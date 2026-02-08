@@ -53,9 +53,9 @@ public interface ProductionResultRepository extends JpaRepository<ProductionResu
             String line,
             com.hm.mes_final_260106.entity.Product product
     );
-    // 대시보드에서 사용 (양품+불량)
+    // 대시보드에서 사용 (양품)
     @Query("""
-    SELECT COALESCE(SUM(pr.goodQty + pr.defectQty), 0)
+    SELECT COALESCE(SUM(pr.goodQty), 0)
     FROM ProductionResult pr
     WHERE pr.resultDate = :date
 """)
