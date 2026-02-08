@@ -548,8 +548,7 @@ public class ProductionService {
         }
 
         // 자재 차감
-        Bom bom = bomRepo.findById(product.getId())
-                .orElseThrow(() -> new EntityNotFoundException("BOM을 찾을 수 없습니다"));
+        Bom bom = workOrder.getBom();
 
         // =========================================================
         // 🔥 BOM 기준 자재 체크 / 차감
