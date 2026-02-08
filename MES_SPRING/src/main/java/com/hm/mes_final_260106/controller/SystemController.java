@@ -1,14 +1,18 @@
 package com.hm.mes_final_260106.controller;
 
-import com.hm.mes_final_260106.dto.RoleDto; // ★ Import 확인
+import com.hm.mes_final_260106.dto.RoleDto;
 import com.hm.mes_final_260106.dto.RolePermissionUpdateDto;
 import com.hm.mes_final_260106.entity.CommonCode;
-import com.hm.mes_final_260106.repository.LoginLogRepository;
+import com.hm.mes_final_260106.entity.LoginLog; // ★ LoginLog 엔티티 import
+import com.hm.mes_final_260106.repository.LoginLogRepository; // ★ Repository import
 import com.hm.mes_final_260106.service.SystemService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort; // ★ 정렬을 위해 import
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/mes/system")
@@ -16,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "*", allowedHeaders = "*")
 public class SystemController {
 
+    // ★ LoginLogRepository 주입 (이미 선언되어 있으므로 활용)
     private final LoginLogRepository logRepository;
     private final SystemService systemService;
 
@@ -30,10 +35,13 @@ public class SystemController {
         return ResponseEntity.ok(systemService.saveCode(code));
     }
 
-    // 2. 로그 관리
+    // 2. 로그 관리 (수정됨)
+    // ★ systemService.getLogs() 대신 loginLogRepository에서 직접 조회
     @GetMapping("/log")
     public ResponseEntity<?> getLogs() {
-        return ResponseEntity.ok(systemService.getLogs());
+        // ID 기준 내림차순(최신순)으로 모든 로그 조회
+        List<LoginLog> logs = logRepository.findAll(Sort.by(Sort.Direction.DESC, "id"));
+        return ResponseEntity.ok(logs);
     }
 
     // 3. 사용자 목록 조회 (Role 포함)
@@ -56,8 +64,6 @@ public class SystemController {
         return ResponseEntity.ok(systemService.getAllPermissions());
     }
 
-    // ★★★ [수정 핵심] Role Entity 대신 RoleDto를 받도록 변경 ★★★
-    // 이제 null 값이 들어와도 DTO의 Boolean 타입이 처리하므로 400 에러가 사라집니다.
     @PostMapping("/role")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> createRole(@RequestBody RoleDto roleDto) {
@@ -72,7 +78,6 @@ public class SystemController {
     ) {
         return ResponseEntity.ok(systemService.updateRole(id, roleDto));
     }
-
 
     @DeleteMapping("/role/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")

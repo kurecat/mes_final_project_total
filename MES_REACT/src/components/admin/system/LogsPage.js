@@ -166,16 +166,46 @@ const LogsPage = () => {
     api
       .get("/api/mes/system/log")
       .then((res) => {
-        const mappedData = res.data.map((item) => ({
-          id: item.id,
-          timestamp: new Date(item.loginTime).toLocaleString(),
-          level: item.status === "SUCCESS" ? "INFO" : "WARN",
-          category: "LOGIN",
-          message: `Login ${item.status}`,
-          userId: item.email,
-          userIp: item.ipAddress,
-          details: `Login attempt by ${item.email}`,
-        }));
+        // ★ [디버깅 1] 브라우저 개발자 도구(F12) -> Console 탭에서 확인해보세요.
+        console.log("🔥 서버에서 받은 전체 로그 데이터:", res.data);
+
+        // ★ [수정 1] 응답이 배열인지, 객체({ data: [] })인지 확인하여 리스트 추출
+        const rawList = Array.isArray(res.data)
+          ? res.data
+          : res.data.data || [];
+
+        const mappedData = rawList.map((item) => {
+          // ★ [수정 2] status가 없거나 대소문자가 다를 경우를 대비해 안전하게 처리
+          const status = item.status ? item.status.toUpperCase() : "INFO";
+
+          let level = "INFO";
+          // FAIL이 포함되어 있으면 무조건 WARN 처리
+          if (status.includes("FAIL")) level = "WARN";
+          else if (status.includes("ERROR")) level = "ERROR";
+
+          return {
+            id: item.id,
+            // timestamp나 loginTime 중 있는 값 사용
+            timestamp: new Date(
+              item.loginTime || item.timestamp,
+            ).toLocaleString(),
+            level: level,
+            category: "LOGIN",
+            // message가 없으면 기본 메시지 생성
+            message: item.message || `Login ${status}`,
+            userId: item.email || item.user || "Unknown",
+            userIp: item.ipAddress || item.ip || "-",
+
+            // 상세정보용
+            details: `Status: ${status}\nMessage: ${item.message || "No details"}`,
+            rawStatus: item.status,
+          };
+        });
+
+        // ID 기준 내림차순 (최신순)
+        mappedData.sort((a, b) => b.id - a.id);
+
+        console.log("✅ 매핑 완료된 데이터:", mappedData); // 데이터가 잘 변환됐는지 확인
         setLogs(mappedData);
       })
       .catch((err) => console.error("Failed to fetch logs:", err));

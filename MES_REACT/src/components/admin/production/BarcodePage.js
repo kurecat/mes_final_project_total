@@ -1,7 +1,8 @@
 // src/components/admin/production/BarcodePage.js
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react"; // useRef 추가
 import styled from "styled-components";
 import Barcode from "react-barcode";
+import { useReactToPrint } from "react-to-print"; // ★ import 추가
 import {
   FaBarcode,
   FaBoxOpen,
@@ -10,12 +11,12 @@ import {
   FaCamera,
 } from "react-icons/fa";
 
-// ★ MobileScanner 컴포넌트 import (경로 확인 필요)
+// MobileScanner 컴포넌트 import
 import MobileScanner from "../../common/MobileScanner";
 
-// --- [Optimized] Sub-Components with React.memo ---
+// --- [Sub-Components] ---
 
-// 1. Header Component
+// 1. Header Component (기존 유지)
 const BarcodeHeader = React.memo(
   ({ onScanClick, manualCode, onManualChange, onManualSubmit }) => {
     return (
@@ -25,52 +26,59 @@ const BarcodeHeader = React.memo(
           <h1>Barcode System</h1>
         </TitleGroup>
 
-        <ControlGroup>
-          {/* <ScanBtn type="button" onClick={onScanClick}>
-            <FaCamera /> Barcode Scan
-          </ScanBtn> */}
-
-          {/* <TestBox onSubmit={onManualSubmit}>
-            <input
-              placeholder="Click here & Scan or Type..."
-              value={manualCode}
-              onChange={onManualChange}
-            />
-            <button type="submit">Check</button>
-          </TestBox> */}
-        </ControlGroup>
+        <ControlGroup>{/* 필요한 경우 버튼 추가 */}</ControlGroup>
       </Header>
     );
   },
 );
 
-// 2. Product Card Component
+// ★ 2. Product Card Component (Print 기능 수정됨)
 const ProductItem = React.memo(({ product }) => {
+  // 인쇄 영역을 참조하기 위한 ref
+  const componentRef = useRef();
+
+  // 인쇄 핸들러
+  const handlePrint = useReactToPrint({
+    contentRef: componentRef, // 인쇄할 영역 지정
+    documentTitle: `Label_${product.name}`, // 파일 저장 시 이름
+    onAfterPrint: () => console.log("Printed successfully"),
+  });
+
   return (
-    <ProductCard>
-      <CardHeader>
-        <ProductName>{product.name}</ProductName>
-        <CategoryBadge>{product.category}</CategoryBadge>
-      </CardHeader>
-      <BarcodeWrapper>
-        <Barcode
-          value={product.barcode}
-          width={1.5}
-          height={50}
-          fontSize={14}
-        />
-      </BarcodeWrapper>
+    <CardWrapper>
+      {/* ★ 인쇄될 영역 (ref 연결) */}
+      <div ref={componentRef} style={{ width: "100%", height: "100%" }}>
+        <ProductCard>
+          <CardHeader>
+            <ProductName>{product.name}</ProductName>
+            <CategoryBadge>{product.category}</CategoryBadge>
+          </CardHeader>
+          <BarcodeWrapper>
+            <Barcode
+              value={product.barcode}
+              width={1.5}
+              height={50}
+              fontSize={14}
+            />
+          </BarcodeWrapper>
+          <CardInfo>
+            <span>LOC: {product.location}</span>
+            <span>Stock: {product.stock}</span>
+          </CardInfo>
+        </ProductCard>
+      </div>
+
+      {/* 인쇄 버튼 (인쇄 영역 밖으로 뺌) */}
       <CardFooter>
-        <span>Stock: {product.stock}</span>
-        <PrintBtn onClick={() => alert(`Print label for ${product.name}`)}>
-          <FaPrint /> Print
+        <PrintBtn onClick={handlePrint}>
+          <FaPrint /> Print Label
         </PrintBtn>
       </CardFooter>
-    </ProductCard>
+    </CardWrapper>
   );
 });
 
-// 3. Result Modal Component
+// 3. Result Modal Component (기존 유지)
 const ScanResultModal = React.memo(({ product, onClose }) => {
   if (!product) return null;
 
@@ -134,7 +142,7 @@ const BarcodePage = () => {
 
   // --- Data Fetching ---
   useEffect(() => {
-    // MOCK 데이터
+    // MOCK 데이터 (DB 연동 시 axios로 교체)
     const mockProducts = [
       {
         id: 1,
@@ -170,7 +178,7 @@ const BarcodePage = () => {
         id: 4,
         name: "SOLDERBALL",
         barcode: "MAT-SOLDERBALL",
-        category: "Storage",
+        category: "RAW_MATERIAL",
         stock: 50,
         price: 120000,
         location: "WH-ALL-001",
@@ -180,7 +188,7 @@ const BarcodePage = () => {
         id: 5,
         name: "UNDERFILL",
         barcode: "MAT-UNDERFILL",
-        category: "Storage",
+        category: "RAW_MATERIAL",
         stock: 50,
         price: 120000,
         location: "WH-ALL-001",
@@ -215,7 +223,6 @@ const BarcodePage = () => {
       e.preventDefault();
       if (lastScannedCode) {
         handleScan(lastScannedCode);
-        // setLastScannedCode(""); // 선택사항: 검색 후 초기화
       }
     },
     [lastScannedCode, handleScan],
@@ -245,10 +252,9 @@ const BarcodePage = () => {
     setIsScannerOpen(true);
   }, []);
 
-  // --- Barcode Scanner Logic (Global Listener) ---
+  // --- Barcode Scanner Logic ---
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // 모달이나 스캐너가 열려있으면 키보드 리스너 중단
       if (scannedProduct || isScannerOpen) return;
 
       if (e.key === "Enter") {
@@ -286,10 +292,8 @@ const BarcodePage = () => {
         </ProductGrid>
       </Content>
 
-      {/* --- Scan Result Modal --- */}
       <ScanResultModal product={scannedProduct} onClose={handleCloseModal} />
 
-      {/* --- Camera Scanner Modal --- */}
       {isScannerOpen && (
         <MobileScanner onScan={handleCameraScan} onClose={handleCloseScanner} />
       )}
@@ -337,53 +341,6 @@ const ControlGroup = styled.div`
   align-items: center;
 `;
 
-const ScanBtn = styled.button`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background-color: #2ecc71;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-weight: 600;
-  cursor: pointer;
-  height: 40px;
-
-  &:hover {
-    background-color: #27ae60;
-  }
-`;
-
-const TestBox = styled.form`
-  display: flex;
-  gap: 10px;
-  input {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    width: 200px;
-    outline: none;
-    height: 40px;
-    box-sizing: border-box;
-    &:focus {
-      border-color: #3498db;
-    }
-  }
-  button {
-    background: #3498db;
-    color: white;
-    border: none;
-    padding: 0 15px;
-    border-radius: 4px;
-    cursor: pointer;
-    height: 40px;
-    &:hover {
-      background: #2980b9;
-    }
-  }
-`;
-
 const Content = styled.div`
   flex: 1;
   overflow-y: auto;
@@ -396,18 +353,37 @@ const ProductGrid = styled.div`
   gap: 20px;
 `;
 
-const ProductCard = styled.div`
+// ★ 카드 래퍼 (인쇄 버튼 분리를 위해 추가)
+const CardWrapper = styled.div`
   background: white;
   border-radius: 8px;
-  padding: 20px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  overflow: hidden;
   transition: transform 0.2s;
   &:hover {
     transform: translateY(-3px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const ProductCard = styled.div`
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: white;
+
+  /* ★ 인쇄 시 스타일 강제 설정 */
+  @media print {
+    border: 1px solid #000;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
   }
 `;
 
@@ -447,28 +423,42 @@ const BarcodeWrapper = styled.div`
   overflow: hidden;
 `;
 
-const CardFooter = styled.div`
+const CardInfo = styled.div`
   width: 100%;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-top: 15px;
   font-size: 13px;
   color: #666;
+  margin-top: 10px;
+`;
+
+// ★ Footer 스타일 (버튼 영역)
+const CardFooter = styled.div`
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px 20px 15px 20px;
+  background: #fcfcfc;
+  border-top: 1px solid #eee;
 `;
 
 const PrintBtn = styled.button`
   background: white;
-  border: 1px solid #ddd;
-  padding: 5px 10px;
+  border: 1px solid #3498db;
+  color: #3498db;
+  padding: 6px 15px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 5px;
   font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
   &:hover {
-    background: #f5f5f5;
+    background: #3498db;
+    color: white;
   }
 `;
 

@@ -17,11 +17,15 @@ public class LoginLog {
     private Long id;
 
     private String email;       // 로그인 시도한 이메일
-    private String ipAddress;   // 접속 IP (실제론 Request에서 추출)
-    private String status;      // SUCCESS / FAIL
+    private String ipAddress;   // 접속 IP
+    private String status;      // SUCCESS 또는 FAIL
+
+    // ★ [추가] 실패 사유나 상세 메시지를 저장할 컬럼
+    @Column(length = 255)
+    private String message;
 
     @Column(updatable = false)
-    private LocalDateTime loginTime; // 접속 시간
+    private LocalDateTime loginTime;
 
     @PrePersist
     public void prePersist() {

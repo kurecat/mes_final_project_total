@@ -23,10 +23,8 @@ const LoginPage = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    // 1. [안전장치] 이미 로딩 중이라면 클릭 무시
     if (isLoading) return;
 
-    // 2. [유효성 검사]
     if (!inputs.id || !inputs.password) {
       setError("아이디와 비밀번호를 모두 입력해주세요.");
       return;
@@ -38,16 +36,14 @@ const LoginPage = () => {
     try {
       console.log("🚀 로그인 요청 시작...");
       const response = await axiosInstance.post("/auth/login", {
-        email: inputs.id, // 백엔드가 username을 원하면 username으로 변경 필요
+        email: inputs.id,
         password: inputs.password,
         name: inputs.name,
       });
 
-      const resultData = response.data.data; // TokenDto
-
+      const resultData = response.data.data;
       console.log("✅ 로그인 응답 데이터:", response.data);
 
-      // [수정 1] 토큰 구조가 data.data 안에 있는지, 바로 data 안에 있는지 유연하게 체크
       const accessToken =
         response.data.data?.accessToken || response.data.accessToken;
       const refreshToken =
@@ -61,33 +57,35 @@ const LoginPage = () => {
       const authority =
         resultData.memberInfo?.authority || resultData.authority || "ROLE_USER";
 
-      console.log("사용자 이름:", userName);
-      console.log("사용자 권한:", authority);
-
       if (accessToken) {
-        // 1. 로컬 스토리지 저장
         localStorage.setItem("refreshToken", refreshToken);
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("userName", userName);
         localStorage.setItem("userRole", authority);
 
-        // [수정 2] ★ 중요: 다음 요청(대시보드)을 위해 즉시 헤더에 토큰 설정
-        // 이걸 안 하면 페이지 이동 직후 첫 요청에서 401이 뜰 수 있음
         axiosInstance.defaults.headers.common["Authorization"] =
           `Bearer ${accessToken}`;
 
-        // 3. 페이지 이동 (경로 확인: /admin이 맞는지, /dashboard가 맞는지)
-        // 만약 대시보드 경로가 /dashboard라면 아래 주석을 풀고 변경하세요.
         window.location.href = "/admin";
       } else {
         setError("서버 응답에 토큰이 없습니다.");
-        console.error("토큰 없음:", response.data);
       }
     } catch (err) {
       console.error("❌ 로그인 에러 발생:", err);
 
+      // ★ [수정 핵심] 백엔드 에러 메시지 추출 로직
       if (err.response) {
-        if (err.response.status === 401) {
+        // 1. 백엔드에서 보낸 커스텀 메시지(message)가 있는지 확인
+        const serverMessage =
+          err.response.data?.message || err.response.data?.error;
+
+        if (serverMessage) {
+          // ★ 백엔드 메시지가 있으면 그걸 그대로 보여줌 ("현장 작업자는...")
+          alert(serverMessage); // 브라우저 경고창 띄우기
+          setError(serverMessage); // 로그인 폼 하단 빨간 글씨 표시
+        }
+        // 2. 메시지가 없으면 기존처럼 상태 코드별 처리
+        else if (err.response.status === 401) {
           setError("아이디 또는 비밀번호가 일치하지 않습니다.");
         } else if (err.response.status === 400) {
           setError("입력 정보를 다시 확인해주세요.");
@@ -102,7 +100,6 @@ const LoginPage = () => {
         setError("로그인 중 알 수 없는 오류가 발생했습니다.");
       }
     } finally {
-      console.log("🏁 로딩 상태 해제");
       setIsLoading(false);
     }
   };
