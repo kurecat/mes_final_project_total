@@ -1,6 +1,7 @@
 package com.hm.mes_final_260106.service;
 
 import com.hm.mes_final_260106.dto.defect.DefectLogDto;
+import com.hm.mes_final_260106.entity.Item;
 import com.hm.mes_final_260106.entity.ProductionResult;
 import com.hm.mes_final_260106.repository.ProductionResultRepository;
 import lombok.RequiredArgsConstructor;
