@@ -20,13 +20,9 @@ const RoleCardItem = React.memo(({ role, isActive, onSelect }) => {
     <RoleCard $active={isActive} onClick={() => onSelect(role)}>
       <RoleHeader>
         <RoleName>{role.name}</RoleName>
-        {role.isSystem ? (
-          <SystemBadge>
-            <FaLock size={10} /> 시스템
-          </SystemBadge>
-        ) : (
-          <CodeBadge>{role.code}</CodeBadge>
-        )}
+        <SystemBadge>
+          <FaLock size={10} /> 시스템
+        </SystemBadge>
       </RoleHeader>
       <RoleDesc>{role.description || "설명 없음"}</RoleDesc>
     </RoleCard>
@@ -232,7 +228,7 @@ const RolesPage = () => {
       setIsModalOpen(false);
       alert("생성되었습니다.");
     } catch (err) {
-      alert("생성 실패: " + err.message);
+      alert(err.response?.data?.message || err.message);
     }
   };
 

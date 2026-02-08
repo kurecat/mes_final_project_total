@@ -15,5 +15,6 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
     Optional<Role> findByCode(String code);
 
     // 이미 존재하는 역할인지 확인
+    boolean existsByName(String name);
     boolean existsByCode(String code);
 }

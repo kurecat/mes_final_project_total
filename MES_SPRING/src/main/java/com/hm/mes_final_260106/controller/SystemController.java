@@ -64,6 +64,16 @@ public class SystemController {
         return ResponseEntity.ok(systemService.createRole(roleDto));
     }
 
+    @PutMapping("/role/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<?> updateRole(
+            @PathVariable Long id,
+            @RequestBody RoleDto roleDto
+    ) {
+        return ResponseEntity.ok(systemService.updateRole(id, roleDto));
+    }
+
+
     @DeleteMapping("/role/{id}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<?> deleteRole(@PathVariable Long id) {
