@@ -929,5 +929,5 @@ public class ProductionService {
     public List<ProductionLog> getDefectLogs() {
         return productionLogRepo.findByDefectQtyGreaterThanOrderByEndTimeDesc(0);
     }
-
+//1
 }
