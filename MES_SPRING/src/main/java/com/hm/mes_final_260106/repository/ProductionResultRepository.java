@@ -68,6 +68,9 @@ public interface ProductionResultRepository extends JpaRepository<ProductionResu
 """)
     double avgYieldByDate(@Param("date") LocalDate date);
 
+    // ✅ [추가] 불량 수량이 특정 값(0)보다 큰 데이터 조회
+    // JPA가 메서드 이름을 분석해서 "SELECT * FROM production_result WHERE defect_qty > ?" 쿼리를 자동 생성합니다.
+    List<ProductionResult> findByDefectQtyGreaterThan(Integer defectQty);
 }
 
 

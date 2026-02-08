@@ -315,17 +315,7 @@ public class MesController {
     // [복구 완료] Lot 추적 관련 API (이 부분이 빠져 있었음)
     // ==========================================
 
-    // 1. Lot 전체 목록 조회 (LotTrackingPage 리스트용)
-    @GetMapping("/lot/list")
-    public ResponseEntity<List<LotResDto>> getLotList() {
-        return ResponseEntity.ok(productionService.getAllLotList());
-    }
 
-    // 2. 특정 Lot의 상세 이력 조회 (타임라인용)
-    @GetMapping("/production/work-order/{id}/history")
-    public ResponseEntity<List<LotHistoryResDto>> getLotHistory(@PathVariable Long id) {
-        return ResponseEntity.ok(productionService.getLotHistory(id));
-    }
 }
 
 
