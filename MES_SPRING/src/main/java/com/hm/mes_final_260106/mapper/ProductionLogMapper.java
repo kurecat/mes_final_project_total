@@ -17,8 +17,8 @@ public interface ProductionLogMapper {
     @Mapping(target = "workOrder", ignore = true)
     @Mapping(target = "worker", ignore = true)
     @Mapping(target = "equipment", ignore = true)
-    @Mapping(target = "startTime", expression = "java(dto.getStartTime().toLocalDateTime())")
-    @Mapping(target = "endTime", expression = "java(dto.getEndTime().toLocalDateTime())")
+    @Mapping(target = "startTime", expression = "java(dto.getStartTime().atZoneSameInstant(java.time.ZoneId.systemDefault()).toLocalDateTime())")
+    @Mapping(target = "endTime", expression = "java(dto.getEndTime().atZoneSameInstant(java.time.ZoneId.systemDefault()).toLocalDateTime())")
     ProductionLog toEntity(ProductionLogCreateReqDto dto);
 
     // 공정 엔티티

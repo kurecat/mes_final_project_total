@@ -147,7 +147,6 @@ public class ApiService
     // 5. 생산 실적 보고
     public async Task<string> ReportProductionAsync(ProductionLogDto report)
     {
-        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(report));
 
         try
         {

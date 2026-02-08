@@ -15,8 +15,8 @@ public class ProductionLogDto
     public int? DefectQty { get; set; }            // 불량 수량
     public string? Status { get; set; }            // 생산 상태
     public DateOnly? ResultDate { get; set; }      // 생산일자
-    public DateTime? StartTime { get; set; }       // 작업 시작 시간
-    public DateTime? EndTime { get; set; }         // 작업 종료 시간
+    public DateTimeOffset? StartTime { get; set; }       // 작업 시작 시간
+    public DateTimeOffset? EndTime { get; set; }         // 작업 종료 시간
     public string? Level { get; set; }             // 로그 레벨
     public string? Category { get; set; }          // 로그 카테고리
     public string? Message { get; set; }           // 로그 메시지
