@@ -47,7 +47,10 @@ public class WebSecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
 
                         // ★ [핵심 수정] MES 관련 모든 API 요청을 일단 허용 (개발 중 401 에러 방지)
+                        .requestMatchers("/api/mes/**").permitAll()
                         .requestMatchers("/api/**").permitAll()
+
+
                         .anyRequest().authenticated()
                 )
 

@@ -490,7 +490,7 @@ const ProductionPlanPage = () => {
               <th>Plan ID</th>
               <th>Date</th>
               <th>Target Line</th>
-              <th>Product</th> {/* 수정 */}
+              <th>Product</th>
               <th>Plan Qty</th>
               <th>Action</th>
             </tr>
