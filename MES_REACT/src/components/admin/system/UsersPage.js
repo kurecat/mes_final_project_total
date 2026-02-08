@@ -49,6 +49,7 @@ const UserToolbar = React.memo(
           <option value="ALL">All Roles</option>
           <option value="ADMIN">Admin</option>
           <option value="OPERATOR">Operator</option>
+          <option value="PRODUCTION_ADMIN">Production Admin</option>
         </Select>
       </FilterGroup>
       <TotalCount>
@@ -242,7 +243,7 @@ const UserModal = ({ isOpen, onClose, onSave, selectedUser }) => {
             />
           </InputGroup>
 
-          {/* ★ Role Select Box */}
+          {/* ★ Role Select Box 수정됨 */}
           <InputGroup>
             <label>Role</label>
             <SelectInput
@@ -250,7 +251,11 @@ const UserModal = ({ isOpen, onClose, onSave, selectedUser }) => {
               onChange={(e) => setForm({ ...form, role: e.target.value })}
             >
               <option value="ROLE_OPERATOR">Operator (생산직)</option>
-              <option value="ROLE_ADMIN">Admin (관리자)</option>
+              <option value="ROLE_ADMIN">Admin (최고 관리자)</option>
+              {/* ▼ 여기 value를 ROLE_PRODUCTION_ADMIN으로 변경했습니다. */}
+              <option value="ROLE_PRODUCTION_ADMIN">
+                Production admin (생산 관리자)
+              </option>
             </SelectInput>
           </InputGroup>
 

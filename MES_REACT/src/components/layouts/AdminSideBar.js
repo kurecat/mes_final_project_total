@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
 import { Link, useLocation } from "react-router-dom";
 
@@ -20,6 +20,13 @@ import { CiBookmark, CiBookmarkCheck } from "react-icons/ci";
 const AdminSideBar = () => {
   const location = useLocation();
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [role, setRole] = useState("ROLE_OPERATOR");
+
+  useEffect(() => {
+    // 로컬 스토리지에서 권한 가져오기
+    const storedRole = localStorage.getItem("userRole");
+    if (storedRole) setRole(storedRole);
+  }, []);
 
   // 북마크 상태 관리
   const [bookmarkedIds, setBookmarkedIds] = useState(() => {
@@ -27,85 +34,99 @@ const AdminSideBar = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const MENU_LIST = [
-    {
-      id: "dashboard",
-      title: "대시보드",
-      icon: <FaChartPie />,
-      subMenus: [
-        { title: "종합 상황판", path: "/admin/dashboard" },
-        //{ title: "KPI 분석", path: "/admin/dashboard/kpi" },
-      ],
-    },
-    {
-      id: "production",
-      title: "생산 관리",
-      icon: <FaIndustry />,
-      subMenus: [
-        { title: "생산 계획", path: "/admin/production/plan" },
-        { title: "작업 지시", path: "/admin/production/workorder" },
-        { title: "생산 실적 현황", path: "/admin/production/performance" },
-        { title: "생산 로그", path: "/admin/production/productionlogs" },
-        { title: "작업자 배치", path: "/admin/production/worker" },
-        { title: "바코드", path: "/admin/production/barcode" },
-      ],
-    },
-    {
-      id: "quality",
-      title: "품질 관리",
-      icon: <FaClipboardList />,
-      subMenus: [
-        { title: "검사 기준 설정", path: "/admin/quality/standard" },
-        { title: "불량 관리", path: "/admin/quality/defect" },
-        { title: "Lot 추적", path: "/admin/quality/tracking" },
-        { title: "SPC 차트", path: "/admin/quality/spcchart" },
-      ],
-    },
-    {
-      id: "material",
-      title: "설비/자재 관리",
-      icon: <FaBoxOpen />,
-      subMenus: [
-        { title: "설비 가동 현황", path: "/admin/resource/machine" },
-        { title: "자재 입/출고", path: "/admin/resource/material" },
-        { title: "재고 현황", path: "/admin/resource/inventory" },
-        { title: "설비 로그", path: "/admin/resource/equipmentlog" },
-      ],
-    },
-    {
-      id: "mdm",
-      title: "기준 정보 관리",
-      icon: <FaDatabase />,
-      subMenus: [
-        { title: "자재 관리", path: "/admin/mdm/material" },
-        { title: "제품 관리", path: "/admin/mdm/product" },
-        { title: "BOM 관리", path: "/admin/mdm/bom" },
-        // { title: "공정/라우팅", path: "/admin/mdm/routing" },
-        { title: "설비 관리", path: "/admin/mdm/equipment" },
-        { title: "창고/작업장", path: "/admin/mdm/location" },
-      ],
-    },
-    {
-      id: "system",
-      title: "시스템 관리",
-      icon: <FaCogs />,
-      subMenus: [
-        { title: "사용자 관리", path: "/admin/system/users" },
-        { title: "권한/그룹 관리", path: "/admin/system/roles" },
-        { title: "공통 코드", path: "/admin/system/codes" },
-        { title: "로그 관리", path: "/admin/system/logs" },
-      ],
-    },
-  ];
+  // ★ [수정 1] MENU_LIST를 useMemo로 감싸서 리렌더링 시에도 유지되게 함
+  const MENU_LIST = useMemo(
+    () => [
+      {
+        id: "dashboard",
+        title: "대시보드",
+        icon: <FaChartPie />,
+        allowedRoles: ["ROLE_ADMIN", "ROLE_PRODUCTION_ADMIN"],
+        subMenus: [{ title: "종합 상황판", path: "/admin/dashboard" }],
+      },
+      {
+        id: "production",
+        title: "생산 관리",
+        icon: <FaIndustry />,
+        allowedRoles: ["ROLE_ADMIN", "ROLE_PRODUCTION_ADMIN"],
+        subMenus: [
+          { title: "생산 계획", path: "/admin/production/plan" },
+          { title: "작업 지시", path: "/admin/production/workorder" },
+          { title: "생산 실적 현황", path: "/admin/production/performance" },
+          { title: "생산 로그", path: "/admin/production/productionlogs" },
+          { title: "작업자 배치", path: "/admin/production/worker" },
+          { title: "바코드", path: "/admin/production/barcode" },
+        ],
+      },
+      {
+        id: "quality",
+        title: "품질 관리",
+        icon: <FaClipboardList />,
+        allowedRoles: ["ROLE_ADMIN", "ROLE_PRODUCTION_ADMIN"],
+        subMenus: [
+          { title: "검사 기준 설정", path: "/admin/quality/standard" },
+          { title: "불량 관리", path: "/admin/quality/defect" },
+          { title: "Lot 추적", path: "/admin/quality/tracking" },
+          { title: "SPC 차트", path: "/admin/quality/spcchart" },
+        ],
+      },
+      {
+        id: "material",
+        title: "설비/자재 관리",
+        icon: <FaBoxOpen />,
+        allowedRoles: ["ROLE_ADMIN", "ROLE_PRODUCTION_ADMIN"],
+        subMenus: [
+          { title: "설비 가동 현황", path: "/admin/resource/machine" },
+          { title: "자재 입/출고", path: "/admin/resource/material" },
+          { title: "재고 현황", path: "/admin/resource/inventory" },
+          { title: "설비 로그", path: "/admin/resource/equipmentlog" },
+        ],
+      },
+      {
+        id: "mdm",
+        title: "기준 정보 관리",
+        icon: <FaDatabase />,
+        allowedRoles: ["ROLE_ADMIN"],
+        subMenus: [
+          { title: "자재 관리", path: "/admin/mdm/material" },
+          { title: "제품 관리", path: "/admin/mdm/product" },
+          { title: "BOM 관리", path: "/admin/mdm/bom" },
+          { title: "설비 관리", path: "/admin/mdm/equipment" },
+          { title: "창고/작업장", path: "/admin/mdm/location" },
+        ],
+      },
+      {
+        id: "system",
+        title: "시스템 관리",
+        icon: <FaCogs />,
+        allowedRoles: ["ROLE_ADMIN"],
+        subMenus: [
+          { title: "사용자 관리", path: "/admin/system/users" },
+          { title: "권한/그룹 관리", path: "/admin/system/roles" },
+          { title: "공통 코드", path: "/admin/system/codes" },
+          { title: "로그 관리", path: "/admin/system/logs" },
+        ],
+      },
+    ],
+    [],
+  );
 
-  // 정렬 로직
-  const sortedMenuList = [...MENU_LIST].sort((a, b) => {
-    const aBookmarked = bookmarkedIds.includes(a.id);
-    const bBookmarked = bookmarkedIds.includes(b.id);
-    if (aBookmarked && !bBookmarked) return -1;
-    if (!aBookmarked && bBookmarked) return 1;
-    return 0;
-  });
+  // ★ [수정 2] 필터링 및 정렬 로직을 useMemo로 감싸서 의존성 값이 변할 때만 재계산
+  const sortedMenuList = useMemo(() => {
+    // 1. 권한 필터링
+    const filtered = MENU_LIST.filter((menu) =>
+      menu.allowedRoles.includes(role),
+    );
+
+    // 2. 북마크 정렬
+    return [...filtered].sort((a, b) => {
+      const aBookmarked = bookmarkedIds.includes(a.id);
+      const bBookmarked = bookmarkedIds.includes(b.id);
+      if (aBookmarked && !bBookmarked) return -1;
+      if (!aBookmarked && bBookmarked) return 1;
+      return 0;
+    });
+  }, [MENU_LIST, role, bookmarkedIds]); // role이나 bookmark가 바뀔 때만 재계산
 
   const toggleMenu = (id) => {
     setOpenMenuId(openMenuId === id ? null : id);
@@ -123,15 +144,17 @@ const AdminSideBar = () => {
     localStorage.setItem("sidebar_bookmarks", JSON.stringify(newBookmarks));
   };
 
+  // URL 변경 시 해당 메뉴 펼치기
   useEffect(() => {
     const currentPath = location.pathname;
-    const foundMenu = MENU_LIST.find((menu) =>
+    const foundMenu = sortedMenuList.find((menu) =>
       menu.subMenus.some((sub) => sub.path === currentPath),
     );
     if (foundMenu) {
       setOpenMenuId(foundMenu.id);
     }
-  }, [location.pathname]);
+    // sortedMenuList가 useMemo로 고정되었으므로, 이제 메뉴를 클릭해도 이 Effect가 불필요하게 돌지 않습니다.
+  }, [location.pathname, sortedMenuList]);
 
   return (
     <Container>
@@ -150,9 +173,7 @@ const AdminSideBar = () => {
                 onClick={() => toggleMenu(menu.id)}
                 $active={isActiveGroup || isOpen}
               >
-                {/* 좌측 섹션: 북마크 + 아이콘 + 텍스트 */}
                 <LeftSection>
-                  {/* 1. 북마크 아이콘 (맨 왼쪽) */}
                   <BookmarkIcon
                     onClick={(e) => toggleBookmark(e, menu.id)}
                     $active={isBookmarked}
@@ -171,15 +192,9 @@ const AdminSideBar = () => {
                       />
                     )}
                   </BookmarkIcon>
-
-                  {/* 2. 메뉴 아이콘 */}
                   <IconWrapper>{menu.icon}</IconWrapper>
-
-                  {/* 3. 메뉴 제목 */}
-                  {menu.title}
+                  <TitleText>{menu.title}</TitleText>
                 </LeftSection>
-
-                {/* 우측 섹션: 화살표만 남음 */}
                 <ArrowIcon $isOpen={isOpen}>
                   {isOpen ? <FaChevronUp /> : <FaChevronDown />}
                 </ArrowIcon>
@@ -206,7 +221,7 @@ const AdminSideBar = () => {
 
 export default AdminSideBar;
 
-// --- Styled Components ---
+// --- Styled Components --- (기존과 동일)
 
 const Container = styled.div`
   width: 280px;
@@ -253,7 +268,7 @@ const ParentMenuItem = styled.div`
   cursor: pointer;
   font-size: 16px;
   font-weight: 600;
-  padding: 12px 10px; /* 좌우 패딩을 조금 줄여서 공간 확보 */
+  padding: 12px 10px;
   border-radius: 10px;
 
   display: flex;
@@ -278,7 +293,8 @@ const ParentMenuItem = styled.div`
 const LeftSection = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px; /* 아이콘들 사이 간격 */
+  gap: 10px;
+  flex: 1;
 `;
 
 const IconWrapper = styled.div`
@@ -289,6 +305,12 @@ const IconWrapper = styled.div`
   justify-content: center;
 `;
 
+const TitleText = styled.span`
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+`;
+
 const BookmarkIcon = styled.div`
   font-size: 16px;
   display: flex;
@@ -296,7 +318,8 @@ const BookmarkIcon = styled.div`
   justify-content: center;
   transition: transform 0.2s;
   cursor: pointer;
-  width: 24px; /* 클릭 영역 확보 */
+  width: 24px;
+  min-width: 24px;
 
   .empty-mark {
     opacity: 0.3;
@@ -314,6 +337,7 @@ const ArrowIcon = styled.div`
   display: flex;
   align-items: center;
   opacity: 0.7;
+  margin-left: 10px;
 `;
 
 const SubMenuContainer = styled.div`
@@ -330,7 +354,6 @@ const SubMenuContainer = styled.div`
 const SubMenuItem = styled(Link)`
   text-decoration: none;
   font-size: 14px;
-  /* 아이콘(24px) + 북마크(24px) + 간격 고려해서 들여쓰기 조정 */
   padding: 10px 15px 10px 60px;
   color: ${(props) => (props.$active ? "#ffd700" : "#d1d5db")};
   font-weight: ${(props) => (props.$active ? "700" : "400")};

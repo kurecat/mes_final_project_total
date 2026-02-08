@@ -11,7 +11,8 @@ INSERT INTO member (id, name, email, password, authority, status) VALUES
 (5, '박민수', 'parkms@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
 (6, '정지훈', 'jungjh@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
 (7, '최은지', 'choiej@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
-(8, '한지민', 'hanjm@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE');
+(8, '한지민', 'hanjm@company.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_OPERATOR', 'ACTIVE'),
+(9, '생관','proad@mes.com', '$2a$10$z5fqAUASGYYwOxJgnodXPOiHNgbTaVLV39hlh0WE0Z3ai6/rDCdha', 'ROLE_PRODUCTION_ADMIN','ACTIVE');
 
 INSERT INTO worker (id, member_id, code, name, join_date, shift, status, dept, certifications) VALUES
 (1, 2, 'W001', '이용현', '2026-02-04', 'Day',   'WORKING', 'PACK', 'Basic Safety'),
@@ -36,6 +37,7 @@ INSERT INTO permissions (code, name, group_name) VALUES ('USER_READ', '사용자
 INSERT INTO permissions (code, name, group_name) VALUES ('USER_EDIT', '사용자 수정', '시스템 관리');
 INSERT INTO roles (code, name, is_system) VALUES ('ROLE_ADMIN', '최고 관리자', true);
 INSERT INTO roles (code, name, is_system) VALUES ('ROLE_OPERATOR', '생산 작업자', true);
+INSERT INTO roles (code, name, is_system) VALUES ('ROLE_PRODUCTION_ADMIN', '생산 관리자', true);
 INSERT INTO role_permissions (role_id, permission_id) VALUES (1, 1);
 INSERT INTO role_permissions (role_id, permission_id) VALUES (1, 2);
 
