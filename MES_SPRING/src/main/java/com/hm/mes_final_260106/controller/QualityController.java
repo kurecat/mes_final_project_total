@@ -1,5 +1,6 @@
 package com.hm.mes_final_260106.controller;
 
+import com.hm.mes_final_260106.dto.productionLog.ProductionLogResDto;
 import com.hm.mes_final_260106.entity.ProductionLog;
 import com.hm.mes_final_260106.service.ProductionService;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class QualityController {
     // ==========================================
     // ✅ 유일하게 남겨두는 메서드 (SpcController에는 없음)
     @GetMapping("/defect")
-    public ResponseEntity<List<ProductionLog>> getDefectList() {
+    public ResponseEntity<List<ProductionLogResDto>> getDefectList() {
         return ResponseEntity.ok(productionService.getDefectLogs());
     }
 

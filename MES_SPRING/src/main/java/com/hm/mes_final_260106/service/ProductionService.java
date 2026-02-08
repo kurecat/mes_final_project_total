@@ -6,6 +6,7 @@ import com.hm.mes_final_260106.dto.*;
 import com.hm.mes_final_260106.dto.lot.LotHistoryResDto;
 import com.hm.mes_final_260106.dto.lot.LotResDto;
 import com.hm.mes_final_260106.dto.productionLog.ProductionLogCreateReqDto;
+import com.hm.mes_final_260106.dto.productionLog.ProductionLogResDto;
 import com.hm.mes_final_260106.dto.worker.WorkerResDto;
 import com.hm.mes_final_260106.entity.*;
 import com.hm.mes_final_260106.exception.CustomException;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -514,6 +516,25 @@ public class ProductionService {
             lotMappings.add(lotMapping);
         }
 
+        // 🔥 [추가] 이번 보고에 포함된 불량 수량 계산 및 통계 반영
+        int currentResultCount = items.size();
+
+        int currentFailCount = Math.toIntExact(items.stream()
+                .filter(item -> "Fail".equalsIgnoreCase(item.getInspectionResult()))
+                .count());
+
+        productionLog.setResultQty(currentResultCount);
+        productionLog.setDefectQty(currentFailCount);
+
+        // 현재 시간 + 공정명 메시지 생성
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH시 mm분 ");
+        String message = productionLog.getStartTime().format(formatter) + workOrder.getBom().getProduct().getCode() + " 공정 완료";
+        productionLog.setMessage(message);
+
+        if (currentFailCount > 0) {
+            updateProductionResultDefect(workOrder, (int)currentFailCount);
+        }
+
         // 5. 저장 (순서: ProductionLog → 공정 → 검사 → Item/FinalInspection → Lot/LotMapping)
         productionLogRepo.save(productionLog);
 
@@ -535,14 +556,7 @@ public class ProductionService {
         lotRepo.saveAll(lots);
         lotMappingRepo.saveAll(lotMappings);
 
-        // 🔥 [추가] 이번 보고에 포함된 불량 수량 계산 및 통계 반영
-        long currentFailCount = items.stream()
-                .filter(item -> "Fail".equalsIgnoreCase(item.getInspectionResult()))
-                .count();
 
-        if (currentFailCount > 0) {
-            updateProductionResultDefect(workOrder, (int)currentFailCount);
-        }
 
         // 자재 차감
         Bom bom = workOrder.getBom();
@@ -926,8 +940,8 @@ public class ProductionService {
 
     // 3. [불량 관리] 불량 내역 조회
     @Transactional(readOnly = true)
-    public List<ProductionLog> getDefectLogs() {
-        return productionLogRepo.findByDefectQtyGreaterThanOrderByEndTimeDesc(0);
+    public List<ProductionLogResDto> getDefectLogs() {
+        return productionLogMapper.toResDtoList(productionLogRepo.findByDefectQtyGreaterThanOrderByEndTimeDesc(1));
     }
 //1
 }

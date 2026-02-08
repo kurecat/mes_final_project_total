@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Data
@@ -31,8 +32,8 @@ public class ProductionLogCreateReqDto {
     private Integer defectQty;        // 불량 수량
     private String status;            // 생산 상태 (Enum → String으로 전달)
     private LocalDate resultDate;     // 생산일자
-    private LocalDateTime startTime;  // 작업 시작 시간 (필요 시 유지)
-    private LocalDateTime endTime;    // 작업 종료 시간 (필요 시 유지)
+    private OffsetDateTime startTime;  // 작업 시작 시간 (필요 시 유지)
+    private OffsetDateTime endTime;    // 작업 종료 시간 (필요 시 유지)
     private String level;             // 로그 레벨 (INFO, WARN 등)
     private String category;          // 로그 카테고리 (PRODUCTION 등)
     private String message;           // 로그 메시지

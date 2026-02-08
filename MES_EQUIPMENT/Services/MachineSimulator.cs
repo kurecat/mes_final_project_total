@@ -290,6 +290,7 @@ public class MachineSimulator
         _productionLogDto.Status = "DONE";                   // [수정] 서버 ProductionStatus Enum (RUN, DONE, PAUSED) 중 DONE으로 변경
         _productionLogDto.Category = "PRODUCTION";
         _productionLogDto.Level = "INFO";
+        _productionLogDto.EndTime = DateTime.Now;
 
         // [수정] DateOnly를 사용하여 서버 LocalDate 규격(yyyy-MM-dd)에 맞춤
         _productionLogDto.ResultDate = DateOnly.FromDateTime(DateTime.Today);
@@ -329,6 +330,7 @@ public class MachineSimulator
         // [수정] 작업 시작 시 기본 정보 세팅
         _productionLogDto.WorkOrderNumber = order.WorkOrderNumber;
         _productionLogDto.EquipmentCode = AppConfig.EquipmentCode;
+        _productionLogDto.StartTime = DateTime.Now;
 
         byte[] productCodeBody = System.Text.Encoding.UTF8.GetBytes(order.ProductCode);
         byte[] packet = new byte[4 + productCodeBody.Length];
