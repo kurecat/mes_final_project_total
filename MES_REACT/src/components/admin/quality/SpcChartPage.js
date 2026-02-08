@@ -382,6 +382,7 @@ const ContentRow = styled.div`
   flex: 1;
   overflow: hidden;
   min-height: 0;
+  margin-bottom: 20px;
 `;
 const ChartPanel = styled.div`
   flex: 3;
