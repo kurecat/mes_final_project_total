@@ -190,26 +190,12 @@ const DefectRow = React.memo(({ log }) => {
     <tr>
       <td>{log.time}</td>
       <td style={{ fontWeight: "bold", color: "#e74c3c" }}>{log.id}</td>
-      <td>
-        {log.lotId} / {log.waferId}
-      </td>
+      <td>{log.wafer}</td>
       <td style={{ fontFamily: "monospace" }}>{log.coord}</td>
       <td>{log.type}</td>
       <td>{log.process}</td>
       <td>
-        {log.image ? (
-          <ImgBtn>
-            <FaFileImage /> View
-          </ImgBtn>
-        ) : (
-          <span style={{ color: "#ccc" }}>-</span>
-        )}
-      </td>
-      <td>
         <StatusBadge $status={log.status}>{log.status}</StatusBadge>
-      </td>
-      <td>
-        <ActionBtn>Detail</ActionBtn>
       </td>
     </tr>
   );
@@ -246,13 +232,11 @@ const DefectList = React.memo(
               <tr>
                 <th>Time</th>
                 <th>Defect ID</th>
-                <th>Lot / Wafer</th>
+                <th>Wafer</th>
                 <th>Coord</th>
                 <th>Defect Mode</th>
                 <th>Process Step</th>
                 <th>Image</th>
-                <th>Status</th>
-                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -304,8 +288,7 @@ const DefectPage = () => {
           time: item.endTime
             ? new Date(item.endTime).toLocaleTimeString()
             : "-",
-          lotId: item.workOrder?.workOrderNumber || "Unknown Lot",
-          waferId: "WF-0" + (item.id % 9), // 임시 웨이퍼 ID
+          wafer: "WF-0" + (item.id % 9), // 임시 웨이퍼 ID
           coord: `(${Math.floor(Math.random() * 20)}, ${Math.floor(Math.random() * 20)})`, // 좌표 임시
           type: item.message || "Unknown", // 불량 원인(Message)을 Type으로 사용
           process: item.processStep || "Process",

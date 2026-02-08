@@ -10,6 +10,7 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     // 시리얼 번호로 조회
     Optional<Item> findBySerialNumber(String serialNumber);
     List<Item> findBySerialNumberContaining(String serialNumber);
+    List<Item> findByInspectionResult(String inspectionResult);
 
     long countByProductionLog_WorkOrder_IdAndInspectionResult(Long id, String fail);
 }

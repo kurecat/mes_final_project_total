@@ -49,7 +49,7 @@ public class ProductionService {
     private final MoldingRepository moldingRepo;
     private final MoldingInspectionRepository moldingInspectionRepo;
     private final ItemRepository itemRepo;
-    private final FinalInspectionLogRepository finalInspectionLRepo;
+    private final FinalInspectionRepository finalInspectionLRepo;
     private final ProductionResultRepository productionResultRepo;
 
     private final InspectionStandardRepository standardRepo;
@@ -520,7 +520,7 @@ public class ProductionService {
         int currentResultCount = items.size();
 
         int currentFailCount = Math.toIntExact(items.stream()
-                .filter(item -> "Fail".equalsIgnoreCase(item.getInspectionResult()))
+                .filter(item -> "FAIL".equalsIgnoreCase(item.getInspectionResult()))
                 .count());
 
         productionLog.setResultQty(currentResultCount);
@@ -732,7 +732,7 @@ public class ProductionService {
         return orders.stream().map(wo -> {
             long planDie = (long) wo.getTargetQty() * WAFER_TO_DIE;
             long actualDie = (long) wo.getCurrentQty() * WAFER_TO_DIE;
-            long lossDie = itemRepo.countByProductionLog_WorkOrder_IdAndInspectionResult(wo.getId(), "Fail");
+            long lossDie = itemRepo.countByProductionLog_WorkOrder_IdAndInspectionResult(wo.getId(), "FAIL");
             double rate = (planDie == 0L) ? 0.0 : (actualDie * 100.0 / planDie);
 
             String status = "IN_PROGRESS".equals(wo.getStatus()) ? "RUNNING" : wo.getStatus();
