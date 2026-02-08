@@ -236,7 +236,7 @@ const DefectList = React.memo(
                 <th>Coord</th>
                 <th>Defect Mode</th>
                 <th>Process Step</th>
-                <th>Image</th>
+                <th>State</th>
               </tr>
             </thead>
             <tbody>
