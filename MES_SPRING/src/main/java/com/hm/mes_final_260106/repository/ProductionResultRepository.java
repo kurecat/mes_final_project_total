@@ -53,9 +53,9 @@ public interface ProductionResultRepository extends JpaRepository<ProductionResu
             String line,
             com.hm.mes_final_260106.entity.Product product
     );
-    // 대시보드에서 사용 (양품+불량)
+    // 대시보드에서 사용 (양품)
     @Query("""
-    SELECT COALESCE(SUM(pr.goodQty + pr.defectQty), 0)
+    SELECT COALESCE(SUM(pr.goodQty), 0)
     FROM ProductionResult pr
     WHERE pr.resultDate = :date
 """)
@@ -68,6 +68,9 @@ public interface ProductionResultRepository extends JpaRepository<ProductionResu
 """)
     double avgYieldByDate(@Param("date") LocalDate date);
 
+    // ✅ [추가] 불량 수량이 특정 값(0)보다 큰 데이터 조회
+    // JPA가 메서드 이름을 분석해서 "SELECT * FROM production_result WHERE defect_qty > ?" 쿼리를 자동 생성합니다.
+    List<ProductionResult> findByDefectQtyGreaterThan(Integer defectQty);
 }
 
 
