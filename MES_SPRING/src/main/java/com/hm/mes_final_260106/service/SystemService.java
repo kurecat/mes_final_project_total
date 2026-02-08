@@ -63,19 +63,87 @@ public class SystemService {
     // 2. 역할 생성
     @Transactional
     public RoleDto createRole(RoleDto dto) {
+
+        // 1️⃣ null + 공백 정리 (매우 중요)
+        String name = dto.getName() == null ? null : dto.getName().trim();
+        String code = dto.getCode() == null ? null : dto.getCode().trim();
+        String description = dto.getDescription();
+
+        // 2️⃣ 필수값 체크
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("역할 이름은 필수입니다.");
+        }
+
+        if (code == null || code.isEmpty()) {
+            throw new IllegalArgumentException("역할 코드는 필수입니다.");
+        }
+
+        // 3️⃣ 길이 제한 (DB 터지기 전에 차단)
+        if (name.length() > 50) {
+            throw new IllegalArgumentException("역할 이름은 50자 이내여야 합니다.");
+        }
+
+        if (code.length() > 50) {
+            throw new IllegalArgumentException("역할 코드는 50자 이내여야 합니다.");
+        }
+
+        if (description != null && description.length() > 255) {
+            throw new IllegalArgumentException("설명은 255자 이내여야 합니다.");
+        }
+
+        // 4️⃣ 코드 규칙 (annotation 대신 직접)
+        if (!code.startsWith("ROLE_")) {
+            throw new IllegalArgumentException("역할 코드는 ROLE_로 시작해야 합니다.");
+        }
+
+        // 5️⃣ 중복 사전 체크 (unique 제약 의존 제거)
+        if (roleRepository.existsByName(name)) {
+            throw new IllegalArgumentException("이미 존재하는 역할 이름입니다.");
+        }
+
+        if (roleRepository.existsByCode(code)) {
+            throw new IllegalArgumentException("이미 존재하는 역할 코드입니다.");
+        }
+
+        boolean isSystem = code.startsWith("Role_");
+
         Role role = Role.builder()
-                .name(dto.getName())
-                .code(dto.getCode()) // 코드 필드가 있다면
-                .description(dto.getDescription())
-                // ★ null 체크 후 저장 (null이면 false로 처리)
-                .isSystem(dto.getIsSystem() != null && dto.getIsSystem())
+                .name(name)
+                .code(code)
+                .description(description)
+                .isSystem(isSystem)
                 .build();
 
-        Role savedRole = roleRepository.save(role);
-        return RoleDto.from(savedRole);
+        return RoleDto.from(roleRepository.save(role));
     }
+    // 3. 역할 수정
+    @Transactional
+    public RoleDto updateRole(Long id, RoleDto dto) {
 
-    // 3. 역할 삭제
+        Role role = roleRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 역할입니다."));
+
+        String name = dto.getName() == null ? null : dto.getName().trim();
+        String description = dto.getDescription();
+
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("역할 이름은 필수입니다.");
+        }
+
+        if (name.length() > 50) {
+            throw new IllegalArgumentException("역할 이름은 50자 이내여야 합니다.");
+        }
+
+        if (!role.getName().equals(name) && roleRepository.existsByName(name)) {
+            throw new IllegalArgumentException("이미 존재하는 역할 이름입니다.");
+        }
+
+        role.setName(name);
+        role.setDescription(description);
+
+        return RoleDto.from(role);
+    }
+    // 4. 역할 삭제
     @Transactional
     public void deleteRole(Long roleId) {
         Role role = roleRepository.findById(roleId)
@@ -89,12 +157,12 @@ public class SystemService {
 
     // --- 권한(Permission) 관리 ---
 
-    // 4. 전체 권한 목록 조회
+    // 5. 전체 권한 목록 조회
     public List<Permission> getAllPermissions() {
         return permissionRepository.findAll();
     }
 
-    // 5. 역할에 권한 매핑 업데이트
+    // 6. 역할에 권한 매핑 업데이트
     @Transactional
     public void updateRolePermissions(Long roleId, List<Long> permissionIds) {
         Role role = roleRepository.findById(roleId)

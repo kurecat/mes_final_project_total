@@ -452,9 +452,6 @@ public class ProductionService {
     // =========================
     // 7) 생산 실적 보고
     // =========================
-    // =========================
-    // 7) 생산 실적 보고
-    // =========================
     @Transactional(noRollbackFor = CustomException.class)
     public void reportProduction(ProductionLogCreateReqDto dto) {
         log.info("reportProduction 실행 : {}", dto.getWorkOrderNumber());

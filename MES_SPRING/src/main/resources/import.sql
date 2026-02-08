@@ -195,3 +195,28 @@ INSERT INTO wire_bonding (production_log_id, bonding_temp, bonding_force, bondin
 INSERT INTO molding (production_log_id, mold_temp, injection_pressure, cure_time, clamp_force) VALUES
 (7, '175.5', '10.2', '120', '500'),
 (8, '176.0', '10.5', '120', '505');
+
+INSERT INTO permissions (code, group_name, name) VALUES
+-- 시스템 관리
+('PERM_USER_MANAGE', '시스템 관리', '사용자 관리'),
+('PERM_ROLE_MANAGE', '시스템 관리', '권한 관리'),
+('PERM_CODE_MANAGE', '시스템 관리', '공통 코드 관리'),
+('PERM_LOG_VIEW', '시스템 관리', '시스템 로그 조회'),
+
+-- 기준 정보 (MDM)
+('PERM_BOM_MANAGE', '기준 정보', 'BOM 관리'),
+('PERM_ITEM_MANAGE', '기준 정보', '품목 마스터 관리'),
+('PERM_ROUTING_MANAGE', '기준 정보', '공정/설비 관리'),
+
+-- 생산 관리
+('PERM_PLAN_EDIT', '생산 관리', '생산 계획 수립'),
+('PERM_WORKORDER_EDIT', '생산 관리', '작업 지시 관리'),
+('PERM_PRODUCTION_ENTRY', '생산 관리', '생산 실적 등록'),
+
+-- 품질 관리
+('PERM_QUALITY_EDIT', '품질 관리', '품질 검사 관리'),
+('PERM_DEFECT_VIEW', '품질 관리', '불량/추적 관리'),
+
+-- 자재/재고
+('PERM_MATERIAL_IO', '자재 관리', '입출고 관리'),
+('PERM_INVENTORY_VIEW', '자재 관리', '재고 현황 조회');
