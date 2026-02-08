@@ -82,6 +82,10 @@ public class AuthService {
             throw new CustomException("관리자 승인 대기 중입니다.");
         }
 
+        if (member.getAuthority() == Authority.ROLE_OPERATOR) {
+            throw new CustomException("현장 작업자는 웹 시스템에 접근할 수 없습니다.");
+        }
+
         TokenDto tokenDto = tokenProvider.generateTokenDto(authentication);
         tokenDto.setMemberInfo(MemberResDto.of(member));
 

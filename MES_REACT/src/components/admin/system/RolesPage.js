@@ -10,26 +10,41 @@ import {
   FaTimes,
   FaLock,
   FaEdit,
+  FaBan, // 수정 금지 표시용 아이콘
 } from "react-icons/fa";
+
+// ★ 수정/삭제가 불가능한 시스템 역할 목록 정의
+const PROTECTED_ROLES = [
+  "ROLE_ADMIN",
+  "ROLE_OPERATOR",
+  "ROLE_PRODUCTION_ADMIN",
+];
 
 // --- [서브 컴포넌트] ---
 
-// 1. 역할 카드
+// 1. 역할 카드 (좌측 리스트)
 const RoleCardItem = React.memo(({ role, isActive, onSelect }) => {
+  // 시스템 역할이거나 보호된 역할이면 뱃지 표시
+  const isSystem = role.isSystem || PROTECTED_ROLES.includes(role.code);
+
   return (
     <RoleCard $active={isActive} onClick={() => onSelect(role)}>
       <RoleHeader>
         <RoleName>{role.name}</RoleName>
-        <SystemBadge>
-          <FaLock size={10} /> 시스템
-        </SystemBadge>
+        {isSystem ? (
+          <SystemBadge>
+            <FaLock size={10} /> 시스템
+          </SystemBadge>
+        ) : (
+          <CodeBadge>{role.code}</CodeBadge>
+        )}
       </RoleHeader>
       <RoleDesc>{role.description || "설명 없음"}</RoleDesc>
     </RoleCard>
   );
 });
 
-// 2. 권한 체크박스
+// 2. 권한 체크박스 (개별 아이템)
 const PermissionItem = React.memo(({ perm, isChecked, onToggle, disabled }) => {
   return (
     <PermCard
@@ -38,12 +53,11 @@ const PermissionItem = React.memo(({ perm, isChecked, onToggle, disabled }) => {
       onClick={() => !disabled && onToggle(perm.id)}
     >
       <Checkbox $checked={isChecked} $disabled={disabled}>
-        {isChecked && <FaCheck size={10} color="white" />}
+        {isChecked && <FaCheck size={10} color={disabled ? "#aaa" : "white"} />}
       </Checkbox>
       <PermInfo>
         <PermName>{perm.name}</PermName>
         <PermCode>{perm.code}</PermCode>
-        {/* <PermDesc>{perm.description}</PermDesc> 설명이 길면 생략 가능 */}
       </PermInfo>
     </PermCard>
   );
@@ -51,7 +65,7 @@ const PermissionItem = React.memo(({ perm, isChecked, onToggle, disabled }) => {
 
 // 3. 권한 그룹 (섹션)
 const PermissionGroup = React.memo(
-  ({ groupName, permissions, editedPermissionIds, onToggle, roleIsAdmin }) => {
+  ({ groupName, permissions, editedPermissionIds, onToggle, isReadOnly }) => {
     return (
       <GroupSection>
         <GroupTitle>{groupName}</GroupTitle>
@@ -62,7 +76,8 @@ const PermissionGroup = React.memo(
               perm={perm}
               isChecked={editedPermissionIds.includes(perm.id)}
               onToggle={onToggle}
-              disabled={roleIsAdmin && perm.isSystem}
+              // 보호된 역할이면 비활성화 (클릭 불가)
+              disabled={isReadOnly}
             />
           ))}
         </Grid>
@@ -71,7 +86,7 @@ const PermissionGroup = React.memo(
   },
 );
 
-// 4. 모달
+// 4. 모달 (역할 추가/수정)
 const RoleModal = ({ isOpen, onClose, onSave, initialData, isEditMode }) => {
   const [form, setForm] = useState({
     name: "",
@@ -96,7 +111,8 @@ const RoleModal = ({ isOpen, onClose, onSave, initialData, isEditMode }) => {
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    if (!form.name || !form.code) return alert("역할 명과 코드는 필수입니다.");
+    if (!form.name || !form.code)
+      return alert("필수 입력 항목이 비어있습니다.");
     onSave(form);
   };
 
@@ -156,17 +172,18 @@ const RolesPage = () => {
   const [selectedRole, setSelectedRole] = useState(null);
   const [editedPermissionIds, setEditedPermissionIds] = useState([]);
   const [isDirty, setIsDirty] = useState(false);
+
+  // 모달 상태
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // 데이터 로딩
+  // 1. 데이터 로딩
   const fetchData = useCallback(async () => {
     try {
       const [rolesRes, permsRes] = await Promise.all([
         axiosInstance.get("/api/mes/system/roles"),
         axiosInstance.get("/api/mes/system/permissions"),
       ]);
-
       const roleList = rolesRes.data || [];
       const permList = permsRes.data || [];
 
@@ -174,23 +191,48 @@ const RolesPage = () => {
       setAllPermissions(permList);
 
       if (roleList.length > 0 && !selectedRole) {
-        selectRole(roleList[0]);
+        selectRole(roleList[0], permList); // 초기 로딩 시 첫 번째 역할 선택
       }
     } catch (err) {
       console.error("데이터 로딩 실패", err);
     }
-  }, [selectedRole]);
+  }, [selectedRole]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const selectRole = (role) => {
+  // 2. 역할 선택 및 자동 체크 로직
+  const selectRole = (role, permissions = allPermissions) => {
     setSelectedRole(role);
-    setEditedPermissionIds(role.permissionIds ? [...role.permissionIds] : []);
+
+    let newCheckedIds = [];
+
+    // (1) 최고 관리자: 모든 권한 자동 체크
+    if (role.code === "ROLE_ADMIN") {
+      newCheckedIds = permissions.map((p) => p.id);
+    }
+    // (2) 생산 관리자: 생산, 품질, 자재, 설비, 대시보드 관련만 체크
+    else if (role.code === "ROLE_PRODUCTION_ADMIN") {
+      const targetKeywords = ["생산", "품질", "자재", "설비", "대시보드"];
+      newCheckedIds = permissions
+        .filter((p) => {
+          // 백엔드 필드명 호환성 처리 (groupName, group_name, group)
+          const gName = p.groupName || p.group_name || p.group || "";
+          return targetKeywords.some((keyword) => gName.includes(keyword));
+        })
+        .map((p) => p.id);
+    }
+    // (3) 기타 역할: DB에 저장된 권한 불러오기
+    else {
+      newCheckedIds = role.permissionIds ? [...role.permissionIds] : [];
+    }
+
+    setEditedPermissionIds(newCheckedIds);
     setIsDirty(false);
   };
 
+  // 3. 체크박스 토글 핸들러
   const handleTogglePermission = useCallback((permId) => {
     setEditedPermissionIds((prev) => {
       if (prev.includes(permId)) return prev.filter((id) => id !== permId);
@@ -199,6 +241,7 @@ const RolesPage = () => {
     setIsDirty(true);
   }, []);
 
+  // 4. 권한 저장 (PUT)
   const handleSavePermissions = async () => {
     if (!selectedRole) return;
     try {
@@ -214,24 +257,26 @@ const RolesPage = () => {
         ),
       );
       setIsDirty(false);
-      alert("저장되었습니다.");
+      alert("권한 설정이 저장되었습니다.");
     } catch (err) {
       alert("저장 실패: " + err.message);
     }
   };
 
+  // 5. 역할 추가 (POST)
   const handleAddRole = async (formData) => {
     try {
       const res = await axiosInstance.post("/api/mes/system/role", formData);
       setRoles((prev) => [...prev, res.data]);
       selectRole(res.data);
       setIsModalOpen(false);
-      alert("생성되었습니다.");
+      alert("새 역할이 생성되었습니다.");
     } catch (err) {
-      alert(err.response?.data?.message || err.message);
+      alert("생성 실패: " + err.message);
     }
   };
 
+  // 6. 역할 수정 (PUT)
   const handleUpdateRole = async (formData) => {
     try {
       await axiosInstance.put(
@@ -248,14 +293,16 @@ const RolesPage = () => {
       );
       setSelectedRole(updatedRole);
       setIsModalOpen(false);
-      alert("수정되었습니다.");
+      alert("역할 정보가 수정되었습니다.");
     } catch (err) {
       alert("수정 실패: " + err.message);
     }
   };
 
+  // 7. 역할 삭제 (DELETE)
   const handleDeleteRole = async () => {
-    if (!window.confirm("정말 삭제하시겠습니까?")) return;
+    if (!window.confirm(`'${selectedRole.name}' 역할을 정말 삭제하시겠습니까?`))
+      return;
     try {
       await axiosInstance.delete(`/api/mes/system/role/${selectedRole.id}`);
       const filtered = roles.filter((r) => r.id !== selectedRole.id);
@@ -268,36 +315,33 @@ const RolesPage = () => {
     }
   };
 
-  // ★ 핵심 수정: 그룹핑 로직 (groupName 처리)
+  // 8. 권한 그룹핑 로직
   const groupedPermissions = useMemo(() => {
     const groups = {};
     allPermissions.forEach((p) => {
-      // DB의 group_name -> JSON의 groupName으로 넘어오는 경우가 많음
+      // DB 컬럼(group_name)과 JSON 변환(groupName) 호환 처리
       const g = p.groupName || p.group_name || p.group || "기타 (Misc)";
-
       if (!groups[g]) groups[g] = [];
       groups[g].push(p);
     });
-
-    // 키 정렬 (가나다 순) - 필요시 주석 해제
-    // const sortedKeys = Object.keys(groups).sort();
-    // const sortedGroups = {};
-    // sortedKeys.forEach(key => sortedGroups[key] = groups[key]);
-    // return sortedGroups;
-
     return groups;
   }, [allPermissions]);
+
+  // ★ 현재 선택된 역할이 수정 불가능한지 확인
+  const isProtected =
+    selectedRole && PROTECTED_ROLES.includes(selectedRole.code);
 
   return (
     <Container>
       <Header>
         <TitleGroup>
           <FaUserShield size={24} color="#34495e" />
-          <h1>권한 그룹 관리</h1>
+          <h1>권한 그룹 관리 (Role Management)</h1>
         </TitleGroup>
       </Header>
 
       <Content>
+        {/* === 좌측: 역할 목록 === */}
         <LeftPanel>
           <PanelTitle>
             <span>Roles</span>
@@ -316,12 +360,13 @@ const RolesPage = () => {
                 key={role.id}
                 role={role}
                 isActive={selectedRole?.id === role.id}
-                onSelect={() => selectRole(role)}
+                onSelect={(r) => selectRole(r)}
               />
             ))}
           </RoleList>
         </LeftPanel>
 
+        {/* === 우측: 권한 매트릭스 === */}
         <RightPanel>
           {selectedRole ? (
             <>
@@ -332,29 +377,37 @@ const RolesPage = () => {
                   <p>{selectedRole.description}</p>
                 </div>
                 <div className="actions">
-                  <EditBtn
-                    onClick={() => {
-                      setIsEditMode(true);
-                      setIsModalOpen(true);
-                    }}
-                  >
-                    <FaEdit /> 수정
-                  </EditBtn>
-                  {!selectedRole.isSystem && (
-                    <DeleteBtn onClick={handleDeleteRole}>
-                      <FaTrashAlt /> 삭제
-                    </DeleteBtn>
-                  )}
-                  {isDirty && (
-                    <SaveBtn onClick={handleSavePermissions}>
-                      <FaSave /> 저장
-                    </SaveBtn>
+                  {/* 보호된 역할인 경우: 수정/삭제/저장 버튼 숨김 & 배지 표시 */}
+                  {isProtected ? (
+                    <ReadOnlyBadge>
+                      <FaBan /> 수정 불가 (시스템 기본값)
+                    </ReadOnlyBadge>
+                  ) : (
+                    <>
+                      <EditBtn
+                        onClick={() => {
+                          setIsEditMode(true);
+                          setIsModalOpen(true);
+                        }}
+                      >
+                        <FaEdit /> 수정
+                      </EditBtn>
+                      {!selectedRole.isSystem && (
+                        <DeleteBtn onClick={handleDeleteRole}>
+                          <FaTrashAlt /> 삭제
+                        </DeleteBtn>
+                      )}
+                      {isDirty && (
+                        <SaveBtn onClick={handleSavePermissions}>
+                          <FaSave /> 저장
+                        </SaveBtn>
+                      )}
+                    </>
                   )}
                 </div>
               </DetailHeader>
 
               <MatrixArea>
-                {/* 그룹별 렌더링 */}
                 {Object.keys(groupedPermissions).map((group) => (
                   <PermissionGroup
                     key={group}
@@ -362,7 +415,8 @@ const RolesPage = () => {
                     permissions={groupedPermissions[group]}
                     editedPermissionIds={editedPermissionIds}
                     onToggle={handleTogglePermission}
-                    roleIsAdmin={selectedRole.code === "ROLE_ADMIN"}
+                    // 보호된 역할이면 체크박스 비활성화 (Read-Only)
+                    isReadOnly={isProtected}
                   />
                 ))}
               </MatrixArea>
@@ -387,6 +441,7 @@ const RolesPage = () => {
 export default RolesPage;
 
 // --- [Styled Components] ---
+
 const Container = styled.div`
   width: 100%;
   height: 100%;
@@ -649,10 +704,6 @@ const PermCode = styled.div`
   font-family: monospace;
   margin: 2px 0;
 `;
-const PermDesc = styled.div`
-  font-size: 12px;
-  color: #666;
-`;
 const EmptyState = styled.div`
   flex: 1;
   display: flex;
@@ -754,4 +805,18 @@ const CancelBtn = styled.button`
   &:hover {
     background: #f1f1f1;
   }
+`;
+
+// ★ 수정 불가 배지 스타일
+const ReadOnlyBadge = styled.div`
+  background: #eee;
+  color: #777;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #ddd;
 `;

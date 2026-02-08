@@ -58,12 +58,18 @@ const LoginPage = () => {
         resultData.name ||
         inputs.id.split("@")[0] ||
         "User";
+      const authority =
+        resultData.memberInfo?.authority || resultData.authority || "ROLE_USER";
+
+      console.log("사용자 이름:", userName);
+      console.log("사용자 권한:", authority);
 
       if (accessToken) {
         // 1. 로컬 스토리지 저장
         localStorage.setItem("refreshToken", refreshToken);
         localStorage.setItem("accessToken", accessToken);
         localStorage.setItem("userName", userName);
+        localStorage.setItem("userRole", authority);
 
         // [수정 2] ★ 중요: 다음 요청(대시보드)을 위해 즉시 헤더에 토큰 설정
         // 이걸 안 하면 페이지 이동 직후 첫 요청에서 401이 뜰 수 있음
