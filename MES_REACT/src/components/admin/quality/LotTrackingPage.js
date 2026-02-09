@@ -678,17 +678,17 @@ const StatusBadge = styled.span`
   border-radius: 4px;
   font-weight: 600;
   background: ${(props) =>
-    props.$status === "RUNNING"
-      ? "#e8f5e9"
-      : props.$status === "HOLD"
-        ? "#ffebee"
-        : "#fff3e0"};
+    props.$status === "FAIL"
+      ? "#ffebee"
+      : props.$status === "PASS"
+        ? "#e8f5e9"
+        : "#fff"};
   color: ${(props) =>
-    props.$status === "RUNNING"
-      ? "#2ecc71"
-      : props.$status === "HOLD"
-        ? "#e74c3c"
-        : "#f39c12"};
+    props.$status === "FAIL"
+      ? "#e74c3c"
+      : props.$status === "PASS"
+        ? "#2ecc71"
+        : "#000"};
 `;
 
 const ProductCode = styled.div`
