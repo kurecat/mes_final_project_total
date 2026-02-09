@@ -673,20 +673,21 @@ const SerialNumber = styled.span`
 `;
 
 const StatusBadge = styled.span`
+  height: 20px;
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 600;
   background: ${(props) =>
-    props.$status === "FAIL"
+    props.$status === "Fail"
       ? "#ffebee"
-      : props.$status === "PASS"
+      : props.$status === "Pass"
         ? "#e8f5e9"
         : "#fff"};
   color: ${(props) =>
-    props.$status === "FAIL"
+    props.$status === "Fail"
       ? "#e74c3c"
-      : props.$status === "PASS"
+      : props.$status === "Pass"
         ? "#2ecc71"
         : "#000"};
 `;
