@@ -291,6 +291,7 @@ public class MachineSimulator
         _productionLogDto.Category = "PRODUCTION";
         _productionLogDto.Level = "INFO";
         _productionLogDto.EndTime = DateTime.Now;
+        _productionLogDto.WorkerCode = UserSession.WorkerCode;
 
         // [수정] DateOnly를 사용하여 서버 LocalDate 규격(yyyy-MM-dd)에 맞춤
         _productionLogDto.ResultDate = DateOnly.FromDateTime(DateTime.Today);
